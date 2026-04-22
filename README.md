@@ -135,4 +135,4 @@ See [`CLAUDE.md`](./CLAUDE.md) for the full contribution workflow and the agent-
 
 ## License
 
-TBD.
+[MIT](./LICENSE) © 2026 Mario Gutierrez.
