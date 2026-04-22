@@ -40,8 +40,8 @@ CLAUDE_DIR = HOME / ".claude"
 CLAUDE_JSON = HOME / ".claude.json"
 MANIFEST_PATH = CLAUDE_DIR / ".claude-dev-team-manifest.json"
 
-# Names to skip when recursing (runtime state, caches, venvs)
-SKIP_NAMES = {".venv", "__pycache__", ".server.pid", "server.log"}
+# Names to skip when recursing (runtime state, caches, venvs, folder docs)
+SKIP_NAMES = {".venv", "__pycache__", ".server.pid", "server.log", "README.md"}
 
 _stats: dict[str, list[str]] = {
     "installed": [],
