@@ -92,7 +92,9 @@ Generic OS-native notification scripts: `notify-windows.sh` (PowerShell toast), 
 
 ### Knowledge-graph MCP (`chromadb-mcp/`)
 
-ChromaDB-backed MCP server that gives Claude Code semantic memory across projects. Ships with a web viewer (`viewer/app.py`), a legacy migration tool, and `export.py` / `import.py` for non-destructive KG sharing between developers.
+ChromaDB-backed MCP server that gives Claude Code semantic memory across projects. Ships with a web viewer, a legacy migration tool, and `export.py` / `import.py` for non-destructive KG sharing between developers.
+
+Every KG operation (view, edit, share, run the server, migrate) is documented in [`chromadb-mcp/README.md`](./chromadb-mcp/README.md) — that file is the canonical reference.
 
 ---
 
