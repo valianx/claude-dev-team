@@ -38,11 +38,32 @@ The installer copies these scripts into `~/.claude/hooks/` but does **not** modi
 
 Each OS section in `config.json` binds three events:
 
-| Event | When it fires |
-|---|---|
-| `Stop` | Claude finished its turn. |
-| `Notification` | Matcher `idle_prompt|permission_prompt` — Claude is waiting for input. |
-| `PostToolUseFailure` | A tool invocation failed. |
+The default set is deliberately **quiet** — only high-signal events:
+
+| Event | When it fires | Why it's in the default set |
+|---|---|---|
+| `Notification` | Matcher `idle_prompt\|permission_prompt` — Claude is waiting for input. | High signal: you need to act for Claude to continue. |
+| `PostToolUseFailure` | A tool invocation failed. | Rare and important: something broke, worth looking. |
+
+`Stop` (Claude finished its turn) is **not** in the default on purpose — it fires on every response, which becomes dozens of notifications a day in active back-and-forth work.
+
+## Opt-in: notify when Claude finishes a turn
+
+If you walk away from long-running tasks and want to be pinged when Claude is done, add a `Stop` entry into the `"hooks"` object of your `~/.claude/settings.json`. Example for macOS:
+
+```json
+"Stop": [
+  {
+    "hooks": [
+      { "type": "command", "command": "bash ~/.claude/hooks/notify-mac.sh", "timeout": 5 }
+    ]
+  }
+]
+```
+
+Swap the script path for `notify-windows.sh` or `notify-linux.sh` as needed.
+
+Expect this to be **noisy** during active development. Remove it when you go back to interactive work.
 
 ## Adding support for another OS
 

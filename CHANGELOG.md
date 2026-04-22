@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Notifications default is now quiet.** Removed the `Stop` event from `hooks/config.json` (it fires on every Claude response and creates notification fatigue during active work). The default set is now `Notification` (idle / permission prompts) + `PostToolUseFailure` only. Developers who want a ping when long runs finish can opt in by following the "Opt-in: notify when Claude finishes a turn" section in `hooks/README.md`.
+
 ### Added
 
 - **MIT License** (`LICENSE`) — repo is now under MIT, copyright 2026 Mario Gutierrez. `README.md` updated accordingly.

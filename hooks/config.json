@@ -1,22 +1,11 @@
 {
-  "_comment": "Copy the 'hooks' section for your OS into ~/.claude/settings.json.",
+  "_comment": "Copy the 'hooks' section for your OS into ~/.claude/settings.json. Default is quiet: notifications fire only when Claude needs your input or a tool fails. To also be notified when Claude finishes a turn, see the opt-in 'Stop' snippet in hooks/README.md.",
 
   "windows": {
     "_requires": "powershell.exe (included in Windows)",
     "_script": "notify-windows.sh",
-    "_events": "Stop + Notification + PostToolUseFailure",
+    "_events": "Notification + PostToolUseFailure",
     "hooks": {
-      "Stop": [
-        {
-          "hooks": [
-            {
-              "type": "command",
-              "command": "bash ~/.claude/hooks/notify-windows.sh",
-              "timeout": 5
-            }
-          ]
-        }
-      ],
       "Notification": [
         {
           "matcher": "idle_prompt|permission_prompt",
@@ -47,19 +36,8 @@
   "macos": {
     "_requires": "osascript (included in macOS)",
     "_script": "notify-mac.sh",
-    "_events": "Stop + Notification + PostToolUseFailure",
+    "_events": "Notification + PostToolUseFailure",
     "hooks": {
-      "Stop": [
-        {
-          "hooks": [
-            {
-              "type": "command",
-              "command": "bash ~/.claude/hooks/notify-mac.sh",
-              "timeout": 5
-            }
-          ]
-        }
-      ],
       "Notification": [
         {
           "matcher": "idle_prompt|permission_prompt",
@@ -90,19 +68,8 @@
   "linux": {
     "_requires": "libnotify (notify-send)",
     "_script": "notify-linux.sh",
-    "_events": "Stop + Notification + PostToolUseFailure",
+    "_events": "Notification + PostToolUseFailure",
     "hooks": {
-      "Stop": [
-        {
-          "hooks": [
-            {
-              "type": "command",
-              "command": "bash ~/.claude/hooks/notify-linux.sh",
-              "timeout": 5
-            }
-          ]
-        }
-      ],
       "Notification": [
         {
           "matcher": "idle_prompt|permission_prompt",
