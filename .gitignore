@@ -1,0 +1,18 @@
+# Ephemeral agent session notes
+/session-docs
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Python (chromadb-mcp)
+**/__pycache__/
+*.pyc
+chromadb-mcp/.venv/
+chromadb-mcp/.server.pid
+chromadb-mcp/server.log
