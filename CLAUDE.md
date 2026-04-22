@@ -38,8 +38,11 @@ claude-dev-team/
 │   ├── d2-diagram/      Complex skills (SKILL.md + references/)
 │   ├── excalidraw-diagram/
 │   └── likec4-diagram/
-├── hooks/               OS-native notification scripts (.sh, one per platform)
-├── hooks-config.json    Per-OS hook templates for ~/.claude/settings.json
+├── hooks/               OS-native notification scripts + config template
+│   ├── notify-windows.sh
+│   ├── notify-mac.sh
+│   ├── notify-linux.sh
+│   └── config.json      Per-OS hook templates for ~/.claude/settings.json
 ├── chromadb-mcp/        Knowledge-graph MCP server (Python + ChromaDB)
 │   ├── server.py
 │   ├── pyproject.toml
@@ -54,8 +57,6 @@ claude-dev-team/
 ├── docs/
 │   └── knowledge.md     Project knowledge base — decisions, patterns, stack
 ├── shared-knowledge/    Drop-off for shared KG exports (see folder README)
-├── diagram.excalidraw   Visual architecture of the agent system
-├── diagram_preview.png  Rendered preview of the diagram
 ├── README.md            Human-facing overview
 ├── CHANGELOG.md         Keep-a-Changelog + semver
 ├── CLAUDE.md            This file
@@ -83,7 +84,7 @@ claude-dev-team/
 | Complex skills | Markdown + referenced scripts (Python/Node via `uv run` or CLIs) |
 | Hooks | Bash scripts (`.sh`) — run via Git Bash on Windows, native on macOS/Linux |
 | KG MCP server | Python + ChromaDB (PersistentClient) + FastMCP, run via `uv run` |
-| Config | JSON (`hooks-config.json`) + `~/.claude.json` merge for `mcpServers` |
+| Config | JSON (`hooks/config.json`) + `~/.claude.json` merge for `mcpServers` |
 | Visuals | Excalidraw (`.excalidraw` JSON), PNG preview |
 
 **Current version:** `0.1.0` (see `bin/install.py` `__version__` and `CHANGELOG.md`).
@@ -104,14 +105,13 @@ All commands run from the repo root.
 | Non-interactive install | `CONTEXT7_API_KEY=<key> uv run bin/install.py` |
 | View which files the installer would touch | Run the installer — it reports installed / unchanged / conflicts; never overwrites |
 | Resolve a conflict | Delete the conflicting file in `~/.claude/...` and re-run the installer |
-| Enable notification hooks | Open `hooks-config.json`, copy the section for your OS, merge it into `~/.claude/settings.json` under `"hooks"` |
+| Enable notification hooks | Open `hooks/config.json`, copy the section for your OS, merge it into `~/.claude/settings.json` under `"hooks"` |
 | Start the KG MCP in SSE mode | `./chromadb-mcp/manage-server.sh start` (optional; stdio mode is the default and needs no server) |
 | Open the KG viewer | `uv run chromadb-mcp/viewer/app.py` |
 | Export local KG to JSON | `uv run --directory chromadb-mcp/ python export.py --out shared-knowledge/<name>-<date>.json` |
 | Import a shared KG JSON | `uv run --directory chromadb-mcp/ python import.py shared-knowledge/<file>.json` |
 | Migrate from legacy Memory MCP | `uv run chromadb-mcp/migrate_knowledge.py --source ~/.claude/knowledge.json` |
 | Validate agents/skills health | `/lint` inside Claude Code |
-| Render the system diagram | Open `diagram.excalidraw` in Excalidraw, or view `diagram_preview.png` |
 
 **Not applicable to this repo:** lint, typecheck, unit test, integration test, e2e, build, dev server, migrations, deploy. The repo ships declarative assets, an installer, and one MCP server — no code pipeline.
 

@@ -8,8 +8,14 @@
 Installs agents, skills, hooks, and the ChromaDB MCP server into ~/.claude/,
 and registers the `memory` + `context7` MCP servers in ~/.claude.json.
 
-Non-destructive for files that already exist and were customized locally.
-Creates a timestamped backup of ~/.claude.json before modifying it.
+Safe updates:
+    - A manifest at ~/.claude/.claude-dev-team-manifest.json tracks which files
+      were installed by this tool and their hashes.
+    - When re-run, files whose current hash matches the manifest are safely
+      overwritten with the new source (this is a clean update).
+    - Files that were modified locally after install (hash differs from manifest)
+      are reported as conflicts and left untouched.
+    - A timestamped backup of ~/.claude.json is taken before each merge.
 """
 from __future__ import annotations
 
@@ -19,10 +25,10 @@ import os
 import shutil
 import stat
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -32,15 +38,50 @@ REPO_ROOT = SCRIPT_DIR.parent
 HOME = Path.home()
 CLAUDE_DIR = HOME / ".claude"
 CLAUDE_JSON = HOME / ".claude.json"
+MANIFEST_PATH = CLAUDE_DIR / ".claude-dev-team-manifest.json"
 
 # Names to skip when recursing (runtime state, caches, venvs)
 SKIP_NAMES = {".venv", "__pycache__", ".server.pid", "server.log"}
 
 _stats: dict[str, list[str]] = {
     "installed": [],
+    "updated": [],
     "unchanged": [],
     "conflicts": [],
 }
+
+_manifest: dict = {
+    "format_version": "1",
+    "installed_version": None,
+    "files": {},
+}
+
+
+# ---------------------------------------------------------------------------
+# Manifest
+# ---------------------------------------------------------------------------
+def load_manifest() -> None:
+    global _manifest
+    if not MANIFEST_PATH.exists():
+        return
+    try:
+        data = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
+        if isinstance(data, dict) and "files" in data:
+            _manifest = data
+    except (json.JSONDecodeError, OSError):
+        # Corrupt manifest — fall back to fresh (non-destructive behaviour)
+        pass
+
+
+def save_manifest() -> None:
+    ensure_dir(MANIFEST_PATH.parent)
+    _manifest["format_version"] = "1"
+    _manifest["installed_version"] = __version__
+    _manifest["updated_at"] = datetime.now(timezone.utc).isoformat()
+    MANIFEST_PATH.write_text(
+        json.dumps(_manifest, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -58,20 +99,45 @@ def should_skip(name: str) -> bool:
     return name in SKIP_NAMES or name.endswith(".pyc")
 
 
-def copy_file(src: Path, dest: Path, *, executable: bool = False) -> None:
-    ensure_dir(dest.parent)
+def _record(dest: Path, src_hash: str) -> None:
+    _manifest["files"][str(dest)] = {"hash": src_hash}
 
-    if dest.exists():
-        if hash_file(src) == hash_file(dest):
-            _stats["unchanged"].append(str(dest))
-        else:
-            _stats["conflicts"].append(str(dest))
-        return
 
+def _apply(src: Path, dest: Path, *, executable: bool) -> None:
     shutil.copy2(src, dest)
     if executable and sys.platform != "win32":
         dest.chmod(dest.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
-    _stats["installed"].append(str(dest))
+
+
+def copy_file(src: Path, dest: Path, *, executable: bool = False) -> None:
+    ensure_dir(dest.parent)
+    src_hash = hash_file(src)
+    key = str(dest)
+    recorded_hash = _manifest["files"].get(key, {}).get("hash")
+
+    if not dest.exists():
+        _apply(src, dest, executable=executable)
+        _record(dest, src_hash)
+        _stats["installed"].append(key)
+        return
+
+    dest_hash = hash_file(dest)
+
+    if dest_hash == src_hash:
+        _record(dest, src_hash)  # keep manifest in sync
+        _stats["unchanged"].append(key)
+        return
+
+    # Destination differs from source.
+    if recorded_hash and recorded_hash == dest_hash:
+        # We installed this before and the user hasn't modified it — safe update.
+        _apply(src, dest, executable=executable)
+        _record(dest, src_hash)
+        _stats["updated"].append(key)
+        return
+
+    # User-modified or never tracked by us — leave it alone.
+    _stats["conflicts"].append(key)
 
 
 def copy_dir_flat(
@@ -239,12 +305,14 @@ def print_summary(claude_json_backup: Path | None) -> None:
     print()
     print("Summary:")
     print(f"  installed: {len(_stats['installed'])}")
+    print(f"  updated:   {len(_stats['updated'])}")
     print(f"  unchanged: {len(_stats['unchanged'])}")
     print(f"  conflicts: {len(_stats['conflicts'])}")
 
     if _stats["conflicts"]:
         print()
-        print("Conflicts (left untouched — delete manually and re-run to overwrite):")
+        print("Conflicts (locally modified — left untouched):")
+        print("  Delete the file manually and re-run to replace with the repo version.")
         for c in _stats["conflicts"]:
             print(f"  - {c}")
 
@@ -256,9 +324,12 @@ def print_summary(claude_json_backup: Path | None) -> None:
         print(f"  backup: {claude_json_backup}")
 
     print()
+    print(f"Manifest: {MANIFEST_PATH}")
+
+    print()
     print("Next steps:")
     print("  1. Restart Claude Code so it picks up the new MCP servers.")
-    print(f'  2. To enable notification hooks, open hooks-config.json in this repo,')
+    print(f'  2. To enable notification hooks, open hooks/config.json in this repo,')
     print(f'     copy the "{os_label}" section, and merge it into')
     print(f'     ~/.claude/settings.json under the "hooks" key.')
 
@@ -267,6 +338,12 @@ def print_summary(claude_json_backup: Path | None) -> None:
 # Entry
 # ---------------------------------------------------------------------------
 def main() -> None:
+    # Force UTF-8 stdout so characters like em-dash render correctly on Windows.
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
     print(f"claude-dev-team installer v{__version__}")
     print(f"  source:   {REPO_ROOT}")
     print(f"  target:   {CLAUDE_DIR}")
@@ -283,8 +360,16 @@ def main() -> None:
     context7_key = get_context7_api_key()
     print()
 
-    print("Installing files...")
     ensure_dir(CLAUDE_DIR)
+    load_manifest()
+    prev_version = _manifest.get("installed_version")
+    if prev_version:
+        print(f"Detected previous install (version {prev_version}). Updating...")
+    else:
+        print("Fresh install.")
+    print()
+
+    print("Installing files...")
     install_agents()
     install_skills()
     install_hooks()
@@ -292,6 +377,8 @@ def main() -> None:
 
     print("Registering MCP servers in ~/.claude.json...")
     claude_json_backup = register_mcp_servers(context7_key)
+
+    save_manifest()
 
     print_summary(claude_json_backup)
 

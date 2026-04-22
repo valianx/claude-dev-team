@@ -1,65 +1,65 @@
-# Política de contenido del Knowledge Graph
+# Knowledge Graph Content Policy
 
-**Ámbito.** Esta política rige qué puede almacenarse en el Knowledge Graph (KG) del sistema `claude-dev-team`, tanto en la KG local de cada desarrollador (`~/.claude/chromadb/`) como en cualquier export compartido con el equipo.
+**Scope.** This policy governs what may be stored in the Knowledge Graph (KG) of the `claude-dev-team` system — in each developer's local KG (`~/.claude/chromadb/`) and in any export shared with the team.
 
-**Principio rector.** El KG es **memoria técnica compartible**. Todo lo que entra debe ser útil para otro desarrollador del equipo y seguro para circular entre máquinas.
-
----
-
-## ✅ Permitido
-
-- **Patrones de código** reutilizables (convenciones de un framework, soluciones recurrentes).
-- **Gotchas y trampas** de librerías, runtimes o herramientas (`pnpm`, `Supabase`, `shadcn`, `Drizzle`, etc.).
-- **Decisiones arquitectónicas** con rationale técnico (por qué X en lugar de Y, con restricciones técnicas observadas).
-- **Inventarios técnicos** de un proyecto (listado de servicios, puertos, endpoints públicos, estructura de carpetas).
-- **Comandos útiles** específicos de un stack (builds, migraciones, debugging).
-- **Convenciones técnicas** de un proyecto (naming, layout, testing).
-
-## ❌ Prohibido
-
-- **Datos personales**: nombres de personas (incluyendo el del propio dev), roles, responsabilidades, preferencias personales.
-- **Feedback personalizado**: instrucciones dirigidas a un usuario específico ("a Mario le gusta que…").
-- **Credenciales y secretos**: tokens, API keys, URLs de servicios privados, IPs internas, rutas absolutas con usuario (`C:/Users/mario/...`).
-- **Datos de clientes / stakeholders**: nombres de empresas cliente, contactos, acuerdos, información contractual.
-- **Referencias temporales volátiles**: números de ticket, PRs específicos, incidentes con fechas, menciones de releases en curso.
-- **Información organizacional**: jerarquía, políticas internas, discusiones no técnicas.
-
-## ⚠️ Zona gris — requiere juicio
-
-- **Inventarios de negocio**: servicios internos descritos por función técnica (OK) vs. por relación con clientes o regulación (no OK).
-- **Nombres de proyectos**: cuando son públicos u open-source (OK) vs. cuando son productos internos confidenciales (no OK).
-- **Métricas**: performance/throughput sin contexto de negocio (OK) vs. ingresos, usuarios, KPIs (no OK).
-
-Cuando dude, el agente debe **omitir**. Es reversible añadir contenido después; es caro extirparlo de una KG ya distribuida.
+**Guiding principle.** The KG is **technical memory intended to be shareable**. Everything that goes in must be useful to another developer on the team and safe to circulate between machines.
 
 ---
 
-## Cómo se aplica
+## ✅ Allowed
 
-- **Al escribir**: el `orchestrator` y cualquier agente que persista al KG deben filtrar el contenido contra esta política antes de llamar a `create_entities` / `add_observations`. Si una observación cae en zona prohibida, se omite silenciosamente; si cae en zona gris, se omite por default.
-- **Al exportar**: `export.py` (futuro) confía en que la KG local ya cumple la política — no hace curación propia.
-- **Al importar**: `import.py` (futuro) confía en que el archivo origen ya cumple la política — no hace filtrado.
+- **Reusable code patterns** (framework conventions, recurring solutions).
+- **Gotchas and pitfalls** of libraries, runtimes, or tools (`pnpm`, `Supabase`, `shadcn`, `Drizzle`, etc.).
+- **Architectural decisions** with technical rationale (why X over Y, with observed technical constraints).
+- **Technical inventories** of a project (service listings, ports, public endpoints, folder structure).
+- **Useful commands** specific to a stack (builds, migrations, debugging).
+- **Technical conventions** of a project (naming, layout, testing).
 
-La responsabilidad del filtro vive **una sola vez**, al momento de escribir.
+## ❌ Forbidden
 
-## Qué hacer si detectas una violación
+- **Personal data**: person names (including the developer's own), roles, responsibilities, personal preferences.
+- **Personalized feedback**: instructions directed at a specific user ("Mario prefers that…").
+- **Credentials and secrets**: tokens, API keys, URLs of private services, internal IPs, absolute paths with user names (`C:/Users/mario/...`).
+- **Client / stakeholder data**: client company names, contacts, agreements, contractual information.
+- **Volatile temporal references**: ticket numbers, specific PRs, incidents tied to dates, mentions of in-flight releases.
+- **Organizational information**: hierarchy, internal policies, non-technical discussions.
 
-- **En tu KG local**: elimina la entidad/observación con el skill `/memory` o con el viewer (`uv run chromadb-mcp/viewer/app.py`).
-- **En un archivo compartido**: rechaza el PR de `shared-knowledge/`, pide al origen que cure y re-exporte.
-- **En el código de un agente**: abre un PR ajustando el prompt del agente para que respete la política.
+## ⚠️ Gray area — requires judgment
 
-## Convenciones de idioma
+- **Business inventories**: internal services described by technical function (OK) vs. described by their relationship to clients or regulation (not OK).
+- **Project names**: public or open-source names (OK) vs. confidential internal products (not OK).
+- **Metrics**: performance / throughput without business context (OK) vs. revenue, users, KPIs (not OK).
 
-Todo el contenido del KG se escribe en **inglés**, independientemente del idioma de la conversación. Esto alinea con la convención existente del sistema y facilita compartir entre equipos.
+When in doubt, the agent must **omit**. Adding content later is cheap; extracting it from an already-distributed KG is expensive.
 
 ---
 
-## Estado
+## How the policy is applied
 
-**Versión**: 0.1 (borrador inicial, 2026-04-22).
+- **At write time**: the `orchestrator` (and any agent that persists to the KG) must filter content against this policy before calling `create_entities` / `add_observations`. If an observation falls in the forbidden zone, it is omitted silently; if it falls in the gray zone, it is omitted by default.
+- **On export**: `export.py` trusts that the local KG already complies — it performs no curation of its own.
+- **On import**: `import.py` trusts that the source file already complies — no filtering either.
 
-**Estado de implementación**:
-- ✅ Filtro cableado en `orchestrator.md` Phase 6 (Knowledge Save).
-- ✅ `chromadb-mcp/export.py` y `chromadb-mcp/import.py` disponibles.
+The filter lives **in one place only**: at write time.
 
-Esta política es **normativa para humanos y agentes**. El filtro del orchestrator es la primera línea de defensa al escribir; los humanos curan al revisar PRs en `shared-knowledge/`.
+## What to do when a violation is detected
+
+- **In your local KG**: delete the entity / observation via the `/memory` skill or the viewer (`uv run chromadb-mcp/viewer/app.py`).
+- **In a shared file**: reject the PR in `shared-knowledge/`, ask the origin to curate and re-export.
+- **In an agent's prompt**: open a PR adjusting the agent's prompt to comply.
+
+## Language convention
+
+All KG content is written in **English**, regardless of the conversation language. This aligns with the system's existing convention and makes sharing across teams easier.
+
+---
+
+## Status
+
+**Version**: 0.1 (initial draft, 2026-04-22).
+
+**Implementation status**:
+- ✅ Filter wired into `orchestrator.md` Phase 6 (Knowledge Save).
+- ✅ `chromadb-mcp/export.py` and `chromadb-mcp/import.py` available.
+
+This policy is **normative for humans and agents**. The orchestrator's filter is the first line of defense at write time; humans curate by reviewing PRs into `shared-knowledge/`.

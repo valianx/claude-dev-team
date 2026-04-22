@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Manifest-based safe updates.** The installer now writes `~/.claude/.claude-dev-team-manifest.json` tracking which files it installed and their hashes. On re-run, files whose current hash matches the manifest are safely overwritten with the new version (this is a clean update). Files modified locally are still reported as conflicts and left untouched. Adds an `updated` counter to the summary.
+- **UTF-8 stdout** forced in `bin/install.py` so Unicode characters (em-dashes, etc.) render correctly in Windows terminals.
+
+### Changed
+
+- **Repo structure simplified.** Moved `hooks-config.json` → `hooks/config.json` (cohesion: all hooks material in one place). Removed `diagram.excalidraw` / `diagram_preview.png` (outdated visuals, will be redone in a future release). Removed `settings.json` from the repo (was personal to the original maintainer).
+- **`README.md` rewritten** with installation instructions at the top, target OS and dependency requirements, and a tight overview of what the system ships. English throughout.
+- **`docs/kg-content-policy.md` translated to English** to match the system-wide documentation convention.
+- **`agents/README` removed** — redundant with `README.md` and out of date.
+
+### Removed
+
+- `settings.json` (personal) — also purged from git history.
+- `diagram.excalidraw` and `diagram_preview.png` (obsolete).
+- `agents/README` (redundant).
+
 ## [0.1.0] — 2026-04-22
 
 Initial release of the `claude-dev-team` agent system distribution.
