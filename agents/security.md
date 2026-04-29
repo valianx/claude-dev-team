@@ -665,3 +665,24 @@ issues: {critical and high findings titles, or "none"}
 ```
 
 Do NOT repeat the full session-docs content in your final message — it's already written to the file. The orchestrator uses this status block to gate phases without re-reading your output.
+
+### Failure Brief (pipeline mode only, when Critical/High findings exist)
+
+When you finish pipeline mode and `04-security.md` reports any **Critical** or **High** finding (or `status: failed`), **append** an iteration entry to `session-docs/{feature-name}/failure-brief.md` so the orchestrator can route Case D iteration without re-reading the full security report. Create the file if it doesn't exist.
+
+```markdown
+## Iteration {N} — security — {YYYY-MM-DD HH:MM}
+**Root cause type:** D (security-only)
+
+### Critical / High findings
+- [Critical] CWE-89 SQL injection — `src/users/users.repository.ts:42` — query string concatenation of `req.params.id`
+- [High] CWE-352 missing CSRF token on state-changing endpoint — `src/auth/login.controller.ts:18`
+- ...
+
+### Remediation needed by implementer
+- `src/users/users.repository.ts:42` — replace string concatenation with parameterized query (see Prisma `findFirst({ where: { id } })`)
+- `src/auth/login.controller.ts:18` — add `@UseGuards(CsrfGuard)` and verify token on POST
+- ...
+```
+
+Medium / Low / Info findings do NOT go in the brief — those are warnings included in the delivery report, not iteration triggers. Keep the brief tight: 5-10 lines per iteration.

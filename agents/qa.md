@@ -347,3 +347,24 @@ issues: {list of failed criteria, or "none"}
 ```
 
 Do NOT repeat the full session-docs content in your final message — it's already written to the file. The orchestrator uses this status block to gate phases without re-reading your output.
+
+### Failure Brief (validate mode only, when `status: failed`)
+
+When you finish validate mode with `status: failed`, **append** an iteration entry to `session-docs/{feature-name}/failure-brief.md` so the orchestrator can route the iteration without re-reading `04-validation.md`. Create the file if it doesn't exist.
+
+```markdown
+## Iteration {N} — qa — {YYYY-MM-DD HH:MM}
+**Root cause type:** A (implementation) | C (criteria)
+
+### Failing AC
+- AC-3: Given admin role, When DELETE /users/{id} is called, Then user is soft-deleted — `src/users/users.controller.ts:54` returns 200 but does NOT mark deletedAt
+- AC-7 ambiguous: spec says "rate limit per merchant" but doesn't define window — flag as Case C, not implementation gap.
+- ...
+
+### Remediation needed by implementer (or AC clarification needed)
+- `src/users/users.controller.ts:54` — set `deletedAt: new Date()` before returning
+- AC-7: ask user whether window is 1 min or 1 hour
+- ...
+```
+
+Keep the brief tight: 5-10 lines per iteration. The orchestrator reads ONLY this file to decide routing.

@@ -536,3 +536,22 @@ issues: {list of failing tests, or "none"}
 ```
 
 Do NOT repeat the full session-docs content in your final message — it's already written to the file. The orchestrator uses this status block to gate phases without re-reading your output.
+
+### Failure Brief (when `status: failed` only)
+
+When you finish with `status: failed`, **append** an iteration entry to `session-docs/{feature-name}/failure-brief.md` so the orchestrator can route the iteration without re-reading `03-testing.md`. Create the file if it doesn't exist.
+
+```markdown
+## Iteration {N} — tester — {YYYY-MM-DD HH:MM}
+**Root cause type:** A (implementation) | B (design) | C (criteria)
+
+### Failing tests
+- `path/to/foo.spec.ts:42` — `should validate token` — {1-line: assertion expected X, got Y}
+- ...
+
+### Remediation needed by implementer
+- `src/auth/token.ts:18` — null check missing for empty token
+- ...
+```
+
+Keep the brief tight: 5-10 lines per iteration. The orchestrator reads ONLY this file to decide routing — no re-reads of the full test report.

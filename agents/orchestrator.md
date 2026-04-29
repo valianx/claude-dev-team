@@ -455,37 +455,35 @@ Launch agents simultaneously using Task tool calls in the same message:
 
 ### If any agent fails → ITERATE
 
-Read the failing agent's session-docs to understand root cause. Then:
+**Read `session-docs/{feature-name}/failure-brief.md` ONLY.** Do NOT re-read `03-testing.md`, `04-validation.md`, or `04-security.md` in full — those files can be 5-15K tokens each and are already summarized in the brief. The failing agent (tester / qa / security) is responsible for appending its accionable summary to `failure-brief.md` as part of its Return Protocol when `status: failed`.
 
-Determine the root cause by reading the failing agent's session-docs:
+`failure-brief.md` is the single source of truth for iteration routing. Each entry follows this format:
 
-**How to distinguish cases:**
-- **Case A** if: test errors are in implementation code (wrong logic, missing handling, typos), or QA reports AC not met due to incomplete implementation
-- **Case B** if: the design can't satisfy a requirement (e.g., chosen pattern doesn't support a use case, missing abstraction, wrong data model), or implementer reports "architecture doesn't cover this scenario"
-- **Case C** if: AC themselves are wrong, contradictory, or incomplete — the implementation is correct but the criteria are flawed
-- **Case D** if: tester+qa pass but security finds Critical/High issues in the implementation
+```markdown
+## Iteration {N} — {agent} — {YYYY-MM-DD HH:MM}
+**Root cause type:** A (impl) | B (design) | C (criteria) | D (security-only)
 
-**Case A — Implementation issue** (tests fail or code doesn't meet criteria):
-1. Merge all failures into a single brief for the implementer:
-   - Failing test names and error messages (from `03-testing.md`)
-   - Failed AC with file references (from `04-validation.md`)
-   - Security vulnerabilities with file:line and remediation (from `04-security.md`)
-2. Route to `implementer` with the merged brief
-3. After fix → **re-run all agents in parallel** (repeat Phase 3, including security if it was active)
+### Failures
+- {failing AC / test / check} — `{file:line}` — {1-line reason}
+- ...
 
-**Case B — Design issue** (architecture doesn't support a requirement):
-1. Route to `architect` with the failed criteria and why the design can't satisfy them
-2. After revised design → route to `implementer`
-3. After fix → **re-run all agents in parallel** (repeat Phase 3)
+### Remediation needed by next agent
+- {file:line} — {concrete fix}
+- ...
+```
 
-**Case C — Criteria issue** (AC were wrong or incomplete):
-1. Adjust criteria in `00-task-intake.md`
-2. **Re-run all agents in parallel** (repeat Phase 3)
+**How to distinguish cases (from the brief, not the full file):**
+- **Case A** if: brief lists failing tests or AC not met due to wrong implementation logic.
+- **Case B** if: brief mentions "architecture doesn't cover this scenario" or chosen pattern can't satisfy a requirement.
+- **Case C** if: brief flags the AC itself as contradictory, ambiguous, or incomplete.
+- **Case D** if: brief comes only from `security` with Critical/High findings, while tester+qa marked PASS.
 
-**Case D — Security-only failures** (tests and QA pass, but security finds Critical/High issues):
-1. Extract security findings with file:line references and concrete remediations from `04-security.md`
-2. Route to `implementer` with the security brief
-3. After fix → **re-run security agent only** (tester+qa already passed; re-run them only if implementer changed test-relevant code)
+**Case A — Implementation issue:** route the brief verbatim to `implementer`. After fix → re-run tester+qa+security in parallel.
+**Case B — Design issue:** route to `architect` with the brief. After revised design → re-route to `implementer`. Then re-run all verifiers.
+**Case C — Criteria issue:** adjust `00-task-intake.md` AC, mark the change in the brief, re-run all verifiers.
+**Case D — Security-only:** route the brief to `implementer`, then re-run only `security` (tester+qa already passed; re-run them only if the fix touches test-relevant code).
+
+**Only open the full session-doc if the brief is unclear** (rare — agents are required to make briefs self-sufficient). The default is: brief in, fix out, no re-reads.
 
 **Max 3 iterations.** Each round-trip (implementer fixes → agents re-run) = 1 iteration. Update `00-state.md` iteration count at each loop. If exceeded, try an alternative approach or simplify scope. Escalate to user as last resort.
 
@@ -863,21 +861,24 @@ For each task being launched, spawn a worktree with a `Stop` hook that writes th
 To stop before delivery, pass `--skip-delivery` to the issue command. The orchestrator inside each worktree will run Phases 0a through 3 (verify) and then stop — no Phase 4 (delivery), no Phase 5 (GitHub), no Phase 6 (KG save). Those happen once in the parent after all worktrees complete.
 
 Each worktree gets **two hooks:**
-- **Stop hook** — fires when the agent finishes. Writes the final result to the shared directory.
-- **PostToolUse hook** (on Write to `00-state.md`) — fires on every phase transition. Writes progress to the shared directory.
+- **Stop hook** — fires when the agent finishes. Writes a **compact one-line summary** to the shared directory. Does NOT copy `00-state.md` (that file can be 5-15K tokens; the parent only needs status + summary).
+- **PostToolUse hook** (on Write to `00-state.md`) — fires on every phase transition. Writes a one-line progress event. Does NOT copy `00-state.md`.
 
 ```bash
 claude --worktree {task-name} --tmux --dangerously-skip-permissions \
   --settings '{
     "hooks": {
-      "Stop": [{"hooks": [{"type": "command", "command": "cp session-docs/*/00-state.md /tmp/batch-results/{task-name}.done 2>/dev/null; echo $(date +%s) {task-name} DONE >> /tmp/batch-results/events.log"}]}],
-      "PostToolUse": [{"hooks": [{"type": "command", "command": "if echo \"$TOOL_INPUT\" | grep -q 00-state.md; then cp session-docs/*/00-state.md /tmp/batch-results/{task-name}.progress 2>/dev/null; echo $(date +%s) {task-name} PROGRESS >> /tmp/batch-results/events.log; fi"}]}]
+      "Stop": [{"hooks": [{"type": "command", "command": "STATE=$(cat session-docs/*/00-state.md 2>/dev/null); STATUS=$(echo \"$STATE\" | grep -oP \"status: \\K\\w+\" | head -1); SUMMARY=$(echo \"$STATE\" | grep -A1 \"^## Agent Results\" | tail -1 | head -c 200); printf \"%s|%s|%s\\n\" \"{task-name}\" \"${STATUS:-unknown}\" \"${SUMMARY:-no summary}\" > /tmp/batch-results/{task-name}.done; echo $(date +%s) {task-name} DONE >> /tmp/batch-results/events.log"}]}],
+      "PostToolUse": [{"hooks": [{"type": "command", "command": "if echo \"$TOOL_INPUT\" | grep -q 00-state.md; then PHASE=$(grep -oP \"phase: \\K[\\w.]+\" session-docs/*/00-state.md 2>/dev/null | head -1); printf \"%s|%s\\n\" \"{task-name}\" \"${PHASE:-unknown}\" > /tmp/batch-results/{task-name}.progress; echo $(date +%s) {task-name} PROGRESS >> /tmp/batch-results/events.log; fi"}]}]
     }
   }' \
   -p "/issue #{number} --skip-delivery"
 ```
 
-**Progress file:** `/tmp/batch-results/{task-name}.progress` — updated on every phase transition. Contains the current `00-state.md` (which has: current phase, status, last action).
+**Progress file format:** `{task-name}|{phase}` — one line, ~50 bytes. Parent reads this on PROGRESS events.
+**Done file format:** `{task-name}|{status}|{summary}` — one line, ≤300 bytes. Parent reads this on DONE events.
+
+If the parent needs more detail (e.g., to debug a failure), it opens `session-docs/{task-name}/00-state.md` directly **on demand** — never preventively. This keeps the parent's context lean: linear with N tasks at ~300 bytes each, instead of 5-15K bytes each.
 
 **Events log:** `/tmp/batch-results/events.log` — append-only, one line per event with timestamp, task name, and type (PROGRESS or DONE).
 
@@ -909,16 +910,16 @@ done
 while [ $(grep -c "DONE" /tmp/batch-results/events.log 2>/dev/null) -lt {expected_count} ]; do sleep 30; done
 ```
 
-**Each time a PROGRESS event appears**, read the `.progress` file and report to user:
+**Each time a PROGRESS event appears**, read the `.progress` file (one line, `{task}|{phase}`) and report to user:
 ```
-📍 Task {name}: Phase {N} — {phase name} — {status}
+📍 Task {name}: Phase {N}
 ```
 
-Update `batch-progress.md` with the current phase for that task.
+Update `batch-progress.md` with the current phase for that task. Do NOT open the worktree's `00-state.md` from the parent — the one-line progress is enough for routing.
 
 **Each time a DONE event appears:**
 
-1. Read the `.done` file to get the final pipeline result
+1. Read the `.done` file (one line, `{task}|{status}|{summary}`) to get the final pipeline result.
 2. Update `batch-progress.md`: mark as `DONE` or `FAILED`
 3. **If queued tasks remain AND running count < 5** → launch next queued task (eager slot-fill)
 4. Report to user:

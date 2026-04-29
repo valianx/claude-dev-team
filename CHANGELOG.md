@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Definition of Done in delivery.** New `agents/delivery.md` Step 9b runs the project's quality gates (lint, typecheck, tests, build — discovered from CLAUDE.md or the project manifest) before staging files. Any failure aborts delivery.
 - **Acceptance traceability matrix.** New `agents/delivery.md` Step 9c writes `session-docs/{feature-name}/acceptance-matrix.md` with one row per AC mapping to test (file:line), QA evidence (file:line) and security status. The matrix is embedded in the PR body (Step 11.2 / 11.3) so reviewers see acceptance coverage at a glance.
 
+### Changed
+
+- **Iteration routing now reads only `failure-brief.md`.** When Phase 3 verify fails, the orchestrator no longer re-reads `03-testing.md`, `04-validation.md`, or `04-security.md` in full (5-15K tokens each). Instead, `tester` / `qa` / `security` append a compact iteration entry to `session-docs/{feature-name}/failure-brief.md` as part of their Return Protocol when they fail. The orchestrator reads ONLY the brief to decide routing (Case A / B / C / D). Full session-docs remain available for debugging when the brief is unclear, but happy-path iteration touches only the brief.
+- **Batch worktrees emit one-line events instead of copying `00-state.md`.** The Stop hook now writes `{task}|{status}|{summary}` (≤300 bytes) and PostToolUse writes `{task}|{phase}` (~50 bytes) to `/tmp/batch-results/`. Previously each event copied the entire `00-state.md` (5-15K tokens). The parent orchestrator's context now scales linearly at ~300 bytes per task instead of multiple kilobytes; if it needs more detail it opens the worktree's `00-state.md` on demand.
+
 ### Fixed
 
 - **Phase 6 token-cost anti-pattern removed.** `agents/orchestrator.md` no longer calls `read_graph` from the Knowledge Save phase. The previous "Auto-consolidate check" loaded the entire knowledge graph (often 100K+ tokens) on every pipeline just to count entities — token cost scaled linearly with KG size. Dedup now relies exclusively on the targeted `search_nodes` call already done in step 2 (vector search, top-N, cheap regardless of graph size). Periodic whole-graph consolidation is surfaced to the user via `/memory consolidate` instead of running automatically.
