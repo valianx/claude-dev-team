@@ -592,19 +592,16 @@ Using the ChromaDB MCP tools (if available), save the most reusable insights as 
 **How to save:**
 1. Extract 1-3 reusable insights from the pipeline run (not everything — only what applies beyond this feature)
 2. **Dedup check (MANDATORY)** — before creating any entity, search for it first:
-   - Use `search_nodes` with the entity name and key terms from its observations
-   - If a similar entity exists (same topic, same technology), use `add_observations` to append new observations to the existing entity instead of creating a duplicate
-   - Only use `create_entities` if no similar entity was found
+   - Use `search_nodes` with the entity name and 1-2 key terms from its observations (vector search returns top-N matches; cheap regardless of graph size).
+   - If a similar entity exists (same topic, same technology), use `add_observations` to append new observations to the existing entity instead of creating a duplicate.
+   - Only use `create_entities` if no similar entity was found.
 3. Create entities with the ChromaDB MCP `create_entities` tool (only if step 2 found no match):
    - Entity name: short, descriptive (e.g., "prisma-sqlite-enum-workaround")
    - Entity type: `pattern` | `error` | `constraint` | `decision` | `tool-gotcha`
    - Observations: the insight text, including project name and date
 4. Create relations between entities if relevant (e.g., "prisma-sqlite-enum-workaround" → "relates_to" → "prisma")
-5. **Auto-consolidate check** — after saving, use `read_graph` to count total entities. If count exceeds 100:
-   - Search for entities with overlapping observations or same technology
-   - Merge duplicates: `add_observations` to keep entity, `delete_entities` for merged one
-   - Target: reduce back to ~80 entities
-   - Log consolidation in Hot Context for awareness
+
+**Do NOT call `read_graph` from this phase.** `read_graph` returns the entire graph (often 100K+ tokens) — using it just to count entities or to find duplicates is a token-cost anti-pattern that scales linearly with graph size and runs on every pipeline. Dedup MUST happen via the targeted `search_nodes` call in step 2; that is enough to prevent duplicates without paying the cost of loading the whole graph. Periodic consolidation across the whole KG is a separate concern — surface it to the user as `/memory consolidate` when relevant, do not run it automatically here.
 
 **Rules:**
 - Max 3 entities per pipeline run — quality over quantity

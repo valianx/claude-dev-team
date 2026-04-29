@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Auto-verification gates before delivery.** The pipeline now has two redundant acceptance gates that prevent shipping when AC are not fully covered:
+  - `agents/orchestrator.md` new **Phase 3.5 — Acceptance Gate**: between Verify and Delivery, the orchestrator re-reads `00-task-intake.md`, `03-testing.md`, `04-validation.md`, `04-security.md` and confirms every AC has both a passing test (in tester's AC Coverage) and a `PASS` (in qa's validation). On mismatch, routes back to implementer (still bounded by max 3 iterations) or aborts with `status: blocked` if AC counts diverge between docs.
+  - `agents/delivery.md` new **Step 0 — Acceptance Gate**: re-verifies the same artifacts before any branch / commit. Aborts with `status: failed` if any AC is missing PASS, missing a test, or if security has unresolved Critical / High findings.
+- **Definition of Done in delivery.** New `agents/delivery.md` Step 9b runs the project's quality gates (lint, typecheck, tests, build — discovered from CLAUDE.md or the project manifest) before staging files. Any failure aborts delivery.
+- **Acceptance traceability matrix.** New `agents/delivery.md` Step 9c writes `session-docs/{feature-name}/acceptance-matrix.md` with one row per AC mapping to test (file:line), QA evidence (file:line) and security status. The matrix is embedded in the PR body (Step 11.2 / 11.3) so reviewers see acceptance coverage at a glance.
+
+### Fixed
+
+- **Phase 6 token-cost anti-pattern removed.** `agents/orchestrator.md` no longer calls `read_graph` from the Knowledge Save phase. The previous "Auto-consolidate check" loaded the entire knowledge graph (often 100K+ tokens) on every pipeline just to count entities — token cost scaled linearly with KG size. Dedup now relies exclusively on the targeted `search_nodes` call already done in step 2 (vector search, top-N, cheap regardless of graph size). Periodic whole-graph consolidation is surfaced to the user via `/memory consolidate` instead of running automatically.
+
+### Added (earlier in this cycle)
+
 - **Stack guardrails distilled from the knowledge graph.** Recurring pitfalls observed across past pipelines are now codified into the agent prompts so they are caught at design / implementation time, not at runtime:
   - `agents/implementer.md` Phase 0: NestJS + OpenTelemetry guardrail (SDK before `NestFactory.create()`, align the `@opentelemetry/*` family on upgrades, smoke-test runtime after major bumps, `Resource` removal in `@opentelemetry/resources` v2.x).
   - `agents/implementer.md` Phase 2 Frontend: Next.js + shadcn/ui + React guardrails (shadcn v3 vs v4 `asChild` → `render`, Next.js 16 `middleware.ts` deprecation, auto-fetching hook initial state, `next/dynamic({ ssr: false })` skeleton sizing, App Router `loading.tsx` per detail segment, Zustand selector reactivity).
