@@ -493,6 +493,41 @@ Determine the root cause by reading the failing agent's session-docs:
 
 ---
 
+## Phase 3.5 — Acceptance Gate (MANDATORY before Delivery)
+
+**Owner:** You (orchestrator)
+
+After Phase 3 succeeds and BEFORE invoking `delivery`, verify acceptance traceability directly from session-docs. This is the second line of defense against shipping unfinished work — Phase 3 already passed all status blocks, but we re-check the artifacts to confirm.
+
+1. **Read `session-docs/{feature-name}/00-task-intake.md`** and count the total AC.
+2. **Read `session-docs/{feature-name}/04-validation.md`** (qa) and count `PASS` vs `FAIL` per AC.
+3. **Read `session-docs/{feature-name}/03-testing.md`** AC Coverage table and verify every AC has at least one test marked PASS.
+4. **If `04-security.md` exists**, confirm there are no Critical/High findings unresolved.
+
+**Decision matrix:**
+- All AC `PASS` in qa AND every AC has a passing test AND no Critical/High security → **proceed to Phase 4**.
+- Any AC failed in qa, missing a test, or any unresolved Critical/High security → **route back to implementer** with the failing AC as a fix brief. Increment iteration counter (still subject to the max-3 limit from Phase 3).
+- AC count in qa report ≠ AC count in `00-task-intake.md` → **abort with `status: blocked`** and report the discrepancy to the user; this means the spec drifted silently and needs reconciliation.
+
+Update `00-state.md` with the Phase 3.5 result. If gate passes, write a single line in Hot Context: `Acceptance gate: {N}/{N} AC verified, {test count} tests, security {clean|N findings}`.
+
+**Report to user:**
+```
+✓ Phase 3.5/7 — Acceptance Gate — PASS ({N}/{N} AC verified)
+  → Next: Phase 4 — Delivery
+```
+
+Or, if the gate fails:
+```
+✗ Phase 3.5/7 — Acceptance Gate — FAIL
+  Failing AC: {list with reason}
+⟳ Iterating ({N}/3): routing to implementer
+```
+
+This phase costs almost no tokens — it parses 2-3 small tables. The cost-vs-confidence tradeoff is heavily on the side of correctness.
+
+---
+
 ## Phase 4 — Delivery
 
 **If `skip-delivery: true` was passed in the task payload → SKIP this entire phase and Phases 5-6.** Update `00-state.md` with `status: verified` (not `complete`) and report:

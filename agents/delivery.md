@@ -58,6 +58,25 @@ Determine `{feature_name}` in this order:
 
 ## Workflow
 
+### Step 0 — Acceptance Gate (MANDATORY, abort if it fails)
+
+**Before doing anything else**, verify the verification stage actually passed. The orchestrator should have only invoked you after Phase 3 succeeded, but never trust that — re-verify directly from the session-docs.
+
+1. Read `session-docs/{feature-name}/00-task-intake.md` and extract the AC list (count and identifiers — `AC-1`, `AC-2`, …).
+2. Read `session-docs/{feature-name}/04-validation.md` (qa) and parse the AC results table. Count `PASS` vs `FAIL` per AC.
+3. Read `session-docs/{feature-name}/03-testing.md` (tester) and verify every AC has at least one test marked as passing in the AC Coverage table.
+4. If `04-security.md` exists (security-sensitive task), read it and check for Critical / High findings.
+
+**Abort criteria — return `status: failed` immediately if:**
+- Any AC is missing a `PASS` in `04-validation.md`.
+- Any AC has no test in `03-testing.md` AC Coverage table.
+- `04-security.md` reports Critical or High findings (Medium/Low are warnings, not blockers).
+- Any expected session-doc is missing.
+
+When aborting, write `session-docs/{feature-name}/05-delivery.md` with the failure reason and a per-AC table showing which gate failed for which AC. Do NOT create a branch, do NOT commit.
+
+If everything passes, continue to Step 1.
+
 ### Step 1 — Reconnaissance
 
 - Read CLAUDE.md if it exists
@@ -328,6 +347,36 @@ Before choosing a version, **read the git diff** (`git diff main...HEAD -- . ':!
 
 **Step 9.4 — Confirm** by reading the file again to verify the version was updated correctly.
 
+### Step 9b — Definition of Done (DoD) checklist
+
+Before staging, run the project's quality gates. Discover the commands from CLAUDE.md (golden commands table) or from the project's manifest (`package.json` scripts, `Makefile`, `pyproject.toml`, `Cargo.toml`). Common ones:
+
+| Check | Where to find the command | Action if it fails |
+|---|---|---|
+| Lint | `package.json` `scripts.lint`, `make lint`, `cargo clippy`, `ruff check` | Abort, report which files fail |
+| Type check | `package.json` `scripts.typecheck`, `tsc --noEmit`, `mypy`, `pyright` | Abort, report errors |
+| Tests | `package.json` `scripts.test`, `make test`, `pytest`, `cargo test` | Abort, report failing tests |
+| Build (when a build step exists) | `package.json` `scripts.build`, `make build` | Abort, report build error |
+
+Run each check. If ANY fails, return `status: failed` with the command output captured in `05-delivery.md` under "DoD Failures". Do NOT proceed to commit.
+
+If a check command does not exist in the project (e.g. no `lint` script), skip that row and note it in the delivery summary — do NOT invent a command.
+
+### Step 9c — Acceptance Matrix
+
+Build the AC traceability matrix from `00-task-intake.md`, `03-testing.md`, `04-validation.md` and (if it exists) `04-security.md`. Save it to `session-docs/{feature-name}/acceptance-matrix.md`:
+
+```markdown
+# Acceptance Matrix: {feature-name}
+
+| AC | Description (1 line) | Test (file:line) | QA evidence (file:line) | Security |
+|----|----------------------|------------------|-------------------------|----------|
+| AC-1 | {gist} | `auth.spec.ts:42` PASS | `service.ts:18` PASS | clean |
+| AC-2 | {gist} | `auth.spec.ts:67` PASS | `controller.ts:25` PASS | clean |
+```
+
+This file becomes part of the PR body in Step 11.2. Stage it together with the other delivery artifacts in Step 10.0 (`git add session-docs/{feature-name}/acceptance-matrix.md`).
+
 ### Step 10 — Commit and push
 
 **Step 10.0 — Stage delivery files:**
@@ -414,7 +463,16 @@ Closes #{number}
 - {files changed}
 
 ## Tests
-- {test results}
+- {test results: total / passed / coverage if available}
+
+## Acceptance Matrix
+{paste the table from session-docs/{feature-name}/acceptance-matrix.md}
+
+## Definition of Done
+- [x] Lint: {command} → PASS
+- [x] Type check: {command} → PASS
+- [x] Tests: {command} → PASS ({N} passed)
+- [x] Build: {command} → PASS  (or "n/a" if no build step)
 
 ## Version
 - {old} → {new}
@@ -438,6 +496,12 @@ Closes #{number}
 
 ## Tests
 - {test results}
+
+## Acceptance Matrix
+{paste the table from session-docs/{feature-name}/acceptance-matrix.md}
+
+## Definition of Done
+- [x] Lint / Type check / Tests / Build → see body
 
 ## Version
 - {old} → {new}
