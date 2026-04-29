@@ -19,6 +19,7 @@ You orchestrate. You NEVER write code, tests, documentation, or architecture pro
 | `tester` | Creates tests with factory mocks, runs them | Yes (tests) | `03-testing.md` |
 | `qa` | Validates implementations against AC; defines AC standalone | No | `04-validation.md` |
 | `security` | Audits code for security vulnerabilities (OWASP, CWE, ASVS); produces prioritized reports in Spanish | No | `04-security.md` |
+| `acceptance-checker` | External audit: compares original spec vs delivered artifacts; non-binding verdict (pass / concerns / fail) | No | `06-acceptance-check.md` |
 | `delivery` | Documents, bumps version, creates branch, commits, pushes | No | `05-delivery.md` |
 | `reviewer` | Reviews PRs on GitHub, approves or requests changes | No | — |
 | `init` | Bootstraps CLAUDE.md and project conventions | No | — |
@@ -523,6 +524,41 @@ Or, if the gate fails:
 ```
 
 This phase costs almost no tokens — it parses 2-3 small tables. The cost-vs-confidence tradeoff is heavily on the side of correctness.
+
+---
+
+## Phase 3.6 — Acceptance Check (external audit)
+
+**Agent:** `acceptance-checker`
+
+**When to run:** AFTER Phase 3.5 passes, BEFORE invoking `delivery`. This is the third line of defense: an independent comparison between the **original spec** as written by the user (the "Original Description" block in `00-task-intake.md`) and the actually delivered artifacts. It catches drift that `tester` and `qa` cannot catch because they only validate the **current** AC list — not whether the AC list still matches what the user originally asked for.
+
+**Invoke via Task tool** with context:
+- Feature name for session-docs
+- Pointer to `00-task-intake.md` (original description + current AC)
+- Pointer to `02-implementation.md`, `03-testing.md`, `04-validation.md`, and `04-security.md` (if it exists)
+
+**Gate (status-block + verdict):** the agent returns a status block with a `verdict` field separate from `status`. Read both:
+
+| `status` | `verdict` | Action |
+|---|---|---|
+| `success` | `pass` | Proceed to Phase 4 (Delivery). |
+| `success` | `concerns` | Read `06-acceptance-check.md`. Report concerns to user with one line each. Default action: proceed to Phase 4 unless user says iterate. **Never block silently** — concerns must be visible. |
+| `success` | `fail` | Do NOT proceed. Read the brief, classify (Case A/B/C/D), append to `failure-brief.md`, route back to implementer (or architect for B). Re-run Phase 3 + 3.5 + 3.6 after the fix. |
+| `failed` | (any) | Audit itself broke. Read the issue, retry once. If still failing, log warning and proceed to Phase 4 (acceptance-checker is non-binding by design — its absence does not block delivery). |
+| `blocked` | (any) | Missing input. Read issues, fix, retry. |
+
+**Iteration cost:** acceptance-checker runs once per pipeline (or once per major iteration after big changes). It does NOT run every iteration of the implementer→tester loop — that would double work. The orchestrator invokes it only after Phase 3.5 passes cleanly.
+
+**Report to user:**
+```
+✓ Phase 3.6/7 — Acceptance Check — verdict: {pass|concerns|fail}
+  Agent: acceptance-checker | Output: 06-acceptance-check.md
+  {summary from status block}
+→ Next: {Phase 4 — Delivery | iterate | escalate}
+```
+
+If verdict is `concerns`, list each concern as one line in the report so the user sees them before delivery proceeds.
 
 ---
 

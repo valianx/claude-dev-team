@@ -132,6 +132,7 @@ Canonical matrix (must match exactly):
 | `init` | opus | medium |
 | `implementer` | sonnet | high |
 | `tester` | sonnet | medium |
+| `acceptance-checker` | sonnet | medium |
 | `diagrammer` | sonnet | medium |
 | `likec4-diagrammer` | sonnet | medium |
 | `d2-diagrammer` | sonnet | medium |

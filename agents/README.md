@@ -42,6 +42,7 @@ The combination of `model` + `effort` below is the canonical matrix for this rep
 | `init` | opus | `medium` | Bootstrap `CLAUDE.md` in any repo. |
 | `implementer` | sonnet | `high` | Production code following the architect's Work Plan. |
 | `tester` | sonnet | `medium` | Test suites with factory mocks. |
+| `acceptance-checker` | sonnet | `medium` | External audit comparing original spec vs delivered artifacts (Phase 3.6, non-binding verdict). |
 | `diagrammer` | sonnet | `medium` | Excalidraw diagrams (render-validate loop). |
 | `likec4-diagrammer` | sonnet | `medium` | LikeC4 diagrams (architecture-as-code). |
 | `d2-diagrammer` | sonnet | `medium` | D2 diagrams. |
