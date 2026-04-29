@@ -7,8 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Stack guardrails distilled from the knowledge graph.** Recurring pitfalls observed across past pipelines are now codified into the agent prompts so they are caught at design / implementation time, not at runtime:
+  - `agents/implementer.md` Phase 0: NestJS + OpenTelemetry guardrail (SDK before `NestFactory.create()`, align the `@opentelemetry/*` family on upgrades, smoke-test runtime after major bumps, `Resource` removal in `@opentelemetry/resources` v2.x).
+  - `agents/implementer.md` Phase 2 Frontend: Next.js + shadcn/ui + React guardrails (shadcn v3 vs v4 `asChild` → `render`, Next.js 16 `middleware.ts` deprecation, auto-fetching hook initial state, `next/dynamic({ ssr: false })` skeleton sizing, App Router `loading.tsx` per detail segment, Zustand selector reactivity).
+  - `agents/tester.md` new "Common Testing Pitfalls (NestJS / Node)" section: TypeORM entity coverage cap, `setImmediate` mocking pattern, `error?.message || String(error)` branch coverage, env vars before `require()` in Koa/Express controller mocks, fake timers for `moment.utc()` and date-range boundary tests.
+  - `agents/architect.md` new "Domain Heuristics" subsection: PostgreSQL high-volume time-series partitioning rules (no `synchronize: true`, partition key in every unique constraint, summary tables for full-history aggregations, TypeORM decimal transformer) and multi-currency / multi-country financial aggregation contract.
+  - `agents/delivery.md` new Step 8c: API gateway re-sync notice for services behind Apigee / Kong / AWS API Gateway.
+
 ### Changed
 
+- **Knowledge graph write policy hardened.** `agents/orchestrator.md` Phase 6 (Knowledge Save), `skills/memory.md` (consolidate / create paths), and `docs/kg-content-policy.md` now spell out concrete redaction rules with examples drawn from real past violations: no absolute paths with a user identifier (`C:/Users/<name>/...`), no PR / issue numbers, no developer names, `[project]` entities must be named after the bare repo. Each agent that can write to the KG runs a short pre-write checklist before calling `create_entities` / `add_observations`.
 - **Earn the model AND the effort.** Reassigned the 15 agents along two dials: `model` (opus for analysis/coordination, sonnet for execution-against-plan) and `effort` (`max` for irreversible analysis, `high` for solid analytical work, `medium` as floor for everything else — `low` is forbidden by policy). Seven agents move to `sonnet` (`implementer`, `tester`, `delivery`, `diagrammer`, `d2-diagrammer`, `likec4-diagrammer`, `translator`); the other eight stay on `opus` with explicit effort levels. The canonical matrix lives in `agents/README.md` and is enforced by a new `/lint` check (Check 7).
 - **`/lint` Check 7 added.** Validates that every agent's `model` + `effort` frontmatter matches the canonical matrix in `agents/README.md`, fails on `effort: low`, and warns on unknown agents.
 - **`agent-builder.md` "Earn the model" section** rewritten to cover both `model` and `effort` dials and reference the canonical matrix.

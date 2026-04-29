@@ -295,6 +295,21 @@ scripts/**
 
 ---
 
+## Common Testing Pitfalls (NestJS / Node)
+
+When the project is NestJS / Express / Koa, walk through these checks during Phase 1 (test plan) — they shape how you mock and what coverage you can realistically chase:
+
+- **TypeORM entity coverage cap.** Decorators with `nullable: true` count as branches that are never exercised in normal tests; entity files cap naturally at ~56-80% branch coverage. If you are chasing >80% global branch coverage, exclude `**/entities/**` from coverage collection in the framework config. Don't fight the cap inline.
+- **Background callbacks (`setImmediate` / `setTimeout` for fire-and-forget).** If the service uses `setImmediate(() => method().catch(...))` for fire-and-forget work, the test must (1) replace `globalThis.setImmediate` with a capturer, (2) execute the captured callback via `Promise.resolve().then(fn)` to track the inner promise, (3) use a short timeout (≤50ms) so orphaned timer handles do not keep the Jest worker alive between specs.
+- **`error?.message || String(error)` branches.** To cover the right-hand side of the `||`, reject the mocked dependency with a raw string (`mockRejectedValue('raw-error-message')`), not `new Error(...)`. Both branches need coverage.
+- **Mocks of Koa / Express controllers with env vars.** Set `process.env.X` **before** `require()`-ing the controller module — env reads at module-load time will lock to whatever was set at first import. Prefer `jest.mock(path, () => factory)` and put the `require()` of the mock *inside* the factory function so re-mocks do not leak across files.
+- **Time-sensitive tests (`moment.utc()`, date ranges, boundary assertions).** Always use the framework's fake timer + system-time tools: `jest.useFakeTimers()` + `jest.setSystemTime(date)` (Jest), or `vi.useFakeTimers()` + `vi.setSystemTime(date)` (Vitest). `moment.utc()` respects fake timers. Cover boundary cases: `00:00:00 UTC`, `23:59:59 UTC`, and the offset where the local TZ flips day (e.g. `02:00 UTC` for Santiago).
+- **Date-range pickers exclusive on `to`.** When the code under test uses `[from, to)` (inclusive `from`, exclusive `to`), assert `dateTo - dateFrom === 86_400_000` for a one-day range — NOT `dateTo - dateFrom === 86_399_999` and NOT `=== 86_400_001`.
+
+These pitfalls have been observed repeatedly across NestJS services. Surface them in the test plan rather than re-discovering them through failing tests.
+
+---
+
 ## Phase 3 — Execution & Reporting
 
 1. **Run tests** using the project's configured test commands (discovered from package.json, Makefile, pyproject.toml, etc.)

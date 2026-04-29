@@ -264,6 +264,16 @@ If the OpenAPI spec was created or modified in this step, bump `info.version` us
 3. Update `info.version` in the spec file.
 4. **The OpenAPI version is independent from the project version** — they track different things (API contract vs. project release).
 
+**Step 8c — API gateway re-sync notice (when applicable):**
+
+If the service sits behind an external API gateway (Apigee, Kong, AWS API Gateway, etc.) that imports the OpenAPI spec on a versioned cadence:
+
+1. Add a "Gateway re-sync required" line to the PR body so the deploy operator knows to trigger the re-sync after merge.
+2. In the PR description's `## Changes` section, list every new or modified path, parameter, schema, and security requirement. The operator validates the gateway state against this list.
+3. Without re-sync, new endpoints return `400 OASValidation` at the gateway even if the backend itself accepts the request. This has been the root cause of multiple production incidents — never assume the gateway will pick up the spec automatically.
+
+This step is gateway-aware: if the project does not have an external gateway (or the spec is consumed only by internal SDK generators), skip it.
+
 ### Step 9 — Version bump
 
 **If the orchestrator passed `skip-version: true` in the task context → SKIP THIS ENTIRE STEP.** Log "Version bump: SKIPPED (skip-version: true)" in the delivery summary and go to Step 10. Do NOT stage the version file.

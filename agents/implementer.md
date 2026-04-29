@@ -88,6 +88,16 @@ Tools:
 
 Document key findings before proceeding. If context7 is not available, proceed without — do not halt.
 
+### Stack guardrails (read before writing code)
+
+#### NestJS + OpenTelemetry
+
+If the service uses OpenTelemetry (`@opentelemetry/sdk-node`, `auto-instrumentations-node`):
+- The OTEL SDK MUST be initialized **before** `NestFactory.create()` in `main.ts`. Import the OTEL bootstrap module as the very first import of the file — anything that runs before it bypasses instrumentation.
+- When upgrading any `@opentelemetry/*` package, **align the entire family to the same release train**. The 1.x ↔ 2.x core split causes `ERESOLVE` peer-dependency failures in CI; bumping `auto-instrumentations-node` alone without bumping `sdk-node`, `resources`, `sdk-metrics`, `sdk-trace-base` will break the build.
+- In `@opentelemetry/resources` v2.x the `Resource` class is **removed**: use `resourceFromAttributes(...)` and `defaultResource()`. In `@opentelemetry/sdk-logs` v0.214+ pass processors via `logRecordProcessors` in the `LoggerProvider` constructor (not the deprecated `addLogRecordProcessor`).
+- After ANY major upgrade, **smoke-test runtime startup**, not just `npm install`. These breaking changes do not surface at build time — they crash on first call to `NodeSDK.start()`.
+
 ---
 
 ## Phase 1 — Follow the Work Plan
@@ -122,6 +132,17 @@ Implement following these principles:
 
 ### Frontend
 - Follow component structure from architecture proposal, loading/error/empty states, form validation, keyboard nav (Tab/Enter/Escape), ARIA attributes, semantic HTML
+
+#### Next.js + shadcn/ui + React stack guardrails
+
+When the project uses Next.js (App Router) + shadcn/ui + React, validate these in Phase 0 and apply during Phase 2:
+
+- **shadcn/ui v3 vs v4.** v4 (2026) replaced Radix with `@base-ui/react`. The `asChild` prop **does not exist** anymore — use the `render={...}` prop. Animations read `data-open` / `data-closed` attributes instead of `data-state`. If the project mixes `asChild` + `data-state` patterns it is still on v3 — do not blindly upgrade.
+- **Next.js 16+ middleware.** `middleware.ts` is **deprecated** in favor of the new `proxy` convention. Existing `middleware.ts` files keep working but emit a build warning. New code should follow the `proxy` convention.
+- **Auto-fetching hooks initial state.** Hooks that auto-trigger a fetch on mount (`useEffect(() => { fetch... }, [])` with `autoFetch=true`) must declare `useState(autoFetch)` (or `useState(true)`) for `isLoading`, **never** `useState(false)`. Otherwise the consumer renders a 1-2 frame flash of "empty state" before the first fetch completes.
+- **`next/dynamic({ ssr: false, ... })`.** Always pass a `loading: () => <Skeleton/>` prop with the **same dimensions as the real component** (match `h-8`/`h-12`, paddings, gap to the wrapper). Without it, hydration produces visible layout shift.
+- **App Router detail segments (`/foo/[id]/page.tsx`).** Always create a sibling `loading.tsx` in the same segment. Without it, hard refresh briefly shows "not found" while the server fetch resolves — the file-system Suspense boundary is what suppresses that flash.
+- **Zustand selector reactivity.** Do **not** define store getters as functions (`isInWishlist: (id) => state.items.includes(id)`). Components that destructure them never re-render on store changes. Select the data (`state.items`) and derive outside the store, or use a memoized selector.
 
 ### Database (if applicable)
 - Always use migration files, never modify DB directly, include up+down migrations

@@ -578,13 +578,24 @@ Using the ChromaDB MCP tools (if available), save the most reusable insights as 
 - If nothing reusable was learned, save nothing — that's fine
 - Always dedup before creating — duplicates waste context window during Phase 0a searches
 - **Language: English** — all entity names, observations, and relation types must be in English
-- **Content policy (MANDATORY):** the KG is technical memory meant to be shareable across developers. Before every `create_entities` / `add_observations` call, check that the payload contains **no**:
-  - Personal names (users, colleagues, stakeholders) or user-specific preferences / feedback
-  - Credentials, tokens, API keys, private URLs/IPs, absolute paths with user names (e.g. `C:/Users/mario/...`)
-  - Client, account, contract, or commercial information
-  - Volatile references (specific ticket numbers, PR numbers, dates tied to an in-flight release)
+- **Content policy (MANDATORY):** the KG is technical memory meant to be shareable across developers. Before every `create_entities` / `add_observations` call, redact the payload against the rules below. If any observation hits one of these, **drop that observation** (or the whole entity if unsalvageable). When in doubt, omit — it is cheap to re-add later and expensive to extract once distributed. Full policy: `docs/kg-content-policy.md`.
 
-  If any observation hits one of these, **drop that observation** (or the whole entity if unsalvageable). When in doubt, omit — it is cheap to re-add later and expensive to extract once distributed. Full policy: `docs/kg-content-policy.md`.
+  **Forbidden in observations:**
+  - Personal names (users, colleagues, stakeholders) or user-specific preferences / feedback.
+  - Credentials, tokens, API keys, private URLs/IPs.
+  - Absolute filesystem paths that include a user identifier. Examples seen in past violations: `C:/Users/<name>/...`, `C:\Users\<name>\...`, `/mnt/c/Users/<name>/...`, `/home/<name>/...`. Use repo-relative paths (e.g. `src/services/payment.ts`) or just the bare repo name.
+  - Client, account, contract, or commercial information.
+  - Volatile identifiers: PR numbers (`PR #317`), issue numbers (`#42`), commit SHAs longer than the conventional 7 chars, branch names that include personal prefixes (`feat/<name>`).
+
+  **Required for `[project]` entities:** identify the project by its **bare repo name only** (e.g. `zippy-backoffice`, `transactions-service`). Never embed a path. The name should be the same string a teammate would type to clone it.
+
+  **Required for any entity that summarizes a change:** describe the change by date + capability, not by PR/issue number. "2026-04 currency-per-country migration in backoffice" is good; "PR #323" is volatile and meaningless once the PR is gone.
+
+  **Pre-write checklist (run mentally for every observation):**
+  1. Does this string contain a slash followed by `Users/`, `home/`, or `mnt/c/Users/`? → strip path or drop observation.
+  2. Does this string contain a `#` followed by digits? → check whether it's a PR/issue ref; if yes, rewrite without the number.
+  3. Does this string contain a developer name? → drop or anonymize.
+  4. Could this observation be sent to another developer's machine and still be useful? → if no, drop.
 
 ### Process Reflection (after KG save)
 

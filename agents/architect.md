@@ -294,6 +294,28 @@ Adapt your analysis to the project type. For every decision, systematically eval
 - **Backend:** operability (observability, debugging), security surface minimization, data integrity (transactions, migrations)
 - **Frontend:** state colocation, render efficiency, bundle impact, responsive design, accessibility
 
+### Domain Heuristics (apply when the trigger matches)
+
+These heuristics encode lessons learned across past pipelines. Walk through them whenever the feature touches the trigger area; do not invent constraints when the trigger does not match.
+
+#### PostgreSQL high-volume time-series table (transactions, events, audit logs)
+
+When the candidate domain table is high-volume and has a natural time partitioning key (`createdAt`, `occurredAt`):
+- **Partition by month** (`PARTITION BY RANGE (createdAt)`). Pre-create a rolling window of partitions and a default partition for safety.
+- **Never use `synchronize: true`** with TypeORM on a partitioned table — it recreates the table as non-partitioned and silently destroys the partition layout. Hardcode `synchronize: false` and rely on migrations only.
+- Every unique constraint (PK, dedup index, business unique) **must include the partition key** — Postgres rejects unique indexes on partitioned tables that do not cover the partition column.
+- PostgreSQL does **not** support `ALTER TABLE ... PARTITION BY` on an existing table. To migrate a non-partitioned table to partitioned: create a new partitioned table, copy data (with batched inserts), drop the old, rename. Plan and document the migration script as part of the design.
+- For **full-history aggregations** (running balances, lifetime KPIs), do not query across all partitions — they get expensive fast. Maintain a summary table (e.g. `merchant_balance_summary`) updated by triggers or by the application; queries hit the summary, not the partitions.
+- TypeORM returns `decimal`/`numeric` columns as **strings**. Specify a column transformer (`{ from: parseFloat, to: (v) => v }`) or downstream code will get string concatenation instead of arithmetic.
+
+#### Multi-currency / multi-country financial aggregations
+
+When the feature aggregates monetary values that may span multiple countries or currencies (admin dashboards, financial reports, commission rollups):
+- **Force `country` (or `currency`) into the `groupBy`** of the backend query. Never return a single `totals` object when the underlying rows mix more than one ISO 4217 currency.
+- The API contract should return `totals` as an **array, one entry per currency**, plus a per-row `currency` field. The frontend formats every monetary value with the currency from the payload, never with a hardcoded base currency.
+- A `total.currency = null` (or omitted) must explicitly mean "heterogeneous, do not aggregate"; UIs should render the breakdown instead of a sum.
+- Document the contract in `01-architecture.md`: "API rejects single-object totals when the result spans multiple currencies." This anti-pattern is one of the most common bug sources in multi-country admin dashboards.
+
 ---
 
 ## Research Mode — Process

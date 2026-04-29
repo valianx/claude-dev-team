@@ -19,10 +19,19 @@
 
 - **Personal data**: person names (including the developer's own), roles, responsibilities, personal preferences.
 - **Personalized feedback**: instructions directed at a specific user ("Mario prefers that…").
-- **Credentials and secrets**: tokens, API keys, URLs of private services, internal IPs, absolute paths with user names (`C:/Users/mario/...`).
+- **Credentials and secrets**: tokens, API keys, URLs of private services, internal IPs, absolute paths with user names (`C:/Users/<name>/...`, `/mnt/c/Users/<name>/...`, `/home/<name>/...`).
 - **Client / stakeholder data**: client company names, contacts, agreements, contractual information.
-- **Volatile temporal references**: ticket numbers, specific PRs, incidents tied to dates, mentions of in-flight releases.
+- **Volatile temporal references**: ticket numbers, specific PR numbers, issue numbers, commit SHAs longer than 7 chars, incidents tied to in-flight releases. Describe the change by date + capability instead (e.g. "2026-04 currency-per-country migration in backoffice").
 - **Organizational information**: hierarchy, internal policies, non-technical discussions.
+
+### Concrete examples seen in past violations
+
+| What appeared in the KG | Why it is forbidden | Fix |
+|---|---|---|
+| `Path: C:/Users/<name>/zippy/merchants. Versión: 1.3.1.` | Absolute path with user identifier; not portable. | `Repo: zippy-merchants. Versión: 1.3.1.` |
+| `Merge order: #52 -> Apigee re-sync -> #323 -> #53 -> Apigee re-sync -> rebase + #324.` | Volatile PR numbers that mean nothing once the PRs are gone. | `Order: deploy commission-service first, then re-sync Apigee, then ship the dependent backoffice change, then rebase the follow-up.` |
+| `mario-user-profile` — entity describing "developer fullstack, active projects: …" | Personal profile of an individual developer. | Drop the entity entirely; the KG is not a CRM. |
+| `[pattern] zippy-nest-template — Path: C:/Users/<name>/zippy/nest-template.` | Embedded user path inside a reusable pattern. | `[pattern] zippy-nest-template — Bare-repo NestJS template used by every Zippy backend service.` |
 
 ## ⚠️ Gray area — requires judgment
 

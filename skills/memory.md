@@ -151,3 +151,14 @@ Examples:
 - Uses ChromaDB MCP tools directly: `search_nodes`, `read_graph`, `open_nodes`, `create_entities`, `add_observations`, `delete_entities`, `delete_observations`, `create_relations`, `delete_relations`
 - Destructive actions (delete, merge) always require user confirmation
 - Never auto-prune or auto-consolidate without asking
+
+## Content policy (mandatory before any write)
+
+When `consolidate` writes new observations or `create_entities` is invoked, apply the same redaction the orchestrator applies in Phase 6:
+
+- No absolute paths that include a user identifier (`C:/Users/<name>/...`, `/home/<name>/...`, `/mnt/c/Users/<name>/...`). Strip them or use the bare repo name.
+- No personal names, no client / stakeholder data, no tokens or keys.
+- No volatile identifiers (PR numbers, issue numbers, long commit SHAs, branch names with personal prefixes).
+- `[project]` entities must be named after the bare repo (e.g. `zippy-backoffice`), never with an embedded path.
+
+If a candidate observation violates the policy, drop the violating part. Do not auto-rewrite the user's source data — when consolidating, prefer dropping noisy observations over inventing replacements. Full policy: `docs/kg-content-policy.md`.
