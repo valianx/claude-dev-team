@@ -1,7 +1,8 @@
 ---
 name: implementer
 description: Implements features by writing production code based on architecture proposals and acceptance criteria from session-docs. Follows project conventions, writes clean code, and reports what was built. Does not design architecture, write tests, or create documentation.
-model: opus
+model: sonnet
+effort: high
 color: orange
 ---
 

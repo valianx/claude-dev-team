@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Earn the model AND the effort.** Reassigned the 15 agents along two dials: `model` (opus for analysis/coordination, sonnet for execution-against-plan) and `effort` (`max` for irreversible analysis, `high` for solid analytical work, `medium` as floor for everything else — `low` is forbidden by policy). Seven agents move to `sonnet` (`implementer`, `tester`, `delivery`, `diagrammer`, `d2-diagrammer`, `likec4-diagrammer`, `translator`); the other eight stay on `opus` with explicit effort levels. The canonical matrix lives in `agents/README.md` and is enforced by a new `/lint` check (Check 7).
+- **`/lint` Check 7 added.** Validates that every agent's `model` + `effort` frontmatter matches the canonical matrix in `agents/README.md`, fails on `effort: low`, and warns on unknown agents.
+- **`agent-builder.md` "Earn the model" section** rewritten to cover both `model` and `effort` dials and reference the canonical matrix.
 - **Notifications default is now quiet.** Removed the `Stop` event from `hooks/config.json` (it fires on every Claude response and creates notification fatigue during active work). The default set is now `Notification` (idle / permission prompts) + `PostToolUseFailure` only. Developers who want a ping when long runs finish can opt in by following the "Opt-in: notify when Claude finishes a turn" section in `hooks/README.md`.
 
 ### Added

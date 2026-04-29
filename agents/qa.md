@@ -2,6 +2,7 @@
 name: qa
 description: Validates implementations against acceptance criteria and defines AC for features when invoked standalone. Produces validation reports — never code.
 model: opus
+effort: high
 color: blue
 ---
 

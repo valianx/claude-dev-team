@@ -107,12 +107,50 @@ Analyze agent definitions for contradictions and overlap.
 
 1. **Role boundary check:** For each agent, extract its "NEVER" statements (e.g., "NEVER writes code", "NEVER modify files"). Cross-check against the orchestrator's team table `Writes code` column. Report contradictions (e.g., agent says "NEVER writes code" but orchestrator marks it as "Yes" for writes code).
 2. **Session-doc write conflicts:** For each agent, search for the session-doc filename it writes to (from `## Session Documentation` section or output references). Verify no two agents write to the same file. Report conflicts.
-3. **Model assignment review:** For each agent, read the `model` field from frontmatter. Report any agent using `opus` that has a role that could be handled by `sonnet` (heuristic: if the agent's description says "generates", "writes", or "creates" without "designs", "researches", or "analyzes", flag as potential downgrade candidate). This is advisory — report as INFO, not WARN.
 
 Result:
 - **PASS** if no contradictions or write conflicts found
-- **WARN** if model assignment opportunities found (INFO only)
 - **FAIL** if role boundary contradictions or session-doc write conflicts exist
+
+---
+
+## Check 7 — Model + effort matrix (canonical)
+
+Enforce the canonical `model` + `effort` assignment from the Roster table in `agents/README.md`. Drift between any agent's frontmatter and the README table fails the check.
+
+Canonical matrix (must match exactly):
+
+| Agent | Model | Effort |
+|---|---|---|
+| `orchestrator` | opus | high |
+| `architect` | opus | max |
+| `agent-builder` | opus | max |
+| `security` | opus | max |
+| `reviewer` | opus | max |
+| `qa` | opus | high |
+| `gcp-cost-analyzer` | opus | high |
+| `init` | opus | medium |
+| `implementer` | sonnet | high |
+| `tester` | sonnet | medium |
+| `diagrammer` | sonnet | medium |
+| `likec4-diagrammer` | sonnet | medium |
+| `d2-diagrammer` | sonnet | medium |
+| `translator` | sonnet | medium |
+| `delivery` | sonnet | medium |
+
+For each `.md` in `agents/` (excluding `ref-*.md` and `README.md`):
+
+1. Read the YAML frontmatter and extract `model` and `effort`.
+2. Look up the expected values for that agent in the matrix above.
+3. **Mismatch:** report `FAIL` with the specific field, expected vs. actual.
+4. **Forbidden value:** if `effort: low` is present anywhere, report `FAIL` (the project floor is `medium`).
+5. **Missing field:** if `effort` is absent on a non-reference agent, report `FAIL`.
+6. **Unknown agent:** if an agent file exists but isn't in the matrix, report `WARN` (could be a new agent that hasn't been added to the README yet).
+
+Result:
+- **PASS** if every agent matches the canonical matrix and no `effort: low` exists
+- **WARN** if an agent file isn't in the matrix
+- **FAIL** if any model/effort mismatch, missing `effort`, or `effort: low` is found
 
 ---
 
@@ -177,13 +215,18 @@ Session-docs: {N unique} / {N total} | {conflicts or "no conflicts"}
 Direct modes: {N agents} referenced | {mismatches or "all exist"}
 
 --- Check 6: Cross-agent consistency ---
-Status: {PASS|WARN|FAIL}
+Status: {PASS|FAIL}
 Role boundaries: {N checked} | {contradictions or "consistent"}
 Write conflicts: {conflicts or "none"}
-Model review: {suggestions or "all appropriate"}
+
+--- Check 7: Model + effort matrix ---
+Status: {PASS|WARN|FAIL}
+Agents checked: {N} | {N matched} | {mismatches or "all canonical"}
+{for each mismatch: "  {agent}: model {actual}→{expected}, effort {actual}→{expected}"}
+{if any effort: low found: "  {agent}: effort 'low' is forbidden — floor is 'medium'"}
 
 ====================================
-  Result: {X} / 6 checks passed
+  Result: {X} / 7 checks passed
 ====================================
 {if --fix applied: "\n--- Auto-fix applied ---\n{list of fixes}"}
 ```

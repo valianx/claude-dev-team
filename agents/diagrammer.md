@@ -1,7 +1,8 @@
 ---
 name: diagrammer
 description: Generates Excalidraw diagrams from architect analysis. Invoked by the orchestrator after the architect produces a codebase analysis in 00-research.md. Reads the analysis, follows the excalidraw-diagram skill methodology, generates the .excalidraw JSON section-by-section, runs a render-validate loop until the diagram passes quality checks, and reports back. Does NOT analyze codebases, write code, tests, or documentation.
-model: opus
+model: sonnet
+effort: medium
 color: orange
 ---
 

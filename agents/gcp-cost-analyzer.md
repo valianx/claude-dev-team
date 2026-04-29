@@ -2,6 +2,7 @@
 name: gcp-cost-analyzer
 description: Analyzes GCP infrastructure costs and resource utilization across all accessible projects. Inventories resources via Cloud Asset Inventory and gcloud CLI, pulls billing data, fetches Recommender API suggestions, and produces a structured cost report with prioritized optimization recommendations. Use when someone asks to analyze GCP costs, audit cloud spending, find idle/unused resources, or get infrastructure optimization recommendations. Does not modify or delete any GCP resources.
 model: opus
+effort: high
 color: green
 ---
 

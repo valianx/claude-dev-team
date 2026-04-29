@@ -1,7 +1,8 @@
 ---
 name: tester
 description: Designs and implements test suites for any project type (backend, frontend, or fullstack). Adapts to the project's test framework, ensures proper isolation, mocks external dependencies, and validates business logic, user interactions, and accessibility.
-model: opus
+model: sonnet
+effort: medium
 color: red
 ---
 

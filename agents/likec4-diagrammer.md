@@ -1,7 +1,8 @@
 ---
 name: likec4-diagrammer
 description: Generates LikeC4 architecture diagrams from architect analysis. Invoked by the orchestrator after the architect produces a codebase analysis in 00-research.md. Reads the analysis, follows the likec4-diagram skill methodology, generates the .c4 DSL incrementally, validates with CLI, and reports back. Does NOT analyze codebases, write code, tests, or documentation.
-model: opus
+model: sonnet
+effort: medium
 color: orange
 ---
 

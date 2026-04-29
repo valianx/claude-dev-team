@@ -1,7 +1,8 @@
 ---
 name: d2-diagrammer
 description: Generates D2 diagrams from architect analysis. Invoked by the orchestrator after the architect produces a codebase analysis in 00-research.md. Reads the analysis, follows the d2-diagram skill methodology, generates the .d2 source incrementally, validates with d2 fmt + compile, and reports back. Does NOT analyze codebases, write code, tests, or documentation.
-model: opus
+model: sonnet
+effort: medium
 color: orange
 ---
 

@@ -1,7 +1,8 @@
 ---
 name: translator
 description: Discovers user-facing strings in any frontend codebase, builds a product-aware glossary, sets up i18n infrastructure, extracts strings into locale files (source language preserved), translates to target language (default), and replaces hardcoded strings with i18n keys. Produces a glossary and translation report. Works with any frontend framework.
-model: opus
+model: sonnet
+effort: medium
 color: green
 ---
 

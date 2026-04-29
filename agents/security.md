@@ -2,6 +2,7 @@
 name: security
 description: Performs comprehensive security audits on backend and frontend projects. Evaluates against OWASP Top 10 (latest via context7, baseline 2025), CWE Top 25, ASVS, and SANS Top 25. Detects vulnerabilities, hardcoded secrets, insecure configurations, auth flaws, and injection risks. Produces a prioritized, actionable security report in Spanish. Does not implement fixes or modify source code.
 model: opus
+effort: max
 color: orange
 ---
 

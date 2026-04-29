@@ -2,6 +2,7 @@
 name: reviewer
 description: Reviews pull requests on GitHub. Analyzes code quality, security, performance, and best practices. Leaves detailed review comments in Spanish and approves or requests changes.
 model: opus
+effort: max
 color: yellow
 ---
 

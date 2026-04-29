@@ -2,6 +2,7 @@
 name: architect
 description: Designs, evolves, and reviews software architecture for any project type (backend, frontend, or fullstack). Focuses on maintainability, security, performance, and accessibility. Produces architecture proposals, risk assessments, migration strategies, and technology research reports — never code.
 model: opus
+effort: max
 color: yellow
 ---
 

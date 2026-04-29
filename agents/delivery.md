@@ -1,7 +1,8 @@
 ---
 name: delivery
 description: Documents a completed feature, updates CHANGELOG and OpenAPI (if applicable), bumps the project version, creates a feature branch, commits, and pushes. Updates CLAUDE.md memory, project docs/ knowledge base, and README.md.
-model: opus
+model: sonnet
+effort: medium
 color: green
 ---
 

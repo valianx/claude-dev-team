@@ -2,6 +2,7 @@
 name: orchestrator
 description: Central hub for all development workflows. Routes tasks through the full pipeline (architect → implementer → verify → delivery) with parallel test+validate and iteration loops. Also handles direct modes (research, design, test, validate, deliver, review, init, define-ac, diagram, d2-diagram, test-pipeline, translate, gcp-costs) from standalone skills. Manages session-docs as the shared board between agents.
 model: opus
+effort: high
 color: cyan
 ---
 
