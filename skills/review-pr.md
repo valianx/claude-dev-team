@@ -185,7 +185,34 @@ Analyze the input: $ARGUMENTS
 
 14. **Verify the review was posted.** After the `gh api POST .../reviews` call, check the exit code. If it failed, report the error to the user with the exact error message.
 
-15. **Cleanup and STOP.** Delete `.claude/pr-review-draft.md` and `.claude/pr-review-inline.json` (if it exists) after successful publishing. Then report success to the user and **terminate immediately**. Do NOT perform any additional actions after this step — no second pass for inline comments, no follow-up reviews, no supplementary observations. The review is complete.
+15. **Cleanup, prune context, and STOP.**
+
+    **15.1 — File cleanup.** Delete `.claude/pr-review-draft.md` and `.claude/pr-review-inline.json` (if it exists) after successful publishing.
+
+    **15.2 — Context prune reminder (MANDATORY).** Each `/review-pr` invocation accumulates 5-30K tokens in the main context (PR metadata, full diff, file lists from `gh` and `git` outputs in Phase 1, plus the orchestrator's status block, plus Phase 3 publish outputs). Subagents die between PRs but the **main context does not** — successive reviews in the same session compound linearly.
+
+    Your **final response** to the user MUST include this prominent reminder block (verbatim or equivalent — do NOT shorten it, do NOT phrase it as optional):
+
+    ```
+    ✅ Review on PR #{number} published successfully.
+
+    ⚠️  IMPORTANT — Context cleanup
+    This review accumulated ~{estimated_kb}K tokens in your session
+    (PR data, diff, file lists). Before reviewing the next PR, run:
+
+        /compact
+
+    Without this, each successive `/review-pr` adds another 5-30K
+    tokens that never get released. After 5+ reviews in one session,
+    response latency and per-turn cost grow noticeably.
+
+    If this is your last review of the session, you can ignore this
+    and close the session normally.
+    ```
+
+    Estimate `{estimated_kb}` from the size of the diff you handled in Phase 1: small PR (<100 changed lines) ≈ 5K, medium (100-500) ≈ 10K, large (500-2000) ≈ 20K, truncated (>2000) ≈ 30K.
+
+    **15.3 — Terminate.** Do NOT perform any additional actions after step 15.2 — no second pass for inline comments, no follow-up reviews, no supplementary observations. The review is complete.
 
 ---
 
