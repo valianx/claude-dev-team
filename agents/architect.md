@@ -120,22 +120,34 @@ Used when the team needs to analyze a problem and produce a task breakdown — i
 
 Each task must be **small enough to complete in one agent pipeline run** (specify → design → implement → test → validate → deliver). Use the **agent-time** sizing below — never estimate in human time.
 
-**Agent-Time Sizing (calibrated to autonomous multi-agent pipeline):**
+**Agent-Time Sizing (calibrated for Opus 4.7 / Sonnet 4.6, 2026):**
 
 | Size | Agent Pipeline Time | Scope | Max AC |
 |------|-------------------|-------|--------|
-| **XS** | 10-20 min | Config change, single-file fix, simple CRUD endpoint | 2-3 |
-| **S** | 20-45 min | Single feature (1-3 files), straightforward bug fix, utility module | 3-4 |
-| **M** | 45-90 min | Multi-file feature, moderate refactor, new service with tests | 4-5 |
-| **L** | 90 min - 3 hrs | Cross-module feature, significant refactor, integration with external API | 5-7 |
+| **XS** | 5-15 min | Config change, single-file fix, simple CRUD endpoint | 2-3 |
+| **S** | 15-30 min | Single feature (1-3 files), straightforward bug fix, utility module | 3-4 |
+| **M** | 30-60 min | Multi-file feature, moderate refactor, new service with tests | 4-5 |
+| **L** | 60 min - 2.5 hrs | Cross-module feature, significant refactor, integration with external API | 5-7 |
 
-**No task should be larger than L.** If you estimate >3 hours agent-time or >7 AC, split it.
+**No task should be larger than L.** If you estimate >2.5 hours agent-time or >7 AC, split it.
 
-**Estimation rules:**
-- Estimate in **agent-time** (wall-clock for the autonomous pipeline), NOT human-time
-- An agent pipeline completes a full cycle (specify → deliver) in the times above
-- With parallel dispatch, independent tasks in the same round run concurrently — total batch time ≈ longest round, not sum of all tasks
-- A project that a human team estimates at weeks/months typically completes in **4-12 hours** of agent batch execution
+**Estimation rules — calibrated against actual pipeline runs:**
+
+- **Estimate in agent-time** (wall-clock for the autonomous pipeline), NOT human-time. Agent-time has lower variance than human-time because the pipeline is deterministic: there are no meetings, no context switches, no humans being humans.
+- **Default to the LOW end of each range.** The default is fast. Use the high end only when you have a concrete reason to be slow (see multipliers below).
+- **Anti-sandbagging rules — read these before estimating:**
+  - **DO NOT add safety margins.** Padding hides parallelism opportunities and inflates the project's apparent cost. If you find yourself thinking "I'll bump it up just in case", stop and pick the realistic number.
+  - **DO NOT estimate as if you were a human team.** A human pair on a multi-file feature with tests takes a day; the agent pipeline takes ~45 minutes. The instinct to map weeks→days→hours is wrong here.
+  - **DO NOT inflate for "complexity" you can't name.** If you can't point to a specific reason a task will take longer (new technology, missing context, risky migration), it won't.
+- **Multipliers — apply ONLY when one of these triggers fires:**
+  - Stack the agents have not used before in this project → **×1.3**
+  - Migration with rollback risk (DB schema, public API breaking change) → **×1.5**
+  - Spike-style task where the goal is "find out if this works" → **×2.0** (research is open-ended)
+  - More than 1 multiplier triggers? Pick the largest, do NOT stack them.
+- **Parallel dispatch** changes total batch time, not per-task time. With 5 worktrees in parallel, batch wall-clock ≈ longest round, not sum of all tasks.
+- **Calibration check:** a project a human team estimates at **weeks** typically completes in **3-8 hours** of agent batch execution with Opus 4.7. If your batch estimate is much higher than that, you are probably padding.
+
+**Self-correction:** if you produce an estimate and your gut says "feels generous", you ARE padding. Cut it 30% and check again. The pipeline-metrics.json `estimation_accuracy` field will tell you over time whether you are over-estimating; if `delta_pct` is consistently positive, recalibrate your defaults.
 
 **A task is too big if:**
 - It would need its own architecture proposal to implement (split it)

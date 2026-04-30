@@ -384,7 +384,47 @@ If any check fails (except ambiguities), fix it in-place. This is automatic — 
 ✓ Phase 1/7 — Design — completed
   Agent: architect | Output: 01-architecture.md (includes Work Plan)
   {summary from status block}
+→ Next: Phase 1.5 — Plan Ratification
+```
+
+---
+
+## Phase 1.5 — Plan Ratification (cheap loop guard)
+
+**Agent:** `qa` (mode: `ratify-plan`)
+
+**Why this phase exists:** the most expensive iteration is one where the implementer codes against a Work Plan that does not actually cover all AC, and the gap is only discovered in Phase 3 — costing a full implementer + tester + qa + security re-run. Ratifying the plan against the AC before any code is written turns that loop into a cheap read-only check (~3-5K tokens). This is the **sprint contract** pattern from Anthropic's harness-design article: generator and evaluator agree on "what done looks like" before generating.
+
+**Invoke via Task tool** with context:
+- Feature name for session-docs
+- Pointer to `00-task-intake.md` (AC) and `01-architecture.md` (Work Plan)
+- Mode: `ratify-plan`
+- Instruction: "Read the Work Plan and the AC. Confirm that every AC is covered by at least one Work Plan step. Do NOT validate any code (there is none yet). Return verdict: `pass` if all AC are covered, or `fail` with the list of AC not covered by any plan step."
+
+**Gate (status-block + verdict):**
+
+| `status` | `verdict` | Action |
+|---|---|---|
+| `success` | `pass` | Proceed to Phase 2 (Implementation). |
+| `success` | `fail` | Route back to `architect` with the list of uncovered AC. The architect updates the Work Plan; re-run Phase 1.5. Iteration of Phase 1.5 counts toward the same max-3 budget as Phase 3. |
+| `failed` / `blocked` | (any) | Audit broke. Read the issue, retry once, then proceed (this phase is non-blocking by design — its absence does not stop the pipeline). |
+
+**Cost:** one qa invocation (~3-5K tokens). **Saves:** entire implementer + tester + qa + security iteration when the Work Plan was incomplete (~20-50K tokens).
+
+**Skip when:** `complexity: standard` AND fewer than 4 AC (the Work Plan is trivial enough that gaps are rare; ratification is overhead). Always run for `complexity: complex` or any task with ≥4 AC.
+
+**Report to user:**
+```
+✓ Phase 1.5/7 — Plan Ratification — verdict: pass
+  Agent: qa (ratify-plan) | every AC covered by Work Plan
 → Next: Phase 2 — Implementation
+```
+
+Or:
+```
+✗ Phase 1.5/7 — Plan Ratification — verdict: fail
+  Uncovered AC: AC-3, AC-7
+⟳ Routing to architect to revise Work Plan
 ```
 
 ---
@@ -527,11 +567,36 @@ This phase costs almost no tokens — it parses 2-3 small tables. The cost-vs-co
 
 ---
 
-## Phase 3.6 — Acceptance Check (external audit)
+## Phase 3.6 — Acceptance Check (external audit, conditional)
 
 **Agent:** `acceptance-checker`
 
-**When to run:** AFTER Phase 3.5 passes, BEFORE invoking `delivery`. This is the third line of defense: an independent comparison between the **original spec** as written by the user (the "Original Description" block in `00-task-intake.md`) and the actually delivered artifacts. It catches drift that `tester` and `qa` cannot catch because they only validate the **current** AC list — not whether the AC list still matches what the user originally asked for.
+**When to run (gate by complexity — do NOT invoke on every pipeline):**
+
+This phase is the third line of defense, but it is also overhead for simple changes. Run it only when the cost is justified:
+
+| Condition | Run Phase 3.6? |
+|---|---|
+| `complexity: complex` (set in Phase 0a Step 7) | **Yes** |
+| Touched > 3 files across different modules | **Yes** |
+| User passed `--audit` flag explicitly | **Yes** |
+| Any iteration occurred in Phase 3 (one or more verify retries) | **Yes** — drift risk is higher |
+| `type: hotfix` AND single-file fix | **No** — Phase 3 + 3.5 are sufficient; speed matters |
+| `complexity: standard` AND ≤3 files AND 0 iterations | **No** — log "Phase 3.6 skipped (not warranted)" and proceed to Phase 4 |
+
+This follows Anthropic's cost-effectiveness rule: *"The evaluator is not a fixed yes-or-no decision. It is worth the cost when the task sits beyond what the current model does reliably solo."*
+
+When skipped, the report to user includes the reason:
+```
+↷ Phase 3.6/7 — Acceptance Check — SKIPPED (complexity: standard, 2 files, 0 iterations)
+  Acceptance-checker is gated by complexity to avoid overhead on simple changes.
+  Use `--audit` on the next run if you want a full audit anyway.
+→ Next: Phase 4 — Delivery
+```
+
+When the previous gate (Phase 3 verify) shows that any iteration happened, **always run Phase 3.6** even on standard complexity — drift accumulates with iterations.
+
+**This is the third line of defense:** an independent comparison between the **original spec** as written by the user (the "Original Description" block in `00-task-intake.md`) and the actually delivered artifacts. It catches drift that `tester` and `qa` cannot catch because they only validate the **current** AC list — not whether the AC list still matches what the user originally asked for.
 
 **Invoke via Task tool** with context:
 - Feature name for session-docs
@@ -684,13 +749,48 @@ Before reporting to the user, capture a brief reflection on the **process itself
 
 Do NOT save generic reflections like "everything went well" — only actionable meta-insights about the agent system itself. This entity type does NOT count against the 3-entity limit.
 
+### Final state — handoff for the next feature
+
+After KG save and process reflection, append a final block to `00-state.md`:
+
+```markdown
+## Final state — ready for handoff
+- branch: {branch}
+- version: {old → new}
+- PR: {url} (or "local-only")
+- AC count: {N passed / N total}
+- iterations: {N}
+- Pipeline outcome: complete
+```
+
+Then surface this prompt to the user (Anthropic's "context resets over compaction" pattern from harness-design):
+
+```
+✓ Pipeline complete: {feature-name}
+✓ Final handoff state written to session-docs/{feature-name}/00-state.md
+
+⚠️  Before starting another feature in this session:
+   • Run /compact to release this pipeline's context (~10-30K tokens
+     accumulated across phases), or
+   • Run /clear if you want a full reset (faster than /compact, loses
+     conversational continuity)
+
+   The handoff in 00-state.md is durable — the next session can pick
+   up cleanly without conversational context.
+
+If this is your last feature of the session, ignore this and close
+normally.
+```
+
+**Why this matters:** the orchestrator's main context grows phase by phase even though subagents die. The status blocks, intake/state reads, KG searches, GitHub responses, and decision logs accumulate. Without an explicit reset between features, a session running 3-4 features back-to-back can hit 50-100K tokens of stale context that was useful for feature N but irrelevant for feature N+1. The handoff artifact (`00-state.md`) lets you reset without losing state.
+
 **Report to user:**
 ```
 ✓ Phase 6/7 — Knowledge Save — completed
   Entities saved: {count} | Updated: {count}
   {brief list of what was saved, or "No new knowledge to save"}
   Process: {iterations} iterations — {1-line friction summary or "clean pass"}
-→ Pipeline complete.
+→ Pipeline complete. (See handoff prompt above before next feature.)
 ```
 
 ---
@@ -762,32 +862,50 @@ This is especially important in batch mode where the parent orchestrator accumul
 
 ## Pipeline Metrics
 
-At the end of every pipeline run (single or batch), write metrics to `session-docs/{feature-name}/pipeline-metrics.json`:
+At the end of every pipeline run (single or batch), write metrics to `session-docs/{feature-name}/pipeline-metrics.json`. The schema below is the **canonical** format — agents and skills that consume metrics expect every field.
 
 ```json
 {
   "feature": "{feature-name}",
-  "type": "{feature|fix|refactor|...}",
+  "type": "{feature|fix|refactor|hotfix|enhancement|spike|research}",
+  "complexity": "{standard|complex}",
   "started": "{ISO timestamp}",
   "completed": "{ISO timestamp}",
   "duration_minutes": {N},
   "phases": {
-    "specify": { "duration_min": {N}, "status": "success" },
-    "design": { "duration_min": {N}, "status": "success" },
-    "implement": { "duration_min": {N}, "status": "success" },
-    "verify": { "duration_min": {N}, "status": "success", "iterations": {N} },
-    "delivery": { "duration_min": {N}, "status": "success" }
+    "specify": { "duration_min": {N}, "status": "success", "tokens_estimated": {N} },
+    "design": { "duration_min": {N}, "status": "success", "tokens_estimated": {N} },
+    "ratify_plan": { "duration_min": {N}, "status": "success|skipped", "tokens_estimated": {N}, "verdict": "pass|fail|n/a" },
+    "implement": { "duration_min": {N}, "status": "success", "tokens_estimated": {N} },
+    "verify": { "duration_min": {N}, "status": "success", "iterations": {N}, "tokens_estimated": {N} },
+    "acceptance_gate": { "duration_min": {N}, "status": "success", "tokens_estimated": {N} },
+    "acceptance_check": { "duration_min": {N}, "status": "success|skipped", "tokens_estimated": {N}, "verdict": "pass|concerns|fail|n/a" },
+    "delivery": { "duration_min": {N}, "status": "success", "tokens_estimated": {N} }
   },
   "iterations": {
     "count": {N},
-    "causes": ["{test failure: missing null check}", "{qa: AC-3 not met}"]
+    "root_causes": [
+      { "phase": "verify", "case": "A|B|C|D", "summary": "test failure: missing null check" }
+    ]
   },
   "agents_invoked": {N},
   "security_sensitive": {true|false},
   "ac_count": {N},
-  "ac_passed": {N}
+  "ac_passed": {N},
+  "estimated_tokens_total": {N},
+  "estimation_accuracy": {
+    "estimated_minutes": {N},
+    "actual_minutes": {N},
+    "delta_pct": {N}
+  }
 }
 ```
+
+**Token estimation:** for each phase, the orchestrator records an approximate token weight based on inputs and outputs of that phase (status block size + session-doc reads + KG searches). Precision is not the goal — these are approximations for trend analysis (e.g. "design tends to use ~5K, verify ~15K, but this run hit 40K → look at the iteration root causes"). If you cannot estimate precisely, use the heuristic: `tokens_estimated ≈ duration_min × 1500` for opus-heavy phases, `× 800` for sonnet-heavy.
+
+**`iterations.root_causes`:** every iteration must record its case (A/B/C/D from Phase 3) and a one-line summary. This is the data that powers harness simplification later — without it, you cannot tell whether a gate caught real bugs or just produced false alarms.
+
+**`estimation_accuracy`:** if the architect did planning (Planning Mode) and produced an agent-time estimate, the orchestrator captures the delta between estimated and actual at the end. Persistent over-estimation (positive delta) means the planning model is sandbagging; persistent under-estimation means scope grew silently.
 
 For batch runs, write `session-docs/batch-metrics.json` with per-task metrics + aggregate:
 ```json

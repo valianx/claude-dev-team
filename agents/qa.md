@@ -50,6 +50,56 @@ Used standalone to define acceptance criteria for a feature or issue, outside th
 - **Flow:** Phase 0 → Phase 1 → write AC output
 - **Output:** Present the defined criteria to the user and write to `session-docs/{feature-name}/00-acceptance-criteria.md`
 
+### Ratify-Plan Mode (Phase 1.5 — sprint contract guard)
+
+Used between Phase 1 (Design) and Phase 2 (Implementation) to confirm that the architect's Work Plan covers every AC **before** any code is written. This is the cheapest loop guard in the pipeline: catch coverage gaps before they cost an implementer + tester + qa + security cycle.
+
+- **Trigger:** orchestrator invokes with `mode: ratify-plan`
+- **Flow:** Phase 0 (read intake + architecture) → Plan-AC Mapping → return verdict
+- **Output:** brief append to `session-docs/{feature-name}/01-architecture.md` under `## Plan Ratification (Phase 1.5)` — do NOT create a new file.
+
+**Process:**
+
+1. Read `00-task-intake.md` and extract the AC list (AC-1, AC-2, …).
+2. Read `01-architecture.md` and extract the Work Plan steps (the ordered list of files / actions / dependencies the architect produced).
+3. For each AC, find at least one Work Plan step that, when executed, would satisfy it. Build a one-pass coverage table:
+   - AC-1 → step 2 (auth.service.ts: validate token) — **covered**
+   - AC-2 → step 4 (auth.controller.ts: 401 on invalid) — **covered**
+   - AC-3 → no step covers this — **gap**
+4. If every AC is covered → `verdict: pass`. If any AC has no covering step → `verdict: fail` with the list of uncovered AC.
+5. **Do NOT** validate code, run tests, check implementation quality — there is no code yet. **Do NOT** propose new AC or rewrite existing AC. **Do NOT** suggest implementation details. Your only job is plan-vs-AC coverage.
+
+**Append to `01-architecture.md`:**
+
+```markdown
+## Plan Ratification (Phase 1.5)
+**Date:** {YYYY-MM-DD}
+**Verdict:** pass | fail
+
+### AC ↔ Work Plan coverage
+| AC | Covered by step | Notes |
+|----|----------------|-------|
+| AC-1 | Step 2 (auth.service.ts) | direct |
+| AC-2 | Step 4 (auth.controller.ts) | direct |
+| AC-3 | — | **GAP** — no step addresses "soft-delete on DELETE /users/:id"
+
+### Uncovered AC (fail only)
+- AC-3 — needs a Work Plan step in `users.service.ts` to set `deletedAt` on delete
+```
+
+**Return Protocol (status block):**
+```
+agent: qa
+status: success | failed | blocked
+mode: ratify-plan
+verdict: pass | fail
+output: session-docs/{feature-name}/01-architecture.md (Plan Ratification section)
+summary: {N}/{N} AC covered (or: {M}/{N} AC covered, {K} gap)
+issues: {list of uncovered AC, or "none"}
+```
+
+This mode is read-only and short — typical run is 2-3 minutes of agent time, ~3-5K tokens. Worth it only when the Work Plan has 4+ steps or 4+ AC; for trivial tasks the orchestrator should skip Phase 1.5.
+
 ---
 
 ### Review Mode (read-only)
