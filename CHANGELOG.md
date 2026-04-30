@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (documentation drift)
+
+- **Top-level `README.md`**: corrected counts ("18 agents, 30 skills" → "16 agents, 27 skills (3 of which are complex multi-file)"), added missing `acceptance-checker` row, broke out `gcp-cost-analyzer` into its own row instead of a generic "plus" footer, and updated the pipeline diagram to reflect Phase 1.5 (Plan Ratification), 3.5 (Acceptance Gate) and 3.6 (Acceptance Check).
+- **`shared-knowledge/README.md`**: removed stale "to be built — see roadmap" caveat from the export/import flow; the tools live in `chromadb-mcp/` and are referenced consistently.
+- **`hooks/README.md`**: removed leftover "binds three events" sentence — the default set is two events (Notification + PostToolUseFailure) since `Stop` was removed from the default.
+
 ### Added
 
 - **Auto-verification gates before delivery.** The pipeline now has two redundant acceptance gates that prevent shipping when AC are not fully covered:

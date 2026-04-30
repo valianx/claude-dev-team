@@ -36,8 +36,6 @@ The installer copies these scripts into `~/.claude/hooks/` but does **not** modi
 
 ## Events covered
 
-Each OS section in `config.json` binds three events:
-
 The default set is deliberately **quiet** — only high-signal events:
 
 | Event | When it fires | Why it's in the default set |

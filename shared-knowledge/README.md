@@ -4,7 +4,7 @@ Drop-off location for knowledge-graph (KG) exports that developers want to share
 
 ## What goes here
 
-JSON files exported from a local ChromaDB KG using the `export.py` tool (to be built — see roadmap). Each file is a snapshot of technical knowledge a developer wants to contribute: patterns, gotchas, architectural decisions, library quirks, service inventories.
+JSON files exported from a local ChromaDB KG using `chromadb-mcp/export.py`. Each file is a snapshot of technical knowledge a developer wants to contribute: patterns, gotchas, architectural decisions, library quirks, service inventories.
 
 ## What does NOT go here
 
@@ -35,4 +35,4 @@ The import is **non-destructive**: existing entities get new observations append
 
 ## Status
 
-`export.py` and `import.py` exist under `chromadb-mcp/`. They are **non-destructive**: the import merges observations with dedup and never deletes local data. The folder stays empty (except this README) until a dev drops a shared export here.
+`export.py` and `import.py` live under `chromadb-mcp/`. The import is **non-destructive**: it merges observations with dedup and never deletes local data. The folder stays empty (except this README) until a dev drops a shared export here.

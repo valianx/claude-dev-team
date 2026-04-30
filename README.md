@@ -1,6 +1,6 @@
 # claude-dev-team
 
-A standardized, opinionated Claude Code agent system for software teams: 18 agents, 30 skills (with 3 complex multi-file skills), OS-native notification hooks, a ChromaDB-backed knowledge-graph MCP server, and a cross-platform installer that wires everything into your `~/.claude/`.
+A standardized, opinionated Claude Code agent system for software teams: 16 agents, 27 skills (3 of which are complex multi-file skills), OS-native notification hooks, a ChromaDB-backed knowledge-graph MCP server, and a cross-platform installer that wires everything into your `~/.claude/`.
 
 ## Install
 
@@ -71,14 +71,17 @@ Delete the installed files from `~/.claude/` (agents, skills, hooks, chromadb-mc
 | `implementer` | Production code. |
 | `tester` | Test suites with factory mocks. |
 | `qa` | Acceptance criteria definition and validation. |
+| `acceptance-checker` | External audit comparing original spec vs delivered artifacts (Phase 3.6). |
 | `delivery` | Docs, changelog, version, branch, commit, PR. |
 | `reviewer` | GitHub PR review. |
 | `security` | OWASP / CWE / ASVS audits. |
 | `diagrammer`, `likec4-diagrammer`, `d2-diagrammer` | Architecture diagrams (Excalidraw, LikeC4, D2). |
 | `translator` | i18n discovery, glossary, translation. |
+| `gcp-cost-analyzer` | GCP cost / resource inventory reports. |
 | `init` | Bootstrap `CLAUDE.md` in any repo. |
 | `agent-builder` | Create / improve agents and skills. |
-| Plus `gcp-cost-analyzer`, reference docs. | |
+
+The full canonical roster (with model + effort matrix) lives in [`agents/README.md`](./agents/README.md).
 
 ### Skills (`skills/`)
 
@@ -100,11 +103,17 @@ Every KG operation (view, edit, share, run the server, migrate) is documented in
 
 ## How the agent system works
 
-The orchestrator coordinates a **Spec-Driven Development** pipeline:
+The orchestrator coordinates a **Spec-Driven Development** pipeline with redundant acceptance gates:
 
 ```
-Specify (AC) → Design → Implement → Verify (test + validate + security) → Deliver → KG Save
+Specify (AC) → Design → Plan Ratification → Implement → Verify (test + validate + security)
+            → Acceptance Gate → Acceptance Check (conditional) → Deliver → KG Save
 ```
+
+Phase highlights:
+- **Plan Ratification (1.5)** — `qa` confirms every AC maps to a Work Plan step before any code is written.
+- **Acceptance Gate (3.5)** — orchestrator re-reads test, validation and security artifacts; routes back if any AC lacks a passing test or PASS verdict.
+- **Acceptance Check (3.6)** — independent `acceptance-checker` audits the original spec against delivered artifacts. Runs only on complex changes, multi-file diffs, or after any verify iteration.
 
 Every feature, fix, or refactor the team takes on flows through the orchestrator. The developer reads the plan before the pipeline proceeds, and every generated PR goes through human review.
 
