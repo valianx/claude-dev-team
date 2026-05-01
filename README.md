@@ -106,14 +106,19 @@ Every KG operation (view, edit, share, run the server, migrate) is documented in
 The orchestrator coordinates a **Spec-Driven Development** pipeline with redundant acceptance gates:
 
 ```
-Specify (AC) → Design → Plan Ratification → Implement → Verify (test + validate + security)
-            → Acceptance Gate → Acceptance Check (conditional) → Deliver → KG Save
+Specify (AC) → Design → Plan Ratification → Implement → Constraint Reconciliation
+            → Verify (test + validate + security) → Acceptance Gate → Acceptance Check (conditional)
+            → Deliver → Internal Review (advisory) → GitHub Update → KG Save
 ```
 
 Phase highlights:
 - **Plan Ratification (1.5)** — `qa` confirms every AC maps to a Work Plan step before any code is written.
-- **Acceptance Gate (3.5)** — orchestrator re-reads test, validation and security artifacts; routes back if any AC lacks a passing test or PASS verdict.
+- **Constraint Reconciliation (2.5)** — when implementer or architect annotated `[CONSTRAINT-DISCOVERED]` against an AC, trivial constraints are reconciled inline; non-trivial ones invoke `qa` (mode `reconcile`) to decide keep / amend / drop. Drops require user confirmation.
+- **Acceptance Gate (3.5)** — orchestrator re-reads test, validation and security artifacts; routes back if any AC lacks a passing test or PASS verdict. Test-ratchet is enforced here (deletions need a valid reason).
 - **Acceptance Check (3.6)** — independent `acceptance-checker` audits the original spec against delivered artifacts. Runs only on complex changes, multi-file diffs, or after any verify iteration.
+- **Internal Review (4.5)** — advisory pass: `reviewer` triages the freshly-pushed diff (mode `internal`, no GitHub publish) and surfaces the top 3 highest-severity issues to the user. Skipped on tiny diffs and hotfixes.
+
+Every gate's outcome is recorded in `session-docs/{feature-name}/00-execution-events.jsonl` (machine-readable trace) and a `done.yml` formal completion file. `delivery` aborts if `done == false`. Tool capability is scoped per agent in frontmatter; destructive Bash commands and writes to sensitive files are blocked at `PreToolUse` by `hooks/policy-block.sh`. Diffs above the reviewability cap (>400 lines or >8 files) require an explicit justification or are split into multiple PRs.
 
 Every feature, fix, or refactor the team takes on flows through the orchestrator. The developer reads the plan before the pipeline proceeds, and every generated PR goes through human review.
 
