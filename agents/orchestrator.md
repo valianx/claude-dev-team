@@ -685,8 +685,59 @@ This phase does NOT iterate — if it fails (e.g., push rejected), report to the
 ✓ Phase 4/7 — Delivery — completed
   Agent: delivery | Branch: {branch} | Version: {version}
   {summary from status block}
+→ Next: Phase 4.5 — Internal Review (or Phase 5 if skipped)
+```
+
+---
+
+## Phase 4.5 — Internal Review (advisory, gated by diff size)
+
+**Agent:** `reviewer` (mode: `internal`)
+
+**Why this phase exists:** Cognition's Devin team reported that as agent-generated code volume grows, *"the bottleneck shifted from writing code to reviewing it."* A pre-PR pass that surfaces the riskiest 1-3 things in the diff before the human opens the PR cuts review-fatigue without replacing the human review. This phase is **advisory** — it does not block delivery and does not publish to GitHub.
+
+**When to run:**
+
+| Condition | Run Phase 4.5? |
+|---|---|
+| Diff has ≤ 50 lines AND ≤ 2 files | **No** — nothing meaningful to summarize. Skip. |
+| `type: hotfix` AND single-file fix | **No** — keep hotfixes fast. |
+| `complexity: complex`, OR diff > 50 lines, OR > 2 files, OR security-sensitive | **Yes** |
+
+When skipped, log `phase.end` to `00-execution-events.jsonl` with `phase: "4.5-internal-review"`, `status: "skipped"`, and proceed to Phase 5.
+
+**Invoke via Task tool** with context:
+- Feature name for session-docs
+- `mode: internal`
+- Base ref (`main` by default) and head ref (the branch `delivery` just pushed)
+- Pre-fetched diff: run `git diff origin/main...origin/{branch}` in the orchestrator's main context, capture stdout, and pass it inline (zero Bash from the reviewer)
+- Pre-fetched changed-files list: `git diff --name-only origin/main...origin/{branch}`
+- Instruction: "This is internal review mode. Do NOT publish anything to GitHub. Output a tight summary, criticals/suggestions/nitpicks counts, and the top 3 highest-severity issues only. The human reviewer will see your summary in the orchestrator's final report."
+
+**Gate (status-block):** the reviewer returns a compact status block. The verdict does NOT block delivery — Phase 4.5 is advisory.
+
+| `status` | `criticals_count` | Action |
+|---|---|---|
+| `success` | 0 | Proceed to Phase 5. Surface the summary line in the report. |
+| `success` | 1+ | Proceed to Phase 5 BUT highlight the criticals in the report. The user can decide whether to amend the PR before merging or accept the risk. |
+| `failed` / `blocked` | (any) | Reviewer broke. Log the issue, retry once. If still failing, log a warning and proceed to Phase 5 (this phase is non-binding by design). |
+
+**Report to user:**
+
+```
+✓ Phase 4.5/7 — Internal Review — {N} criticals, {M} suggestions, {K} nitpicks
+  Agent: reviewer (mode: internal) | Output: 04-internal-review.md
+  Summary: {one-paragraph summary from status block, verbatim}
+  {if criticals_count > 0:}
+  Top issues to look at:
+  1. {top_issues[0].path:line} — {top_issues[0].body}
+  2. ...
 → Next: Phase 5 — GitHub Update
 ```
+
+The orchestrator passes `04-internal-review.md` content to `delivery` for optional inclusion in the PR description (under a "Pre-PR Review" section in the body) — `delivery` already has the PR open at this point and can update the body via `gh pr edit`.
+
+**Cost:** one reviewer invocation (~5-15K tokens depending on diff size). **Saves:** human review time and merge churn when the PR has obvious issues. The bound is the diff-size gate above — never run on trivial changes.
 
 ---
 
