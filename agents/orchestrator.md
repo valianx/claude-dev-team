@@ -458,17 +458,42 @@ If build/lint fails, the implementer fixes it before finishing (internal loop).
 
 **CRITICAL: Immediately proceed to Phase 3. Do NOT stop here, do NOT ask the user, do NOT report "done". Implementation without verification is incomplete.**
 
-### Spec Reconciliation (between Phase 2 and Phase 3)
+### Phase 2.5 — Constraint Reconciliation (between Phase 2 and Phase 3)
 
-Before launching Phase 3, read `00-task-intake.md` and check for `[CONSTRAINT-DISCOVERED]` annotations added by architect or implementer. If found:
+Before launching Phase 3, read `00-task-intake.md` and check for `[CONSTRAINT-DISCOVERED]` annotations added by architect or implementer. The previous behaviour ("orchestrator reconciles inline") works for cosmetic constraints, but it silently mutates AC for non-trivial ones — exactly the failure Cognition reported as the dominant mid-task issue ("agents handle clear upfront scoping well, but not mid-task requirement changes"). This phase formalises the reconciliation.
 
-1. Review each annotation — understand why the constraint was discovered
-2. Update the affected AC to reflect the discovered constraint (rewrite the AC to match reality)
-3. Remove the `[CONSTRAINT-DISCOVERED]` tag
-4. If any AC was significantly changed, briefly inform the user: "AC-{N} updated: {what changed and why}"
-5. Update the AC Summary line if the scope changed
+#### Step 1 — Triage
 
-If no annotations found, proceed immediately to Phase 3.
+Count the constraints and classify each as **trivial** or **non-trivial**:
+
+| Constraint | Class | Example |
+|---|---|---|
+| Cosmetic rewording or scope shrinkage that does not change behaviour | **trivial** | "AC says ≤5s response, framework hard-codes 8s" |
+| AC was wrong about the technology / pattern (verifiable correction) | **trivial** | "AC says use WebSocket, framework only supports SSE" — semantic equivalent |
+| Constraint **adds, removes, or alters** a behavioural promise to the user | **non-trivial** | "AC says retry 3 times, retry library does not exist; we will not retry" |
+| Constraint **changes the user-visible contract** (input shape, output shape, error semantics) | **non-trivial** | "AC says batch 1000 items, memory forces chunks of 100; user-visible latency changes" |
+| `complexity: complex` AND any constraint discovered | **non-trivial** | always escalate on complex tasks |
+
+#### Step 2 — Route
+
+- **All constraints are trivial** → reconcile inline (the current behaviour). For each annotation: rewrite the affected AC, remove the tag, log the change in Hot Context, briefly inform the user: "AC-{N} updated: {what changed and why}". Proceed to Phase 3.
+
+- **Any non-trivial constraint** → invoke `qa` in new mode `reconcile`. Pass: feature name, pointer to `00-task-intake.md` (with annotations), pointer to `01-architecture.md` and `02-implementation.md`. Instruction: "Review each [CONSTRAINT-DISCOVERED] annotation against the original Original Description block. For each, decide: (a) AC stays as-is — the constraint can be worked around; (b) AC is amended — propose the new wording; (c) AC is dropped — the original promise is no longer feasible and the user must be notified. Do NOT change any AC yourself; return your decisions in `04-validation.md` under a `## Reconciliation Decisions` section."
+
+- After `qa` returns, the orchestrator applies the decisions:
+  - For each (a): remove the `[CONSTRAINT-DISCOVERED]` tag, AC unchanged.
+  - For each (b): rewrite the AC per qa's proposed wording.
+  - For each (c): mark the AC as `[DROPPED — {reason}]` in the spec, count it OUT of the verification gate, surface the drop to the user before proceeding.
+
+- If qa marks 1+ AC as dropped → **stop the pipeline** and confirm with the user before proceeding to Phase 3. Wording: "Reconciliation found {N} AC that cannot be satisfied with the discovered constraints. Drops: {list}. Continue, adjust scope, or abort?" The user may choose to proceed (drops accepted), iterate (architect rethinks design), or abort.
+
+#### Step 3 — Log
+
+Append a `phase.end` event to `00-execution-events.jsonl` with `phase: "2.5-reconciliation"`, `status: "success"`, and `extra: {"trivial": N, "non_trivial": N, "dropped_ac": N}`.
+
+If no annotations were found, log a single `phase.end` with `extra.trivial: 0, .non_trivial: 0` and proceed to Phase 3.
+
+**Cost:** typically zero (no annotations) or one qa invocation (~2-4K tokens). **Saves:** an entire iteration cycle when a non-trivial constraint would otherwise be silently absorbed and surfaced as an acceptance-checker concern at Phase 3.6.
 
 ---
 
