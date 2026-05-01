@@ -942,6 +942,41 @@ After Phase 3 (verify) completes successfully, prune your accumulated context to
 
 This is especially important in batch mode where the parent orchestrator accumulates context from multiple worktree completions. After processing each worktree result, keep only the summary line — drop the full `.done` file content.
 
+### Mid-pipeline compaction trigger
+
+The Phase 6 final-state handoff prompts the user to run `/compact` between features. That is the **inter-feature** boundary. There is also an **intra-feature** boundary worth gating: long iteration cycles or large debugging session-doc reads can push the orchestrator over the cache window mid-pipeline, which silently degrades response quality and inflates cost on the next phase.
+
+**Trigger:** when, at the end of any phase, you estimate the cumulative orchestrator context above ~40% of the model's effective window for this session (Anthropic's harness-design article: *"long-context scenarios collapse agent success from 40-50% to under 10% without proper state management"* — the inflection is around 40-50%, so 40% is the conservative trigger).
+
+How to estimate cheaply: sum `tokens_in + tokens_out` from the JSONL events written so far for this pipeline (`jq -s 'map(select(.feature=="{name}")) | map(.tokens_in // 0 + .tokens_out // 0) | add' session-docs/{name}/00-execution-events.jsonl`), plus a flat 5K for prompt/system overhead. For Opus 4.7 1M context, 40% ≈ 400K tokens — generous; this rarely triggers on standard pipelines but matters on complex iterations.
+
+**Action when triggered (between phases, never mid-phase):**
+
+1. **Expand `00-state.md`** with extra detail under a new `## Rebuild Hints` section so the next session can resume without conversational continuity:
+   - Current phase, iteration, last successful gate.
+   - Hot Context insights verbatim.
+   - Names + locations of every session-doc the next session needs (intake, latest validation, failure-brief if iterating).
+   - The exact next action ("invoke implementer with the failure brief at iteration 2").
+2. **Surface a prompt to the user** (mid-pipeline variant):
+   ```
+   ⚠️  Mid-pipeline compaction recommended
+   This pipeline has accumulated ~{N}K tokens across {M} phases. Approaching
+   the cache-degradation zone (~40% of effective window).
+
+   Options:
+     • /compact — keep going in this session, drop redundant context
+     • /clear   — full reset; resume from session-docs/{feature}/00-state.md
+
+   The pipeline state is durable. Either choice continues cleanly.
+   ```
+3. **Stop after the prompt.** Do NOT auto-decide between `/compact` and `/clear` — the user owns that. Wait for the user's response (or for them to run a slash command) before starting the next phase.
+4. Log a `compaction.trigger` event to `00-execution-events.jsonl`:
+   ```json
+   {"ts":"...","event":"compaction.trigger","feature":"{name}","phase":"end-of-{phase}","extra":{"tokens_estimated":N,"window_pct":42}}
+   ```
+
+This trigger never fires more than once per phase boundary. If the user opts to keep going without compaction, do NOT re-prompt at the next phase boundary unless the budget grew by another 15 percentage points.
+
 ---
 
 ## Pipeline Metrics
