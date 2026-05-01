@@ -1,6 +1,6 @@
 # claude-dev-team
 
-A standardized, opinionated Claude Code agent system for software teams: 16 agents, 27 skills (3 of which are complex multi-file skills), OS-native notification hooks, a ChromaDB-backed knowledge-graph MCP server, and a cross-platform installer that wires everything into your `~/.claude/`.
+A standardized, opinionated Claude Code agent system for software teams: 16 agents, 28 skills (3 of which are complex multi-file skills), OS-native notification hooks (including a `PreToolUse` policy gate that blocks destructive commands), a ChromaDB-backed knowledge-graph MCP server, and a cross-platform installer that wires everything into your `~/.claude/`.
 
 ## Install
 
