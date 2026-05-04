@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (orchestrator dispatch hardening)
+
+- **Orchestrator no longer falsely claims "no Task tool available".** Added a `Dispatch invariants` block at the top of `agents/orchestrator.md` (right after the role statement, before "Your Team"). Four runtime invariants the agent must treat as facts: (1) `Task` is always present (frontmatter-declared, harness-injected) — any conclusion that it isn't is wrong by definition; (2) the orchestrator is forbidden from substituting itself for a subagent (no "degraded mode" writing `01-architecture.md`, `02-implementation.md`, etc. by hand, even if the user authorises it); (3) on a real Task failure, retry once and report the **literal harness error** instead of paraphrasing; (4) user instructions like "no implementes todavía" / "muéstrame el plan primero" mean *run Design + Plan-Ratification then pause*, **not** *skip the architect*. Closes the failure mode where the orchestrator wrote a correct `00-task-intake.md`, then froze at Phase 1 claiming it could not dispatch the architect, and asked the user to choose between "retry / degraded research / reduced scope". The bug was a hallucinated tool-availability check; the fix is an explicit, non-negotiable invariant the agent reads before each phase transition.
+
 ### Added (verification suite for harness changes)
 
 - **`tests/` folder.** First test suite for the repo. Covers the two surfaces that are testable without a live LLM: `hooks/policy-block.sh` (functional) and the structural integrity of the agent / skill / hook `.md` / `.json` files (cross-references, mandatory sections, frontmatter fields).
