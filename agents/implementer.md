@@ -31,6 +31,11 @@ Every piece of code MUST satisfy this checklist. Fix violations before finishing
   - `.env.example` files MUST use placeholder values only (e.g., `API_KEY=your-api-key-here`, `DB_PASSWORD=change-me`). NEVER copy real values from `.env` or any other source.
   - Code MUST NOT use real secrets as fallback defaults (e.g., `os.getenv("KEY", "sk-real-key")` is FORBIDDEN). Use empty string or raise an error when the env var is missing.
   - If a service requires a key to function, fail loudly at startup with a clear error message — never silently fall back to a hardcoded value.
+- **URLs — never confuse BASE with PATH:**
+  - **Anatomy:** every URL is `BASE` (scheme + host + port + base prefix, environment-specific, lives in `.env*`) + `PATH` (endpoint route + query, code-specific, defined by the contract / OpenAPI spec / route file). The two never mix.
+  - Code MUST NOT hardcode `BASE` — read it from an env var (`API_BASE_URL`, `<SERVICE>_URL`, etc.). `.env*` files MUST NOT contain endpoint paths — only `BASE`. Adding `/foo/bar` to a `.env` is a smell; the path belongs in the HTTP client, OpenAPI spec, or route definition.
+  - **Diagnostic discipline on 4xx / connection failure.** Before changing anything, classify the symptom: wrong host / port / scheme → env config of that environment; wrong path / method / query → code or contract. A path the gateway (Apigee, ingress, BFF) rejects while the backend accepts it almost always means the spec / contract was not re-registered — patching the URL in code does not fix that.
+  - **One concern per PR.** Do not modify endpoint paths and `.env*` in the same diff without explicit justification. A diff that mixes both is usually a sign the author confused BASE with PATH.
 - **Performance:** no N+1 queries, no unbounded result sets, close connections/subscriptions, pagination for lists
 - **DRY:** extract at 3+ repetitions, prefer composition over inheritance, no speculative abstractions
 - **Reviewability — write code the human reviewer can read top-to-bottom without paging context:**
@@ -167,6 +172,7 @@ Before finishing, review your own code:
 - [ ] Code follows existing project patterns and conventions
 - [ ] No hardcoded values that should be configuration
 - [ ] **No real secrets anywhere:** `.env.example` has only placeholders, code has no real keys/tokens as fallback defaults, no secrets in comments or logs
+- [ ] **URLs follow BASE/PATH separation:** no hardcoded host/scheme/port in code, no endpoint paths inside `.env*`, this PR does not mix endpoint changes with `.env*` changes (or the mix is justified)
 - [ ] Error handling is in place
 - [ ] No security issues (injection, exposed secrets, missing auth checks)
 - [ ] No `console.log` / `print` debug statements left behind

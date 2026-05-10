@@ -190,6 +190,14 @@ This is informational, not a verdict. It does NOT change `event` (`APPROVE` / `R
 - Sensitive data in logs — PII, credentials, tokens logged accidentally
 - Authentication/authorization gaps — missing or bypassed checks
 
+### URL & Environment Configuration
+- **BASE vs PATH separation.** Every URL splits into `BASE` (scheme + host + port + base prefix, lives in `.env*`) and `PATH` (endpoint route + query, lives in code / OpenAPI spec). Flag any of:
+  - Hardcoded host / scheme / port in code (literal `https://api.foo.com/...` outside config)
+  - Endpoint paths placed inside `.env*` files (paths belong in the HTTP client or contract)
+  - The same PR mixing endpoint-path changes with `.env*` changes — usually signals confusion between BASE and PATH; ask the author to split or justify
+- **Gateway / spec sync.** When a PR adds or modifies endpoints behind an API gateway (Apigee, ingress, BFF), check that the contract / OpenAPI spec is updated and version-bumped in the same PR. Otherwise the gateway will reject the new path even when the backend accepts it, and the user will be tempted to "patch the URL" in client code instead of fixing the contract.
+- **Severity guidance:** hardcoded `BASE` in code → CRITICAL (blocks per-environment deploy). Endpoint paths in `.env*` → CRITICAL (breaks ambient assumption that envs are interchangeable). PR mixing path + env without justification → SUGGESTION (request a split or explicit reason).
+
 ### Performance
 - N+1 queries — database calls inside loops
 - Unbounded results — queries or API calls without limits/pagination
