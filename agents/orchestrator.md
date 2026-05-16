@@ -1128,6 +1128,9 @@ Using the ChromaDB MCP tools (if available), save the most reusable insights as 
 - **Constraints:** technical limitations discovered (e.g., "Payment API rate limit: 100 req/min")
 - **Decisions:** key technical decisions with rationale (e.g., "JWT with refresh tokens, 15min expiry")
 - **Tools:** gotchas with specific tools/libraries (e.g., "vitest needs `pool: 'forks'` for Prisma tests")
+- **Projects:** repository-level entities for projects the pipeline introduced or substantively modified (e.g., a new `project` entity for `zippy-backoffice`)
+- **Services:** deployable-level entities for new or substantially modified services (e.g., `service` for `zippy-commission-api` when this pipeline introduced or rewired it)
+- **Stacks:** reusable stack profiles for new project archetypes (e.g., `stack-profile` for `nextjs-prisma-trpc-b2b-saas` when this pipeline established or codified a new template)
 
 **How to save:**
 1. Extract 1-3 reusable insights from the pipeline run (not everything — only what applies beyond this feature)
@@ -1137,14 +1140,51 @@ Using the ChromaDB MCP tools (if available), save the most reusable insights as 
    - Only use `create_entities` if no similar entity was found.
 3. Create entities with the ChromaDB MCP `create_entities` tool (only if step 2 found no match):
    - Entity name: short, descriptive (e.g., "prisma-sqlite-enum-workaround")
-   - Entity type: `pattern` | `error` | `constraint` | `decision` | `tool-gotcha`
+   - Entity type: `pattern` | `error` | `constraint` | `decision` | `tool-gotcha` | `project` | `service` | `stack-profile`
    - Observations: the insight text, including project name and date
-4. Create relations between entities if relevant (e.g., "prisma-sqlite-enum-workaround" → "relates_to" → "prisma")
+4. **Create relations between entities when the topology calls for it** (and only when both endpoints already exist or will be created in this same Phase 6 batch — never create a relation pointing at a non-existent entity):
+   - `belongs-to` (service → project): create whenever a `service` entity is saved and its owning `project` is known.
+   - `calls` (service → service): create when the pipeline added or modified cross-service IO (HTTP call, RPC, queue message). Directed — `A calls B` for "A sends, B receives".
+   - `uses-stack` (project → stack-profile): create when a project formally adopts or follows a stack profile.
+   - `depends-on` (service → service): create only when the build or deploy ordering is real (e.g., shared library, schema dependency), distinct from runtime calls.
+   - Legacy: `relates_to` remains valid as the generic edge for non-topology pairs (e.g., `prisma-sqlite-enum-workaround` → `prisma`).
+
+### Save triggers (per entity type)
+
+The orchestrator MUST emit a Phase 6 save for these types when the corresponding trigger fires in the pipeline:
+
+- **`project`** — save when the pipeline ran against a repository that does not yet have a `project` entity in the KG (`search_nodes` returned no match for the bare repo name).
+- **`service`** — save when the pipeline added a new deployable, renamed an existing deployable, or substantively changed a deployable's purpose. "Substantive" means a sentence in the deployable's one-line description would change.
+- **`stack-profile`** — save only when the architect explicitly proposed a new reusable stack for a project archetype that does not yet have a profile. Do NOT save a `stack-profile` for every feature — most features use an existing profile.
+- **`calls`** — save when the pipeline added or modified a cross-service HTTP call, RPC, or message send. Update an existing relation in place; do not create duplicate `calls` edges between the same pair.
+- **`belongs-to`** — save whenever a `service` entity is saved and its owning `project` is known.
+- **`uses-stack`** — save when a `project` is saved AND the pipeline establishes which `stack-profile` it follows.
+- **`depends-on`** — save only when build/deploy ordering is real and was made explicit by the pipeline (shared schema, package dependency, deployment script).
+
+Dedup applies to relations too — `search_nodes` for the pair before `create_relations`.
+
+### Cross-link to docs/knowledge.md
+
+After saving Phase 6 entities successfully, append a `[kg]` cross-link bullet to `docs/knowledge.md` for every entity saved this run (only if the file exists — do NOT create it; `init.md` is responsible for the initial placeholder):
+
+```markdown
+- **[kg]** {entity-name} ({entityType}): {one-line gloss} — see `/memory show {entity-name}`
+```
+
+Example:
+- **[kg]** nextjs-prisma-trpc-b2b-saas (stack-profile): default stack for B2B SaaS admin dashboards — see `/memory show nextjs-prisma-trpc-b2b-saas`
+
+**Rules for the cross-link append:**
+- Skip if `docs/knowledge.md` does not exist (no error — the file may not yet be initialized on this repo).
+- Skip if the entity name already appears in `docs/knowledge.md` (idempotent — do not create duplicates on pipeline reruns).
+- Append at the end of the file, after existing bullets.
+- One bullet per entity saved; do NOT list entities that failed the dedup check (i.e., only `create_entities` saves, not `add_observations` updates).
 
 **Do NOT call `read_graph` from this phase.** `read_graph` returns the entire graph (often 100K+ tokens) — using it just to count entities or to find duplicates is a token-cost anti-pattern that scales linearly with graph size and runs on every pipeline. Dedup MUST happen via the targeted `search_nodes` call in step 2; that is enough to prevent duplicates without paying the cost of loading the whole graph. Periodic consolidation across the whole KG is a separate concern — surface it to the user as `/memory consolidate` when relevant, do not run it automatically here.
 
 **Rules:**
-- Max 3 entities per pipeline run — quality over quantity
+- **Soft cap 5 entities per pipeline run.** Up to 5 is typical; up to 7 acceptable when the pipeline introduces topology entities (`project` / `service` / `stack-profile`) that did not previously exist in the KG. Topology counts separately from pattern-extraction (`pattern` / `error` / `decision` / `tool-gotcha` / `constraint`) because topology is one-time inventory, not judgement. Relations do not count against the budget — they are derived from the entities saved this run.
+- Quality enforcement does NOT come from the count. It comes from (a) the dedup check (step 2 — `search_nodes` before `create_entities`) and (b) the content-policy filter (the pre-write checklist in `docs/kg-content-policy.md`). The numeric soft cap exists to prevent runaway saves, not to drive quality.
 - Only save cross-project knowledge (would help in a different project)
 - Do not save feature-specific details (those stay in session-docs)
 - If nothing reusable was learned, save nothing — that's fine
