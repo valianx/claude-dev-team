@@ -167,6 +167,8 @@ If session-docs don't exist or have no reusable knowledge, skip to Step 7. This 
 
 ### Step 5 — Update CLAUDE.md (Memory)
 
+> The deliverables enumerated in Steps 5-9 (CLAUDE.md memory, docs/knowledge.md, CHANGELOG, OpenAPI bump, version bump) implement the **Post-work** sub-block of CLAUDE.md §6 Mandatory Working Agreements. Read that section before extending this list.
+
 Read CLAUDE.md. Add entries to the memory sections below. **Create the sections if they don't exist.**
 
 ```markdown
