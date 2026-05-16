@@ -135,16 +135,54 @@ All commands run from the repo root.
 
 ---
 
-## 6. Architecture Decisions
+## 6. Mandatory Working Agreements
+
+> These are the minimum agreements that keep the codebase aligned across humans, agents, and outside contributors. They apply to every change in this repo, whether it goes through the orchestrator pipeline or is a manual commit. If a rule conflicts with a more specific instruction in §5 Architectural Conventions, the more specific one wins — but the rules below are the floor, not the ceiling.
+
+### 6.1 Pre-work (read before you touch code)
+
+- Read CLAUDE.md (this file) front to back, paying attention to §3 Tech Stack and §4 Golden Commands.
+- Read README.md and scan `docs/` for any file titled `knowledge.md`, `architecture.md`, or a specific area README.
+- Read the most recent `[Unreleased]` block of CHANGELOG.md to understand work in flight.
+
+### 6.2 During-work
+
+- Use a feature branch named `feat/<kebab>`, `fix/<kebab>`, `chore/<kebab>`, `docs/<kebab>`, or `refactor/<kebab>` — never commit on `main` or `master`.
+- Use conventional-commit messages (`feat(area): …`, `fix(area): …`, `docs(area): …`, `refactor(area): …`, `chore(area): …`).
+- Never push to `main`/`master` directly — every change ships via pull request.
+- Never bypass policy gates (`git commit --no-verify`, `git push --force`/`--force-with-lease` to a shared branch, disabling hooks, deleting `.git/hooks/*`).
+
+### 6.3 Post-work (deliverables for any user-facing change)
+
+- Add a one-line entry under `## [Unreleased]` of CHANGELOG.md in the matching subsection (Added / Changed / Fixed / Removed / Security).
+- If §3 Tech Stack or §4 Golden Commands of CLAUDE.md changed, update those sections in the same PR — do not let CLAUDE.md drift from the repo.
+- If the change establishes a decision, pattern, or constraint that future work must respect, append a one-line bullet to `docs/knowledge.md` with the matching tag prefix (`[decisión]`, `[patrón]`, `[stack]`, `[restricción]`).
+- If the repo has an OpenAPI spec (`openapi/openapi.yaml` or similar) and the change touches endpoints, bump `info.version` in the same commit as the spec change — never in a separate commit.
+
+### 6.4 Governance (when to stop and escalate to a human)
+
+- Stop and ask before any irreversible operation (production data migration, breaking API change, deletion of a public surface, force-push to a shared branch).
+- Stop and ask when the requirement is ambiguous in a way that two different interpretations produce visibly different behaviour — do not pick one silently.
+- Stop and ask when the change touches authentication, authorization, secrets, payments, or PII handling — these are always security-sensitive regardless of the rest of the change.
+
+### 6.5 Anti-patterns (do not, ever)
+
+- Do not commit secrets, tokens, API keys, `.env` files, certificates, or private keys — even temporarily, even on a feature branch.
+- Do not `rm -rf` shared paths (`/`, `~`, `$HOME`, project root, `node_modules` of a shared workspace, `.git`); use the project's clean script or scoped paths only.
+- Do not delete, rewrite, or skip tests to make a build green — fix the code or fix the test with a documented rationale in the PR body.
+
+---
+
+## 7. Architecture Decisions
 <!-- Populated by the delivery agent after each feature. Empty at init. -->
 
-## 7. Patterns & Conventions
+## 8. Patterns & Conventions
 <!-- Populated by the delivery agent after each feature. Empty at init. -->
 
-## 8. Known Constraints
+## 9. Known Constraints
 <!-- Populated by the delivery agent after each feature. Empty at init. -->
 
-## 9. Testing Conventions
+## 10. Testing Conventions
 
 The repo has a verification suite at `tests/` that covers what is testable without a live LLM:
 
@@ -158,7 +196,7 @@ The repo has a verification suite at `tests/` that covers what is testable witho
 
 ---
 
-## 10. Contribution Workflow (repo-specific)
+## 11. Contribution Workflow (repo-specific)
 
 This repo ships assets to other developers, so the contribution flow matters more than code-level conventions.
 
@@ -169,17 +207,13 @@ This repo ships assets to other developers, so the contribution flow matters mor
 
 ---
 
-## 11. Git & Delivery Conventions
+## 12. Git & Delivery Conventions
 
-- **Branch naming:** `feat/<name>`, `fix/<name>`, `chore/<name>`, `docs/<name>`.
-- **Commits:** conventional commits (`feat(agents): …`, `fix(installer): …`, `docs(readme): …`).
-- **Always PR, never push to `main` directly.** Even for one-line tweaks — the team relies on the review/audit trail.
-- **Changelog:** every user-facing change (new agent, new skill, hook/installer change, MCP change) gets an entry in `CHANGELOG.md` under `[Unreleased]`. Keep a Changelog format, semver.
-- **Versioning:** `bin/install.py` carries `__version__`; tag releases in git as `v<major>.<minor>.<patch>`. Current: `0.1.0`.
+Git & delivery rules are now part of §6 Mandatory Working Agreements (see During-work and Post-work sub-blocks). This section is intentionally a pointer to keep one source of truth.
 
 ---
 
-## 12. Subagent Orchestration
+## 13. Subagent Orchestration
 
 Routing table for this repo:
 
@@ -203,7 +237,7 @@ Routing table for this repo:
 
 ---
 
-## 13. When to Ask Humans
+## 14. When to Ask Humans
 
 - Proposing a new direct mode or a new pipeline phase (changes the mental model).
 - Changing the installer's target layout under `~/.claude/` or touching new keys in `~/.claude.json` beyond `mcpServers.memory` / `mcpServers.context7` (breaks existing users or risks clobbering personal config).
@@ -213,6 +247,6 @@ Routing table for this repo:
 
 ---
 
-## 14. Meta-Note
+## 15. Meta-Note
 
 **This is the repo that produces the agents and skills of the orchestrator system.** A CLAUDE.md edit here does *not* propagate automatically — agents in this repo are read from `agents/*.md` as source artifacts, and developers pick them up via the installer. If you change agent behavior and want it to take effect on your own machine, re-run the installer.
