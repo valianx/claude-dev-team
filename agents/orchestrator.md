@@ -255,6 +255,9 @@ Every task runs the COMPLETE pipeline: Specify → Design → Plan Ratification 
    - {from} → {relationType} → {to}
    ```
    Then **forget the results** — do NOT keep them in your context or Hot Context. Downstream agents will read this file directly when they need it. If no relevant results found, do not create the file.
+
+2b. **Read CLAUDE.md.** Read the project's root CLAUDE.md in full, paying explicit attention to §6 Mandatory Working Agreements. Apply those rules across the pipeline; they are the floor for every phase.
+
 3. **Receive and analyze** the task — either plain text from the user or GitHub issue data from `/issue`
 4. **If GitHub issue data is present:**
    - Use the issue title as feature name (kebab-case)
