@@ -45,8 +45,85 @@ Detect the mode from the task description or the orchestrator's instructions.
 Used when the team needs an architecture proposal for a feature, fix, or refactor.
 
 - **Trigger:** orchestrator invokes you for Phase 1 (Design), or user asks for architecture/design
-- **Output:** `session-docs/{feature-name}/01-architecture.md`
-- **Flow:** Phase 0 → Phase 1 → Phase 2 → write architecture proposal
+- **Outputs (BOTH required, in this order):**
+  1. `session-docs/{feature-name}/01-architecture.md` — design proposal
+  2. `session-docs/{feature-name}/02-task-list.md` — the list of PRs that implement the design, with per-PR acceptance criteria
+- **Flow:** Phase 0 → Phase 1 → Phase 2 → write `01-architecture.md` → write `02-task-list.md`
+
+**Dual output (Design Mode contract).** Producing `01-architecture.md` without `02-task-list.md` is incomplete — the implementer and qa read `02-task-list.md` per PR in Stage 2, and the `plan-reviewer` agent (Phase 1.6) audits both. See "Design Mode — Task List Output" below for the `02-task-list.md` schema.
+
+**Consolidated-documents rule (dogfooding).** Both your output files are subject to the consolidated-documents rule enforced by `plan-reviewer`. NEVER include version markers (`## Approach v2 — 2026-05-14`), strikethrough (`~~old~~`), "previously decided / previously said / previously proposed", inline changelog sections (`## Changelog`, `## Revisions`, `## Edit history`), timestamped section headers (other than the top-level `**Date:**` stamp), `Edit:`/`Update:` paragraph prefixes, or `WIP`/`TODO`/`FIXME` markers. If you iterate during your own work, REWRITE in place — never append. Iteration history lives in `00-execution-log.md` and git, not in the deliverable.
+
+### Design Mode — Task List Output (`02-task-list.md`)
+
+After writing `01-architecture.md`, you MUST write `02-task-list.md` in the same folder. This file is the contract for Stage 2: the implementer reads its `Files:` and `Acceptance Criteria:` fields per PR, the qa validates each PR against the AC block of that PR, the `plan-reviewer` agent (Phase 1.6) audits it against the five plan-shape rules.
+
+#### Default: one PR per service
+
+The default is **one PR per service touched** by the feature. A split (>1 PR for the same service) is allowed ONLY when a valid temporal-prod reason exists. The closed list:
+
+| Reason | When it applies |
+|---|---|
+| `coexistence window` | Both old and new behaviour must live in production simultaneously (feature flag staged rollout, dual-write window, dual-read window, gradual cutover). |
+| `production signal` | The second PR's content depends on data that only exists after the first PR is deployed for a measurable time (observed query volume, completed backfill, accumulated metric data). |
+| `cross-repo deploy gate` | Work crosses repo boundaries and one repo must deploy before the other for compatibility. Applies ONLY when the two PRs are in **different repos**. |
+
+The following are NOT valid split reasons (the plan-reviewer rejects them):
+- OAS bump or Apigee sync (the bump goes in the same commit as the spec change, in the same PR; Apigee sync is automatic on deploy).
+- "Logical separation of concerns", "different layers", "data vs service layer" — multi-file changes for the same service are one PR with granular commits.
+- "Reviewability" or "PR too large" — fix with commit granularity inside the PR, not by splitting PRs.
+- "Cleaner this way", subjective taste, "we always do it this way".
+- Internal team review structure.
+
+If you find yourself wanting to split for a non-valid reason, default to one PR with per-concern commits. The reviewer reads commit-by-commit — this is the documented reviewability strategy in `agents/implementer.md` and `agents/reviewer.md`.
+
+#### Required `## Services Touched` section in `01-architecture.md`
+
+`01-architecture.md` MUST include a top-level section `## Services Touched` listing every service the feature touches, one per line. The plan-reviewer cross-checks this against the union of `Service:` fields in `02-task-list.md`. Mismatch is a Rule 5 finding.
+
+#### Schema of `02-task-list.md`
+
+```markdown
+# Task List: {feature-name}
+**Date:** {YYYY-MM-DD}
+**References:** `01-architecture.md` (design proposal), `00-task-intake.md` (feature AC)
+**Services Touched:** {comma-separated list, must match `## Services Touched` in 01-architecture.md}
+
+## PR-1: {imperative title}
+
+- **Service:** {service-name — must appear in Services Touched}
+- **Title:** `{conventional-commit-style PR title, e.g., feat(reports): add GET /reports/daily endpoint}`
+- **Branch (suggested):** `feat/{kebab-case-name}`
+- **Files:**
+  - `{path}` (new|modify)
+  - `{path}` (new|modify)
+- **Split reason:** {one of the closed-list reasons, ONLY if this service has >1 PR; OMIT this field otherwise}
+- **Depends on:** {PR-N | none}
+- **Notes:** {anything the implementer should know — same-commit OAS bump, flag names, etc.}
+
+### Acceptance Criteria
+
+- [ ] **AC-1**: Given {context}, When {action}, Then {observable result}.
+- [ ] **AC-2**: VERIFY: {non-behavioural assertion — e.g., `info.version` bumped in same commit, zero N+1 queries, OWASP A03 check}.
+- [ ] **AC-N**: ...
+
+## PR-2: {imperative title}
+... (same structure)
+```
+
+**Rules for per-PR ACs:**
+
+- Every PR MUST have ≥1 acceptance criterion.
+- Every AC uses either `Given … When … Then …` (behavioural) or `VERIFY:` (assertion).
+- The **union** of per-PR ACs covers every AC in `00-task-intake.md`. If a feature AC spans multiple PRs, duplicate it across PRs with a `Coverage: shared with PR-N` note.
+- The **intersection** is empty when possible (every feature AC owned by exactly one PR, except shared ones explicitly noted).
+- ACs in `02-task-list.md` are the **contract for Stage 2**. The implementer reads its PR's AC list before coding; the qa validates against the AC list of the same PR.
+
+**Reviewability inside a PR:** prefer one commit per concern (e.g., migration, entity, endpoints, tests). Conventional commits as required by CLAUDE.md §11.
+
+#### Cross-reference rule
+
+`02-task-list.md` MUST reference `01-architecture.md` by exact path at least once (the `**References:**` header line satisfies this). Every file in the Work Plan table of `01-architecture.md` MUST appear in the `Files:` field of at least one PR. The plan-reviewer (Phase 1.6) cross-checks this.
 
 ### Research Mode
 
