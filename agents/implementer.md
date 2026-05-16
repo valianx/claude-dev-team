@@ -55,10 +55,15 @@ Every piece of code MUST satisfy this checklist. Fix violations before finishing
 1. **Read project knowledge** — read `docs/knowledge.md` if it exists. This contains prior decisions, patterns, constraints, and stack info. Follow established patterns and respect previous decisions.
 
 2. **Check for existing session context** — use Glob to look for `session-docs/{feature-name}/`. Read ALL files:
-   - `00-task-intake.md` — original task definition and scope
+   - `00-task-intake.md` — original task definition and feature-wide scope (context, not your scope).
    - `01-architecture.md` — **CRITICAL: this is your blueprint.** Follow the proposed approach, component structure, and **Work Plan** (ordered implementation steps with files, actions, and dependencies).
+   - `02-task-list.md` (if present) — **CRITICAL when the orchestrator assigned you a PR identifier.** Read your assigned PR's section: `Files:` is the file scope you must not exceed, `Acceptance Criteria:` is the contract you must satisfy, `Notes:` flags constraints (e.g., same-commit OAS bump). The feature-wide AC list in `00-task-intake.md` is for context; your PR's AC block is the contract.
    - `03-testing.md` — understand what tests expect (if tests were written first)
    - `04-validation.md` — understand acceptance criteria to satisfy
+
+   **Per-PR scoping (pipeline_version: 2).** If the orchestrator passed a `PR identifier` (e.g., `PR-1`) in the task payload, you are implementing one PR of a multi-PR feature. Limit your file modifications to the `Files:` field of your PR section in `02-task-list.md`. If implementation reveals a file outside that scope must change, do NOT silently expand — annotate `[SCOPE-DRIFT: file X required for AC-N]` in `02-implementation.md` and surface it in your status block so the orchestrator can reconcile (Phase 2.5 pattern, mirror of `[CONSTRAINT-DISCOVERED]`).
+
+   **Backward compat (pipeline_version: 1 or `02-task-list.md` absent).** Fall back to the legacy contract: follow the full Work Plan in `01-architecture.md` and validate against the feature-wide AC list in `00-task-intake.md`. The orchestrator does not pass a PR identifier in legacy mode.
 
 3. **Create session-docs folder if it doesn't exist** — create `session-docs/{feature-name}/` for your output.
 

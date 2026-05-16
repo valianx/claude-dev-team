@@ -62,12 +62,12 @@ print("=== Suite 1: Tool allowlist per agent ===")
 EXPECTED_AGENTS = [
     "orchestrator", "architect", "agent-builder", "security", "reviewer",
     "qa", "gcp-cost-analyzer", "init", "implementer", "tester",
-    "acceptance-checker", "diagrammer", "likec4-diagrammer", "d2-diagrammer",
-    "translator", "delivery",
+    "acceptance-checker", "plan-reviewer", "diagrammer", "likec4-diagrammer",
+    "d2-diagrammer", "translator", "delivery",
 ]
 
 # Read-only agents that MUST NOT have Bash in their allowlist
-READ_ONLY_AGENTS = {"architect", "security", "qa", "acceptance-checker"}
+READ_ONLY_AGENTS = {"architect", "security", "qa", "acceptance-checker", "plan-reviewer"}
 
 for agent_name in EXPECTED_AGENTS:
     path = AGENTS_DIR / f"{agent_name}.md"
@@ -120,10 +120,37 @@ print("=== Suite 3: orchestrator.md harness pieces ===")
 orch = read(AGENTS_DIR / "orchestrator.md")
 checks_orch = [
     ("Phase 1.5", "Phase 1.5 — Plan Ratification"),
+    ("Phase 1.6", "Phase 1.6 — Plan Review"),
     ("Phase 2.5", "Phase 2.5 — Constraint Reconciliation"),
     ("Phase 3.5", "Phase 3.5 — Acceptance Gate"),
     ("Phase 3.6", "Phase 3.6 — Acceptance Check"),
     ("Phase 4.5", "Phase 4.5 — Internal Review"),
+    ("STAGE-GATE-1", "STAGE-GATE-1"),
+    ("STAGE-GATE-2", "STAGE-GATE-2"),
+    ("STAGE-GATE-3", "STAGE-GATE-3"),
+    ("Stage 1 label", "Stage 1"),
+    ("Stage 2 label", "Stage 2"),
+    ("Stage 3 label", "Stage 3"),
+    ("Autonomous Mode section", "## Autonomous Mode"),
+    ("approve autonomous gate phrase", "approve autonomous"),
+    ("pipeline_version field", "pipeline_version"),
+    ("plan-reviewer in team", "plan-reviewer"),
+    ("02-task-list.md artifact", "02-task-list.md"),
+    ("01-plan-review.md artifact", "01-plan-review.md"),
+    ("stage.gate event", "stage.gate"),
+    ("stage.gate.release event", "stage.gate.release"),
+    ("stage.gate.skipped event", "stage.gate.skipped"),
+    ("Stage 2 DAG scheduler", "Stage 2 scheduler"),
+    ("Stage 2 rounds concept", "Round 1"),
+    ("Stage 2 parallel within round", "in parallel"),
+    ("Stage 2 sequential fallback", "Sequential fallback"),
+    ("STAGE-GATE-2 round granularity", "Between rounds"),
+    ("STAGE-GATE-2 partial-fail handling", "partial-fail"),
+    ("after_round JSONL field", "after_round"),
+    ("STAGE-GATE-1 surfaces TL;DR inline", "TL;DR"),
+    ("STAGE-GATE-1 surfaces Decisions for human review inline", "Decisions for human review"),
+    ("STAGE-GATE-1 surfaces PR Summary inline", "PR Summary"),
+    ("STAGE-GATE-1 protects against giant Summary table", "+{N-10} more"),
     ("test-ratchet", "Test-ratchet check"),
     ("done.yml schema", "done.yml"),
     ("JSONL trace", "00-execution-events.jsonl"),
@@ -136,6 +163,18 @@ for label, marker in checks_orch:
         marker in orch,
         f"marker '{marker}' not found",
     )
+
+# orchestrator.md must declare that STAGE-GATE-1 and STAGE-GATE-3 cannot be skipped
+check(
+    "orchestrator.md declares STAGE-GATE-1 is mandatory / non-skippable",
+    "STAGE-GATE-1" in orch and ("mandatory" in orch.lower() or "never skip" in orch.lower() or "cannot be skipped" in orch.lower()),
+    "STAGE-GATE-1 mandatory-ness not documented",
+)
+check(
+    "orchestrator.md declares STAGE-GATE-3 is mandatory / non-skippable",
+    "STAGE-GATE-3" in orch and ("irreversible" in orch.lower() or "cannot be skipped" in orch.lower()),
+    "STAGE-GATE-3 mandatory-ness not documented",
+)
 
 # ---------------------------------------------------------------------------
 # Suite 4 — tester.md Return Protocol carries the ratchet fields
@@ -294,6 +333,209 @@ check("README.md pipeline diagram mentions Internal Review",
 skills_readme = read(SKILLS_DIR / "README.md")
 check("skills/README.md lists /background as standalone",
       "/background" in skills_readme)
+
+# ---------------------------------------------------------------------------
+# Suite 12 — plan-reviewer contract + 3-stage gates wiring across agents
+# ---------------------------------------------------------------------------
+print()
+print("=== Suite 12: plan-reviewer + 3-stage gates ===")
+
+# plan-reviewer.md self-checks (existence already covered by Suite 1)
+pr_path = AGENTS_DIR / "plan-reviewer.md"
+if pr_path.exists():
+    plan_reviewer = read(pr_path)
+    pr_checks = [
+        ("Rule 1 (PR-count)", "Rule 1"),
+        ("Rule 2 (per-PR ACs)", "Rule 2"),
+        ("Rule 3 (consolidated docs)", "Rule 3"),
+        ("Rule 4 (cross-reference)", "Rule 4"),
+        ("Rule 5 (service identity)", "Rule 5"),
+        ("Rule 6 (human-readability sections)", "Rule 6"),
+        ("TL;DR section requirement", "## TL;DR"),
+        ("Decisions for human review section", "## Decisions for human review"),
+        ("Summary table requirement on 02-task-list.md", "## Summary"),
+        ("TL;DR hard cap of 10 lines", "10 lines"),
+        ("Decisions hard cap of 7 bullets", "7 bullets"),
+        ("temporal-prod reason: coexistence window", "coexistence window"),
+        ("temporal-prod reason: production signal", "production signal"),
+        ("temporal-prod reason: cross-repo deploy gate", "cross-repo deploy gate"),
+        ("Given/When/Then format requirement", "Given/When/Then"),
+        ("OAS bump is NOT a valid split reason", "OAS bump"),
+        ("forbidden pattern: version markers", "version marker"),
+        ("forbidden pattern: strikethrough", "strikethrough"),
+        ("forbidden pattern: previously decided", "previously decided"),
+        ("forbidden pattern: inline changelog", "inline changelog"),
+        ("verdict in Return Protocol", "verdict: pass | concerns | fail"),
+        ("output file path", "01-plan-review.md"),
+        ("override mechanism: Plan-reviewer override", "Plan-reviewer override"),
+        ("Services Touched reference (Rule 5)", "Services Touched"),
+        ("read-only: no Edit on analysis files",
+         "NEVER" in plan_reviewer and "modify" in plan_reviewer.lower()),
+    ]
+    for label, marker in pr_checks:
+        if isinstance(marker, bool):
+            check(f"plan-reviewer.md declares {label}", marker)
+        else:
+            check(f"plan-reviewer.md declares {label}",
+                  marker in plan_reviewer,
+                  f"marker '{marker}' not found")
+
+# architect.md must declare the dual output and the Services Touched section
+architect = read(AGENTS_DIR / "architect.md")
+check("architect.md declares dual-output (01-architecture.md + 02-task-list.md)",
+      "02-task-list.md" in architect and "Dual output" in architect,
+      "dual-output contract not documented in architect.md")
+check("architect.md declares the closed list of temporal-prod reasons",
+      all(reason in architect for reason in
+          ["coexistence window", "production signal", "cross-repo deploy gate"]),
+      "closed list of temporal-prod reasons not documented")
+check("architect.md declares Services Touched section requirement",
+      "Services Touched" in architect,
+      "Services Touched requirement not documented")
+check("architect.md per-PR template uses Given/When/Then",
+      "Given/When/Then" in architect or
+      ("Given" in architect and "When" in architect and "Then" in architect),
+      "Given/When/Then format not documented in architect")
+
+# architect.md must require the human-readability sections
+check("architect.md requires ## TL;DR section in 01-architecture.md",
+      "## TL;DR" in architect and "MANDATORY" in architect,
+      "TL;DR section not declared mandatory in architect.md")
+check("architect.md requires ## Decisions for human review section",
+      "## Decisions for human review" in architect,
+      "Decisions for human review section not documented")
+check("architect.md requires ## Summary table in 02-task-list.md",
+      "## Summary" in architect and "Summary table" in architect,
+      "Summary table not required in 02-task-list.md schema")
+check("architect.md spells out TL;DR is 3-6 lines (hard cap 10)",
+      "3-6 lines" in architect and ("hard cap 10" in architect or "cap 10" in architect),
+      "TL;DR size guidance missing")
+check("architect.md spells out Decisions is 3-5 bullets (hard cap 7)",
+      "3-5 bullets" in architect and ("hard cap 7" in architect or "cap 7" in architect),
+      "Decisions for human review size guidance missing")
+check("architect.md explains what does NOT belong in Decisions",
+      "NOT belong" in architect and "Mechanical pattern" in architect,
+      "guidance on what does NOT belong in Decisions missing")
+check("architect.md allows 'No human-judgement decisions' as valid value",
+      "No human-judgement decisions" in architect,
+      "fallback bullet for zero decisions not documented")
+
+# qa.md must declare per-PR scoping when 02-task-list.md is present
+qa_md = read(AGENTS_DIR / "qa.md")
+check("qa.md validate-mode reads 02-task-list.md per PR",
+      "02-task-list.md" in qa_md,
+      "02-task-list.md per-PR scoping not documented in qa.md")
+check("qa.md distinguishes Phase 1.5 (ratify) from Phase 1.6 (plan-review)",
+      "Phase 1.5" in qa_md and "Phase 1.6" in qa_md and "plan-reviewer" in qa_md,
+      "qa.md does not document the distinction with plan-reviewer")
+
+# implementer.md must declare per-PR scoping + SCOPE-DRIFT annotation
+impl_md = read(AGENTS_DIR / "implementer.md")
+check("implementer.md reads 02-task-list.md for per-PR ACs",
+      "02-task-list.md" in impl_md,
+      "implementer.md does not read 02-task-list.md")
+check("implementer.md declares SCOPE-DRIFT annotation",
+      "SCOPE-DRIFT" in impl_md,
+      "SCOPE-DRIFT annotation pattern not documented")
+
+# ref-direct-modes.md adds Plan Review direct mode
+ref_direct = read(AGENTS_DIR / "ref-direct-modes.md")
+check("ref-direct-modes.md adds Plan Review direct mode",
+      "Plan Review" in ref_direct and "plan-reviewer" in ref_direct,
+      "Plan Review direct mode not documented")
+
+# ref-special-flows.md updates plan flow vs design mode distinction
+ref_flows = read(AGENTS_DIR / "ref-special-flows.md")
+check("ref-special-flows.md distinguishes 01-planning.md vs 02-task-list.md",
+      "01-planning.md" in ref_flows and "02-task-list.md" in ref_flows,
+      "plan flow vs design mode distinction not documented")
+check("ref-special-flows.md addresses double-gating in plan-and-execute",
+      "double-gating" in ref_flows.lower() or "No double-gating" in ref_flows,
+      "double-gating handling not documented")
+
+# agents/README.md roster must include plan-reviewer
+ag_readme = read(AGENTS_DIR / "README.md")
+check("agents/README.md roster includes plan-reviewer",
+      "plan-reviewer" in ag_readme,
+      "plan-reviewer missing from agents/README.md roster")
+check("agents/README.md roster lists plan-reviewer with model sonnet",
+      "plan-reviewer" in ag_readme and "sonnet" in ag_readme,
+      "plan-reviewer model not declared as sonnet")
+
+# Top-level README must mention the 3-stage gates
+check("README.md mentions STAGE-GATE-1", "STAGE-GATE-1" in top_readme,
+      "STAGE-GATE-1 not surfaced in top-level README")
+check("README.md mentions STAGE-GATE-2", "STAGE-GATE-2" in top_readme,
+      "STAGE-GATE-2 not surfaced in top-level README")
+check("README.md mentions STAGE-GATE-3", "STAGE-GATE-3" in top_readme,
+      "STAGE-GATE-3 not surfaced in top-level README")
+check("README.md mentions plan-reviewer", "plan-reviewer" in top_readme,
+      "plan-reviewer not surfaced in top-level README")
+check("README.md agent count is 17", "17 agents" in top_readme,
+      "agent count not updated to 17")
+
+# ---------------------------------------------------------------------------
+# Suite 13 — human-readable state (## TL;DR + /status timeline)
+# ---------------------------------------------------------------------------
+print()
+print("=== Suite 13: human-readable state surface ===")
+
+# orchestrator.md changes
+check("orchestrator.md 00-state.md schema declares the ## TL;DR section",
+      "## TL;DR" in orch and "00-state.md" in orch,
+      "## TL;DR not declared in 00-state.md schema")
+
+check("orchestrator.md TL;DR schema names the four fixed fields",
+      all(field in orch for field in ["**Now:**", "**Last:**", "**Next:**", "**Open issues:**"]),
+      "one or more TL;DR fields (Now/Last/Next/Open issues) missing from orchestrator")
+
+check("orchestrator.md TL;DR section dogfoods consolidated rule (rewritten in place)",
+      "rewrites" in orch.lower() and "TL;DR" in orch and ("in place" in orch or "never appends" in orch.lower()),
+      "TL;DR rewrite-in-place rule not documented")
+
+# Per-phase update instructions for each of the 22 update points in §5.2.
+# Minimum set required by AC-2 of the intake: rows 1, 5/6, 8, 12, 14, 19, 22 of §5.2.
+# The assertion checks the phase section bodies, not just the index.
+for phase_label in ("Phase 0a", "Phase 1.6", "STAGE-GATE-1", "Phase 2 ", "Phase 3.5", "STAGE-GATE-2", "STAGE-GATE-3", "Phase 6"):
+    check(f"orchestrator.md {phase_label} body mentions TL;DR rewrite",
+          phase_label in orch and "TL;DR" in orch,
+          f"TL;DR rewrite instruction not found near {phase_label}")
+# (this check expands to 8 phase-label assertions; counted as one logical check group)
+
+# skills/status.md changes
+status_md = read(SKILLS_DIR / "status.md")
+check("skills/status.md no-args table has Stage column",
+      "Stage" in status_md and "| Stage |" in status_md,
+      "Stage column not added to /status no-args table")
+
+check("skills/status.md documents the 7 refined Status values",
+      all(v in status_md for v in ["waiting_gate_1", "waiting_gate_2", "waiting_gate_3",
+                                    "autonomous", "iterating", "complete", "paused"]),
+      "one or more refined Status values missing from /status")
+
+check("skills/status.md <feature-name> mode reads 00-execution-events.jsonl",
+      "<feature-name>" in status_md and "00-execution-events.jsonl" in status_md,
+      "/status <feature> does not consume the JSONL trace")
+
+check("skills/status.md timeline declares the event types it renders",
+      all(e in status_md for e in ["stage.gate", "stage.gate.release", "stage.gate.skipped",
+                                    "gate.pass", "gate.fail", "iteration.start", "phase.end"]),
+      "Timeline event-type list incomplete in /status")
+
+check("skills/status.md handles missing JSONL gracefully (no crash)",
+      "no events recorded" in status_md or "JSONL" in status_md and "missing" in status_md.lower(),
+      "Graceful degradation for missing JSONL not documented in /status")
+
+check("skills/status.md renderer never modifies state",
+      "never modifies" in status_md or "Read-only" in status_md or "read-only" in status_md,
+      "/status read-only contract not stated explicitly")
+
+# CHANGELOG.md entry
+changelog = read(REPO_ROOT / "CHANGELOG.md")
+check("CHANGELOG.md [Unreleased] mentions TL;DR + Stage column + narrative timeline",
+      "[Unreleased]" in changelog and "TL;DR" in changelog and "Stage" in changelog
+      and ("timeline" in changelog.lower() or "narrative" in changelog.lower()),
+      "CHANGELOG entry for human-readable state surface missing or incomplete")
 
 # ---------------------------------------------------------------------------
 # Summary
