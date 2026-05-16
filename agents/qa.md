@@ -327,7 +327,13 @@ Responsive Criteria:
 
 ## Phase 2 — Implementation Validation (validate mode)
 
-**This phase runs in validate mode (default).** Read `session-docs/{feature-name}/00-task-intake.md` for the acceptance criteria, then read source code and compare against them.
+**This phase runs in validate mode (default).** Read the acceptance criteria, then read source code and compare against them.
+
+**Per-PR scoping (pipeline_version: 2).** When the orchestrator invokes you in Stage 2 with a `PR identifier` (e.g., `PR-1`), read **the AC block of that specific PR** in `session-docs/{feature-name}/02-task-list.md` — not the feature-wide AC list. The per-PR AC block is your validation scope: validate exactly those ACs against the code of this PR. The feature-wide AC list in `00-task-intake.md` is context, not the contract for this PR (by construction the union of per-PR ACs covers it).
+
+**Backward compat (pipeline_version: 1 or `02-task-list.md` absent).** Fall back to the legacy behaviour: read `00-task-intake.md` for the full AC list and validate the whole feature. Do NOT scope to a PR identifier — the orchestrator does not pass one in legacy mode.
+
+**Distinction from Phase 1.5 (ratify-plan mode) and Phase 1.6 (plan-reviewer).** Phase 1.5 (this agent, mode `ratify-plan`) validates that the Work Plan covers every AC — substance coverage. Phase 1.6 (the `plan-reviewer` agent — different file) audits plan-shape rules — one PR per service, per-PR ACs in GWT, consolidated documents. Validate-mode (this section) is Phase 3 (per PR in Stage 2): code vs AC. Three distinct phases, three distinct concerns.
 
 **AC formats:** Accept both `Given/When/Then` and `VERIFY: {condition}` formats. For VERIFY criteria, check that the code satisfies the stated condition and provide file:line evidence just like GWT criteria.
 
