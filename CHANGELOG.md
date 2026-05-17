@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (README — harness framing + functional walkthrough)
+
+- **`README.md`** rewritten with the harness framing made central and the layout improved for scan-ability. New title `# Claude Dev Team` (display name). New "What this is" section names it explicitly as a harness around Claude Code, not a prompt pack. New "How it works" section is a functional walkthrough — three short paragraphs describing what happens when you ask for a feature (Stage 1 → STAGE-GATE-1 → Stage 2 with parallel PR rounds → STAGE-GATE-2 → Stage 3 → STAGE-GATE-3 → push), instead of a phase-by-phase contract table. New "Why a harness" failure-mode table maps each pain point to the corresponding patched behaviour. Install section compressed to ~6 lines with a single quote-block for less common variants. Component summary (`What's inside`) reduced from per-section detail to a one-paragraph overview plus three compact sub-sections that link out to the canonical references (`agents/README.md`, `chromadb-mcp/README.md`, `docs/kg-content-policy.md`).
+
 ## [1.0.0] - 2026-05-17
 
 First stable release. The system is in productive use across multi-repo migrations; the agent contracts, session-docs hygiene rules, and gating policy are settled enough to commit to a 1.x line. Anything that breaks these contracts now goes through a major bump.
