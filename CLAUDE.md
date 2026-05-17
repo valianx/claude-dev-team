@@ -87,7 +87,7 @@ claude-dev-team/
 | Config | JSON (`hooks/config.json`) + `~/.claude.json` merge for `mcpServers` |
 | Visuals | Excalidraw (`.excalidraw` JSON), PNG preview |
 
-**Current version:** `0.1.0` (see `bin/install.py` `__version__` and `CHANGELOG.md`).
+**Current version:** `1.0.0` (see `bin/install.py` `__version__` and `CHANGELOG.md`).
 
 **No package manager, no lockfile, no build for the installer.** `bin/install.py` has zero third-party deps by design. `chromadb-mcp/` is the one exception and uses `pyproject.toml` + `uv.lock` (managed by `uv`).
 
@@ -112,11 +112,12 @@ All commands run from the repo root.
 | Import a shared KG JSON | `uv run --directory chromadb-mcp/ python import.py shared-knowledge/<file>.json` |
 | Migrate from legacy Memory MCP | `uv run chromadb-mcp/migrate_knowledge.py --source ~/.claude/knowledge.json` |
 | Validate agents/skills health | `/lint` inside Claude Code |
-| Run the verification suite (policy-block + structure) | `bash tests/run-all.sh` |
+| Run the verification suite (policy-block + structure + YAML frontmatter) | `bash tests/run-all.sh` |
 | Run only the policy-block functional tests | `bash tests/test_policy_block.sh` |
 | Run only the agent/skill/hook structural tests | `python3 tests/test_agent_structure.py` |
+| Run only the agent YAML frontmatter validator | `uv run --with PyYAML python tests/test_agent_frontmatter.py` |
 
-**Not applicable to this repo:** typecheck, unit test of agent prompt behaviour, integration test of the live pipeline, e2e, build, dev server, migrations, deploy. The repo ships declarative assets, an installer, and one MCP server — no code pipeline. The `tests/` suite covers the **two surfaces that ARE testable without a live LLM**: `hooks/policy-block.sh` (functional, ~48 cases) and the structural integrity of the agent / skill / hook `.md` and `.json` files (cross-references, mandatory sections, frontmatter fields, ~98 assertions). It does NOT validate prompt behaviour — that still requires running pipelines through Claude Code.
+**Not applicable to this repo:** typecheck, unit test of agent prompt behaviour, integration test of the live pipeline, e2e, build, dev server, migrations, deploy. The repo ships declarative assets, an installer, and one MCP server — no code pipeline. The `tests/` suite covers the **three surfaces that ARE testable without a live LLM**: `hooks/policy-block.sh` (functional, ~48 cases), the structural integrity of the agent / skill / hook `.md` and `.json` files (~282 assertions across 16 suites), and the YAML frontmatter parseability of every `agents/*.md` (~19 files — catches the silent-agent-drop class of bug). It does NOT validate prompt behaviour — that still requires running pipelines through Claude Code.
 
 ---
 
@@ -187,10 +188,11 @@ All commands run from the repo root.
 The repo has a verification suite at `tests/` that covers what is testable without a live LLM:
 
 - **`tests/test_policy_block.sh`** — functional tests for `hooks/policy-block.sh`. Each case feeds a tool-call JSON payload and asserts the output (deny → JSON with `permissionDecision: "deny"`; allow → empty stdout). ~48 cases: `rm` destructive vs safe (`/`, `~`, `$HOME`, `--`, wildcard), git destructive vs safe (`--force`, `--no-verify`, `reset --hard`, `clean -f`), SQL DROP/TRUNCATE, sensitive paths (`.env`, `.pem`, `.ssh/`, `.aws/credentials`, `secrets.*`), allow-list variants (`.env.example`/`.sample`/`.template`), malformed payloads (fail-open).
-- **`tests/test_agent_structure.py`** — structural tests across `agents/`, `skills/`, `hooks/`. ~98 assertions in 11 suites covering tool allowlists per agent, the 5-column Roster matrix, the new pipeline phases (1.5 / 2.5 / 3.5 / 3.6 / 4.5), the `tester` / `qa` / `reviewer` / `implementer` / `delivery` contracts, the `PreToolUse` wiring across windows/macos/linux, and the README cross-references.
-- **`tests/run-all.sh`** — wrapper that runs both suites and exits 0 if all pass.
+- **`tests/test_agent_structure.py`** — structural tests across `agents/`, `skills/`, `hooks/`. ~282 assertions in 16 suites covering tool allowlists per agent, the 5-column Roster matrix, the pipeline phases (1.5 / 1.6 / 2.5 / 3.5 / 3.6 / 4.5), per-agent contract sections (`tester` / `qa` / `reviewer` / `implementer` / `delivery` / `architect` / `orchestrator`), session-docs hygiene guardrails (Files I write / MUST NOT write, no parallel review files, no iteration history in analysis docs), the inviolable Phase 1.6 gate with its inline fallback, the self-describing task-list contract (Status field + AC checkbox mirror), the `PreToolUse` wiring across windows/macos/linux, and the README cross-references.
+- **`tests/test_agent_frontmatter.py`** — YAML frontmatter validity for every `agents/*.md`. Uses PyYAML via `uv run --with PyYAML python` to catch the silent-agent-drop class of bug (an unquoted `": "` inside a description breaks YAML parsing; Claude Code then silently drops the agent from the registered `subagent_type` list with no error surfaced). 19 agents currently parse cleanly.
+- **`tests/run-all.sh`** — wrapper that runs all three suites and exits 0 if all pass.
 
-**When to add a test.** Any new pattern in `policy-block.sh` (new denylist or allowlist case) MUST be backed by an `assert_deny` / `assert_allow` line. Any new pipeline phase, new agent contract field, or new mandatory section MUST be backed by a `check(...)` line in the appropriate suite of `test_agent_structure.py`. Both files are append-only by design — refactor an assertion only when the assertion itself is wrong.
+**When to add a test.** Any new pattern in `policy-block.sh` (new denylist or allowlist case) MUST be backed by an `assert_deny` / `assert_allow` line. Any new pipeline phase, new agent contract field, or new mandatory section MUST be backed by a `check(...)` line in the appropriate suite of `test_agent_structure.py`. Any new agent file in `agents/` is picked up automatically by `test_agent_frontmatter.py` — no manual addition needed; the test fails immediately if its YAML does not parse. All three files are append-only by design — refactor an assertion only when the assertion itself is wrong.
 
 **What the tests do NOT cover.** Agent prompt behaviour (whether Claude actually applies the implementer's `Reviewability self-check` is a behavioural question), hook integration with Claude Code (whether the harness invokes `policy-block.sh` on every Bash/Write/Edit/NotebookEdit depends on `~/.claude/settings.json`), and live pipeline runs (Phase 2.5 / 4.5 only fire inside a real pipeline). For those, restart Claude Code and smoke-test by hand.
 
