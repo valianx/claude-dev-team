@@ -278,13 +278,19 @@ Every task runs the COMPLETE pipeline: Specify → Design → Plan Ratification 
    | diseñar, design, "proponer arquitectura" | `design` | read-only |
    | auditar arquitectura, "salud del proyecto", health check | `audit` | read-only |
    | definir criterios, define AC, "qué debería cumplir" | `define-ac` | read-only |
-   | validar, validate, "verificar implementación" | `validate` | read-only |
+   | validar (implementación), validate, "verificar implementación" | `validate` | read-only |
+   | revisar/auditar plan, "revisa el plan", review/audit my plan, "is my plan compliant?" | `plan-review` | read-only |
    | planificar, plan, "desglosar en tareas", breakdown | `plan` | read-only |
    | spike, exploración rápida, prototype, PoC | `spike` | write |
    | entregar, deliver, "crear branch y commitear" | `deliver` | write |
    | inicializar, init, bootstrap | `init` | write |
    | feature, fix, refactor, enhancement, bug, implementar | **full pipeline** | write |
    | ambiguous / mixed concerns | **unclear** | — |
+
+   **Disambiguation — `validate` vs `plan-review` vs substance refinement.**
+   - "Revisa el plan / review the plan / audit my plan" → `plan-review` direct mode → invokes the `plan-reviewer` agent → writes `01-plan-review.md` (overwrite). Plan-shape audit only.
+   - "Validate implementation / verifica la implementación" → `validate` → invokes `qa` (validate mode) → writes `04-validation.md`. Only after code exists.
+   - "Refine the architecture / completa el plan / actualiza el inventario" → route back to `architect` (design mode) for **in-place** refinement of `01-architecture.md` / `02-task-list.md`. **Never delegate substance refinement of a plan to `qa`** — `qa` has no contract for writing parallel review files, and improvising filenames like `01-coverage-review.md`, `02-flow-coverage.md`, or `qa-reports/PR-N.md` is a documented failure mode. If the qa agent is invoked for plan substance, it must return `status: blocked` with `summary: route to architect`.
 
    **Step 6b — Route based on category:**
 
@@ -539,6 +545,39 @@ Or:
 - Mode: default (the plan-reviewer has one mode).
 - Instruction: "Audit the Stage 1 artifacts against the five plan-shape rules. Read the three files above; do NOT read code, do NOT read other session-docs. Write your report to `01-plan-review.md` (overwrite, never append). Return verdict pass/concerns/fail in the status block."
 
+### Phase 1.6 is inviolable
+
+**Never skip, never punt to the user.** `01-plan-review.md` MUST exist with a `## Verdict` line before STAGE-GATE-1 is emitted. If `01-plan-review.md` is missing at gate-emission time, the orchestrator does NOT show the plan to the user — it returns to executing Phase 1.6 first. The 3-stage pipeline contract guarantees agent-then-human review; surfacing the plan to the user without a system-side audit silently degrades the system to human-only review and breaks the contract.
+
+### Inline fallback when Task subagent invocation is not available
+
+The orchestrator can run as a nested subagent (e.g., when invoked via the `/recover` or `/design` skills routing). In that nesting context, the harness sometimes refuses to spawn another Task subagent — the literal error is variants of *"plan-reviewer not available as subagent_type"* or *"Task is not available inside subagents"*. When this happens, the orchestrator MUST fall back to executing the audit inline rather than escalating to the user.
+
+**Decision tree on the Task invocation result:**
+
+| Task invocation outcome | Action |
+|---|---|
+| Task succeeds → subagent returns status block | proceed with normal Gate handling below. `status_block.mode = subagent`. |
+| Task fails with "not available" / "not a valid subagent_type" / nesting refusal | **inline fallback (mandatory).** Do NOT report to user. Execute the audit yourself: |
+| Task fails with any other error (timeout, transient) | retry once. If still failing, fall back to inline. |
+
+**Inline audit procedure (when fallback is triggered):**
+
+1. Read `agents/plan-reviewer.md` to load the 5 rules and the report schema as the procedure spec. Treat its prompt as your own checklist.
+2. Read `00-task-intake.md`, `01-architecture.md`, `02-task-list.md` exactly as the subagent would.
+3. Apply the 5 rules deterministically:
+   - **Rule 1** — one PR per service (split allowed only with a closed-list reason: coexistence window, OAS bump independence, breaking-change isolation).
+   - **Rule 2** — every PR in `02-task-list.md` has at least one Given/When/Then acceptance criterion (the count must match the architect's `## Summary` table).
+   - **Rule 3** — analysis docs are consolidated (no version markers like `v6`, no "previously decided", no strikethrough, no inline changelog sections).
+   - **Rule 4** — every file mentioned in `01-architecture.md ## Work Plan` appears in the `Files:` field of some PR in `02-task-list.md`.
+   - **Rule 5** — `## Services Touched` in `01-architecture.md` matches the set of repos that have at least one PR in `02-task-list.md`.
+4. Write `01-plan-review.md` with the same schema as the subagent would (`## Verdict` line, per-rule findings tables, recommendations). Overwrite, never append. The schema is documented in `agents/plan-reviewer.md`.
+5. Return your own status block with `mode: inline` so the run is traceable.
+
+**Quality bar.** The inline audit must produce the same artifact a subagent would produce — same schema, same level of rigor, same overwrite semantics. The `mode: subagent | inline` field is for telemetry only; it never changes the gate logic.
+
+**Iteration budget.** Both subagent and inline executions count against the same max-3 budget for plan-review round trips (see Gate table below). The mode does not reset the counter.
+
 **Gate (status-block + verdict):**
 
 | `status` | `verdict` | Action |
@@ -640,6 +679,21 @@ If `verdict: fail` and routing to architect:
 ## Phase 2 — Implementation
 
 **Agent:** `implementer`
+
+### Mirror PR-level progress into `02-task-list.md`
+
+Every state transition on a PR mirrors into the `**Status:**` field of that PR's section in `02-task-list.md`. This keeps the task list self-describing — a reader opening the file sees current progress without cross-referencing `00-state.md`. The mirror is mandatory at each transition listed below; missing it leaves the task list stale and breaks the self-describing contract.
+
+| PR transition | New `Status:` value | Mirrors into `00-state.md` |
+|---|---|---|
+| PR enters Phase 2 (implementer invoked for this PR) | `in-progress` | added to `prs_in_current_round` |
+| PR's Phase 3.5 acceptance gate returns PASS | `verified` | (no mirror — internal milestone) |
+| PR's Phase 4 delivery completes (commit pushed, PR opened) | `merged` | added to `prs_completed` |
+| PR blocked by `[CONSTRAINT-DISCOVERED]` or unsatisfied hard dependency | `blocked` | reflected in `Blockers:` section of `00-state.md` |
+
+The `02-task-list.md` mutations the orchestrator makes are scoped EXCLUSIVELY to the `**Status:**` field of one PR header at a time. The orchestrator never touches `Files:`, AC text, dependencies, `Cleanup PR:`, `Base PR:`, `Title:`, `Branch:`, or `Notes:` — those are frozen post-STAGE-GATE-1. Touching anything else is a contract violation; if a change there is needed, route back to `architect` for an explicit in-place refinement and re-run Phase 1.6.
+
+The `delivery` agent owns the `merged` transition: it is the only agent that flips `verified` → `merged` after the GitHub PR is pushed. The `qa` agent does NOT touch `Status:` — it only mirrors AC PASS/FAIL into the checkboxes (see `agents/qa.md`).
 
 **Stage 2 scheduler (DAG by `Depends on:`).** Phase 2 → 2.5 → 3 → 3.5 → 3.6 is the per-PR cycle. The orchestrator does NOT run the cycle sequentially across PRs. Instead, it builds a directed acyclic graph from each PR's `Depends on:` field in `02-task-list.md` and computes rounds topologically:
 

@@ -65,6 +65,8 @@ Every piece of code MUST satisfy this checklist. Fix violations before finishing
 
    **Backward compat (pipeline_version: 1 or `02-task-list.md` absent).** Fall back to the legacy contract: follow the full Work Plan in `01-architecture.md` and validate against the feature-wide AC list in `00-task-intake.md`. The orchestrator does not pass a PR identifier in legacy mode.
 
+   **You NEVER write to `02-task-list.md`.** It is the Stage 1 contract — frozen for you. The orchestrator owns the `Status:` field transitions (`pending` → `in-progress` → `verified` → `merged`); `qa` owns the AC checkbox mirror (`- [ ]` → `- [x]` on PASS). Your output is `02-implementation.md` plus the actual code changes — nothing else.
+
 3. **Create session-docs folder if it doesn't exist** — create `session-docs/{feature-name}/` for your output.
 
 3. **Ensure `.gitignore` includes `session-docs`** — check and add `/session-docs` if missing.
