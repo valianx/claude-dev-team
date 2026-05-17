@@ -803,6 +803,58 @@ check("implementer.md says it never writes to 02-task-list.md",
       "implementer.md does not declare that it never writes to 02-task-list.md")
 
 # ---------------------------------------------------------------------------
+# Suite 17 — Backend-agnostic naming for the knowledge graph
+#   ChromaDB references must be scoped to:
+#     - knowledge-graph/* (implementation files — naturally name their deps)
+#     - factual "current backend: ChromaDB" mentions in README and CLAUDE.md
+#     - CHANGELOG.md (historical entries are not rewritten)
+#   Anywhere else, the naming must be capability-based ("knowledge graph",
+#   "Knowledge Graph MCP", "KG"). Catches accidental reintroduction of the
+#   old implementation-tied phrasing.
+# ---------------------------------------------------------------------------
+print()
+print("=== Suite 17: Backend-agnostic knowledge-graph naming ===")
+
+# Phrases that were the failure mode pre-1.1.0 — they must not appear in
+# user-facing files anymore. The literal word "ChromaDB" on its own is
+# still allowed (it factually names the current backend); these phrases
+# bundle "ChromaDB" with the capability name in a way that locks the two
+# together at the docs layer.
+FORBIDDEN_PATTERNS = (
+    "ChromaDB MCP tools",
+    "ChromaDB MCP server",
+    "ChromaDB MCP `",
+    "ChromaDB-backed",
+    "chromadb-mcp",
+)
+
+USER_FACING_PATHS: list[Path] = [
+    REPO_ROOT / "README.md",
+    REPO_ROOT / "CLAUDE.md",
+]
+USER_FACING_PATHS.extend(sorted((REPO_ROOT / "agents").glob("*.md")))
+USER_FACING_PATHS.extend(sorted((REPO_ROOT / "skills").glob("*.md")))
+USER_FACING_PATHS.extend(sorted((REPO_ROOT / "docs").glob("*.md")))
+USER_FACING_PATHS.extend(sorted((REPO_ROOT / "shared-knowledge").glob("*.md")))
+
+# CHANGELOG is intentionally excluded: historical entries (1.0.0 and prior)
+# legitimately mention ChromaDB and must not be rewritten.
+# knowledge-graph/ folder is the implementation — ChromaDB references inside
+# are correct.
+
+for pattern in FORBIDDEN_PATTERNS:
+    violators: list[str] = []
+    for path in USER_FACING_PATHS:
+        if not path.exists():
+            continue
+        if pattern in path.read_text(encoding="utf-8"):
+            violators.append(path.relative_to(REPO_ROOT).as_posix())
+    check(
+        f"No user-facing doc contains forbidden pattern '{pattern}'",
+        not violators,
+        f"violations in: {', '.join(violators)} — replace with knowledge-graph naming")
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 print()
