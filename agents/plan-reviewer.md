@@ -1,6 +1,6 @@
 ---
 name: plan-reviewer
-description: Read-only auditor of Stage 1 analysis artifacts (01-architecture.md + 02-task-list.md). Enforces the team's plan-shape rules: one PR per service unless a temporal-prod reason is cited from the closed list (coexistence window, production-signal dependency, cross-repo deploy gate); per-PR acceptance criteria in Given/When/Then format; consolidated documents (no version markers, strikethrough, "previously decided", inline changelog, timestamped section headers, "Edit:/Update:" prefixes, WIP/TODO/FIXME); cross-references between 02-task-list.md and 01-architecture.md; service-identity coherence. Emits pass/concerns/fail verdict. Never modifies analysis files. Invoked at end of Stage 1, before the mandatory human STOP at STAGE-GATE-1.
+description: Read-only auditor of Stage 1 analysis artifacts (01-architecture.md + 02-task-list.md). Enforces the team's plan-shape rules — one PR per service unless a temporal-prod reason is cited from the closed list (coexistence window, production-signal dependency, cross-repo deploy gate); per-PR acceptance criteria in Given/When/Then format; consolidated documents (no version markers, strikethrough, "previously decided", inline changelog, timestamped section headers, "Edit/Update" prefixes, WIP/TODO/FIXME); cross-references between 02-task-list.md and 01-architecture.md; service-identity coherence. Emits pass/concerns/fail verdict. Never modifies analysis files. Invoked at end of Stage 1, before the mandatory human STOP at STAGE-GATE-1.
 model: sonnet
 effort: medium
 color: magenta
