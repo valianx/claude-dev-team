@@ -1,164 +1,149 @@
-# claude-dev-team
+# Claude Dev Team
 
-A standardized, opinionated Claude Code agent system for software teams: 17 agents, 28 skills (3 of which are complex multi-file skills), OS-native notification hooks (including a `PreToolUse` policy gate that blocks destructive commands), a ChromaDB-backed knowledge-graph MCP server, and a cross-platform installer that wires everything into your `~/.claude/`.
+> An **agent harness for Claude Code**. Turns the chat into a Spec-Driven Development pipeline with mandatory human gates, agent-then-human review at every transition, and full state captured as files so any session — yours, a teammate's, tomorrow's — can resume from where the last one left off.
+
+[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](./CHANGELOG.md)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
+[![Tests](https://img.shields.io/badge/tests-3%20suites-success.svg)](./tests)
+
+---
+
+## What this is
+
+A **harness**, not a prompt pack. You install it once and Claude Code becomes a development pipeline:
+
+- Every feature opens a `session-docs/{feature}/` folder with `00-state.md` as the single source of truth — any session can resume cold by reading it.
+- The work is split into **3 stages** with **mandatory human gates** between them. Even in autonomous mode you keep two gates (plan approval and push approval).
+- Specialised agents own each phase (`architect` designs, `implementer` writes code, `qa` validates, `plan-reviewer` audits the plan-shape, `delivery` ships). The `orchestrator` routes between them.
+- Hard policy enforcement at `PreToolUse`: destructive commands, force-pushes to shared branches, writes to `.env` / `.pem` / `.ssh/` are denied before the shell sees them.
+
+---
 
 ## Install
-
-### Requirements
-
-- [Claude Code](https://docs.claude.com/en/docs/claude-code) already installed.
-- [`uv`](https://docs.astral.sh/uv/getting-started/installation/) — Python toolchain manager. If missing, the bootstrap scripts install it for you.
-- [`gh`](https://cli.github.com/) — GitHub CLI.
-- A **context7 API key**. Get one at [context7.com](https://context7.com/).
-
-### One-liner
-
-Clone the repo and run the bootstrap script for your OS:
 
 ```bash
 git clone https://github.com/valianx/claude-dev-team.git
 cd claude-dev-team
-
-# Unix / macOS
-./bin/install.sh
-
-# Windows (PowerShell)
-.\bin\install.ps1
+./bin/install.sh         # Unix / macOS
+# .\bin\install.ps1      # Windows (PowerShell)
 ```
 
-If `uv` is already installed, you can skip the bootstrap:
+Requirements: [Claude Code](https://docs.claude.com/en/docs/claude-code), [`uv`](https://docs.astral.sh/uv/getting-started/installation/) (auto-installed if missing), [`gh`](https://cli.github.com/), and a [context7](https://context7.com/) API key.
 
-```bash
-uv run bin/install.py
-```
+Restart Claude Code after install so it picks up the new agents and MCP servers. The installer is idempotent and never overwrites existing files (conflicts are reported, not silenced).
 
-### Non-interactive install
-
-Set `CONTEXT7_API_KEY` in the environment to skip the prompt (useful for CI or re-runs):
-
-```bash
-CONTEXT7_API_KEY=ctx7sk-... uv run bin/install.py
-```
-
-### What the installer does
-
-1. Copies agents, skills, hooks, and the ChromaDB MCP server into `~/.claude/`.
-2. Backs up `~/.claude.json` (timestamped) and merges `mcpServers.memory` and `mcpServers.context7` entries into it.
-3. Reports installed / unchanged / conflicts. **It never overwrites existing files**; a different hash is reported as a conflict. To replace a conflicting file, delete it manually and re-run.
-
-After installation, restart Claude Code so it picks up the new MCP servers.
-
-### Enable notification hooks (optional)
-
-1. Open `hooks/config.json` in this repo.
-2. Copy the `hooks` object for your OS (`windows`, `macos`, or `linux`).
-3. Merge it into `~/.claude/settings.json` under the `"hooks"` key.
-
-### Uninstall
-
-Delete the installed files from `~/.claude/` (agents, skills, hooks, chromadb-mcp). Restore `~/.claude.json` from the timestamped backup the installer created.
+> Re-running on a machine with `uv` already present: `uv run bin/install.py`. To skip the context7 prompt: `CONTEXT7_API_KEY=ctx7sk-... uv run bin/install.py`.
 
 ---
 
-## What you get
+## How it works
 
-### Agents (`agents/`)
+A walkthrough of what happens when you ask for a feature.
+
+**You type something like:** `/design add a daily reports endpoint`.
+
+**Stage 1 — Analysis.** The `orchestrator` creates `session-docs/daily-reports/` and routes to the `architect`. The architect reads `docs/knowledge.md`, the codebase, and any prior session-docs; produces `01-architecture.md` (the design proposal) and `02-task-list.md` (one section per PR, with Given/When/Then acceptance criteria). `qa` runs Phase 1.5 to confirm every AC maps to a Work Plan step. `plan-reviewer` runs Phase 1.6 to audit the plan-shape (one PR per service, AC format, consolidated documents, cross-references). You receive **STAGE-GATE-1** — a STOP block with the TL;DR, the human-review decisions, and the PR table. Reply `approve` (per-PR stops in Stage 2) or `approve autonomous` (skip the per-PR stops).
+
+**Stage 2 — Implementation, one PR at a time.** PRs run in parallel rounds computed from their `Depends on:` field (round 1 is everything with no dependencies). For each PR the `implementer` writes code strictly scoped to that PR's `Files:`. If a hidden constraint surfaces, the implementer annotates it and Phase 2.5 **Constraint Reconciliation** decides keep / amend / drop. The `tester` writes tests, the `qa` validates against the AC list, `security` audits if the change is security-sensitive — all in parallel. The Acceptance Gate (Phase 3.5) re-reads the three artifacts; if any AC is missing a passing test it routes back to the implementer. Phase 3.6 (`acceptance-checker`) independently compares the original spec against the delivered work. **STAGE-GATE-2** fires between PRs — unless you granted autonomy at GATE-1.
+
+**Stage 3 — Delivery.** `delivery` updates the CHANGELOG, bumps the version, creates the feature branch, commits with conventional messages. Phase 4.5 **Internal Review** runs the `reviewer` advisory-mode on the freshly-pushed diff and surfaces the top 3 issues. **STAGE-GATE-3** is your final stop — reply `ship` / `amend` / `abort`. On `ship`, the PR opens on GitHub.
+
+**Resume any time.** All state lives in files. `/recover {feature-name}` reads `00-state.md` and continues from `next_action`. Works across compactions, across sessions, across machines (as long as `session-docs/` travels with the repo).
+
+**Self-describing progress.** Open `02-task-list.md` at any point and you see PR-level `Status:` (`pending | in-progress | verified | merged | blocked`) and AC checkboxes flipped to `- [x]` on PASS. No cross-referencing required.
+
+---
+
+## What's inside
+
+The system ships **17 agents**, **28 skills** (slash commands), three OS-native notification scripts plus a `PreToolUse` policy gate, and one MCP server (the ChromaDB knowledge graph). Full per-component contracts in [`CLAUDE.md`](./CLAUDE.md).
+
+### Agents
+
+The pipeline runs on specialised agents. Highlights:
 
 | Agent | Role |
 |---|---|
-| `orchestrator` | Central hub. Coordinates the pipeline and all other agents. |
-| `architect` | Architecture design, research, planning, audits. |
-| `implementer` | Production code. |
-| `tester` | Test suites with factory mocks. |
-| `qa` | Acceptance criteria definition and validation. |
-| `plan-reviewer` | Read-only audit of Stage 1 artifacts against five plan-shape rules (Phase 1.6, before STAGE-GATE-1). |
-| `acceptance-checker` | External audit comparing original spec vs delivered artifacts (Phase 3.6). |
-| `delivery` | Docs, changelog, version, branch, commit, PR. |
-| `reviewer` | GitHub PR review. |
+| `orchestrator` | Routes the pipeline, owns gates and state. |
+| `architect` | Design, research, planning. Writes `01-architecture.md` and `02-task-list.md`. |
+| `implementer` | Production code. Scoped to one PR's `Files:`. |
+| `tester` | Test suites with factory mocks; test-ratchet enforced. |
+| `qa` | AC validation, plan ratification, constraint reconciliation. |
+| `plan-reviewer` | Plan-shape audit (Phase 1.6, read-only). |
+| `acceptance-checker` | Original-spec vs delivered audit (Phase 3.6). |
+| `delivery` | CHANGELOG, version, branch, commit, PR. |
+| `reviewer` | GitHub PR review and internal advisory review. |
 | `security` | OWASP / CWE / ASVS audits. |
-| `diagrammer`, `likec4-diagrammer`, `d2-diagrammer` | Architecture diagrams (Excalidraw, LikeC4, D2). |
-| `translator` | i18n discovery, glossary, translation. |
-| `gcp-cost-analyzer` | GCP cost / resource inventory reports. |
-| `init` | Bootstrap `CLAUDE.md` in any repo. |
-| `agent-builder` | Create / improve agents and skills. |
 
-The full canonical roster (with model + effort matrix) lives in [`agents/README.md`](./agents/README.md).
+Full roster (with model + effort matrix) in [`agents/README.md`](./agents/README.md). Also ships: `diagrammer` / `likec4-diagrammer` / `d2-diagrammer` (architecture diagrams), `translator` (i18n), `gcp-cost-analyzer`, `init`, `agent-builder`.
 
-### Skills (`skills/`)
+### Skills
 
-Slash-commands that route into the orchestrator (except the standalone utilities `/lint`, `/status`, `/memory`, `/tmux`, `/kg-viewer`):
+Slash-commands. Most route into the orchestrator; five are standalone utilities (`/lint`, `/status`, `/memory`, `/tmux`, `/kg-viewer`). Use what you need — common entries are `/design`, `/recover`, `/deliver`, `/review-pr`, `/issue`, `/background`.
 
-`/issue`, `/plan`, `/design`, `/research`, `/spike`, `/test`, `/test-pipeline`, `/validate`, `/define-ac`, `/security`, `/audit`, `/review-pr`, `/deliver`, `/diagram`, `/likec4-diagram`, `/d2-diagram`, `/translate`, `/init`, `/recover`, `/eval`, `/gcp-costs`, `/cross-repo`, plus the standalone utilities above and `/background` (fire-and-forget dispatch for trivially scoped tasks; eligibility-gated, does not invoke the orchestrator).
+### Hooks
 
-### Hooks (`hooks/`)
+`hooks/policy-block.sh` is the `PreToolUse` gate: 48 tested cases deny destructive Bash, force-push, no-verify, SQL DROP/TRUNCATE, writes to secret-bearing paths. Allow-list variants (`.env.example`, `.sample`, `.template`) explicitly permitted. Notification scripts (`notify-windows.sh` / `notify-mac.sh` / `notify-linux.sh`) are optional — merge their config block into `~/.claude/settings.json` to enable.
 
-Generic OS-native notification scripts: `notify-windows.sh` (PowerShell toast), `notify-mac.sh` (`osascript`), `notify-linux.sh` (`notify-send`).
+### Knowledge graph (`chromadb-mcp/`)
 
-### Knowledge-graph MCP (`chromadb-mcp/`)
-
-ChromaDB-backed MCP server that gives Claude Code semantic memory across projects. The KG stores **9 entity types** (`pattern`, `error`, `constraint`, `decision`, `tool-gotcha`, `process-insight`, `project`, `service`, `stack-profile`) and **5 relation types** (`relates_to`, `belongs-to`, `calls`, `uses-stack`, `depends-on`) — see [`docs/kg-content-policy.md`](./docs/kg-content-policy.md) for the canonical vocabulary. Ships with a web viewer, a legacy migration tool, and `export.py` / `import.py` for non-destructive KG sharing between developers.
-
-Every KG operation (view, edit, share, run the server, migrate) is documented in [`chromadb-mcp/README.md`](./chromadb-mcp/README.md) — that file is the canonical reference.
+ChromaDB-backed semantic memory across projects. 9 entity types, 5 relation types, web viewer, export/import for non-destructive sharing. Reference: [`chromadb-mcp/README.md`](./chromadb-mcp/README.md), [`docs/kg-content-policy.md`](./docs/kg-content-policy.md).
 
 ---
 
-## How the agent system works
+## Why a harness
 
-The orchestrator coordinates a **Spec-Driven Development** pipeline organised in **three stages** with mandatory human checkpoints at the close of Stage 1 and Stage 3, and a default-on per-PR checkpoint in Stage 2 that the user can disable by granting autonomy at Stage 1:
+The harness exists because chat-driven Claude Code, run unguided, has documented failure modes that compound over a feature's lifetime:
 
-```
-STAGE 1 — Analysis
-  Specify → Design (01-architecture.md + 02-task-list.md) → Plan Ratification → Plan Review
-  → STAGE-GATE-1 (mandatory human STOP)
-STAGE 2 — Implementation (per PR)
-  Implement → Constraint Reconciliation → Verify (test + validate + security)
-  → Acceptance Gate → Acceptance Check (conditional)
-  → STAGE-GATE-2 (between PRs; skipped silently if autonomous granted at GATE-1)
-STAGE 3 — Delivery
-  Deliver → Internal Review (advisory) → STAGE-GATE-3 (mandatory human STOP)
-  → GitHub Update → KG Save
-```
+| Without a harness | With this harness |
+|---|---|
+| Acceptance criteria drift silently mid-task | `[CONSTRAINT-DISCOVERED]` annotations + Phase 2.5 reconciliation force keep/amend/drop to be a deliberate decision |
+| Plans accumulate iteration cruft (`v1 → v6`, "previously decided", parallel review files) | `architect` forbids version markers; `qa` cannot write sibling review files — analysis docs read as one polished pass |
+| Reviews get punted to the human ("the harness blocked it") | Phase 1.6 plan-review is inviolable — subagent or inline fallback, never escalated to the user without an audit |
+| Multi-PR splits leave the WHY in nobody's head | Base PRs carry `Cleanup PR:` with operational rationale; secondary PRs carry `Base PR:` back-reference |
+| "Did the AC pass?" requires reading three files | `02-task-list.md` self-describes: `Status:` per PR + AC checkboxes flipped on PASS |
+| Agents silently disappear when their frontmatter has invalid YAML | Suite 3 parses every agent and fails on broken YAML |
+| Destructive commands slip through inattention | `PreToolUse` policy blocks `rm -rf`, force push, secret-file writes |
 
-Phase highlights:
-- **Dual-output design (1)** — the architect writes `01-architecture.md` (design proposal) AND `02-task-list.md` (list of PRs with per-PR acceptance criteria in Given/When/Then format) by default. One PR per service is the default; splits require a documented temporal-prod reason from a closed list (coexistence window / production-signal dependency / cross-repo deploy gate).
-- **Plan Ratification (1.5)** — `qa` confirms every AC maps to a Work Plan step before any code is written.
-- **Plan Review (1.6)** — `plan-reviewer` audits Stage 1 artifacts against five plan-shape rules: one PR per service, per-PR ACs in GWT, consolidated documents (no version markers, strikethrough, "previously decided"), cross-references, service identity. Read-only verdict pass/concerns/fail before STAGE-GATE-1.
-- **STAGE-GATE-1** — mandatory human approval of the plan. Reply `approve` (proceed with per-PR stops) or `approve autonomous` (skip STAGE-GATE-2 between PRs). Cannot be skipped.
-- **Constraint Reconciliation (2.5)** — when implementer or architect annotated `[CONSTRAINT-DISCOVERED]` against an AC, trivial constraints are reconciled inline; non-trivial ones invoke `qa` (mode `reconcile`) to decide keep / amend / drop. Drops require user confirmation.
-- **Acceptance Gate (3.5)** — orchestrator re-reads test, validation and security artifacts for the current PR; routes back if any AC lacks a passing test or PASS verdict. Test-ratchet is enforced here.
-- **Acceptance Check (3.6)** — independent `acceptance-checker` audits the original spec against delivered artifacts. Runs only on complex changes, multi-file diffs, or after any verify iteration.
-- **STAGE-GATE-2** — between PRs in Stage 2. Default STOP per PR; silently skipped when the user granted autonomy at GATE-1 or promoted at a prior GATE-2.
-- **Internal Review (4.5)** — advisory pass: `reviewer` triages the freshly-pushed diff (mode `internal`, no GitHub publish) and surfaces the top 3 highest-severity issues to the user. Skipped on tiny diffs and hotfixes.
-- **STAGE-GATE-3** — mandatory human approval before push to GitHub. Reply `ship` / `amend` / `abort`. Cannot be skipped in any mode (push is irreversible).
-
-Every gate's outcome is recorded in `session-docs/{feature-name}/00-execution-events.jsonl` (machine-readable trace) and a `done.yml` formal completion file. `delivery` aborts if `done == false`. Tool capability is scoped per agent in frontmatter; destructive Bash commands and writes to sensitive files are blocked at `PreToolUse` by `hooks/policy-block.sh`. Diffs above the reviewability cap (>400 lines or >8 files) require an explicit justification or are split into multiple PRs.
-
-Every feature, fix, or refactor the team takes on flows through the orchestrator. The developer reads the plan before the pipeline proceeds, and every generated PR goes through human review.
-
-See [`CLAUDE.md`](./CLAUDE.md) for the full internal contract and conventions.
+Each row is a real failure mode encountered and patched. See [`docs/knowledge.md`](./docs/knowledge.md) for the canonical pattern / decision log.
 
 ---
 
-## Updating the system
+## Verification
 
-Pull the latest changes and re-run the installer:
+```bash
+bash tests/run-all.sh
+```
+
+| Suite | Catches | Count |
+|---|---|---|
+| `test_policy_block.sh` | Destructive-command leakage at `PreToolUse` | 48 cases |
+| `test_agent_structure.py` | Missing contract sections, drift between agents, role conflicts, model+effort matrix | 282 assertions across 16 sub-suites |
+| `test_agent_frontmatter.py` | Silent-agent-drop class of bug (invalid YAML in agent frontmatter) | 19 agents |
+
+Prompt behaviour itself only validates in live pipelines — restart Claude Code and smoke-test by hand.
+
+---
+
+## Updating
 
 ```bash
 git pull
-./bin/install.sh      # or: uv run bin/install.py
+./bin/install.sh
 ```
 
-The installer is idempotent. Unchanged files are skipped silently; conflicting files (yours differ from the repo) are reported so you can choose to keep or replace them.
+The installer is idempotent. Unchanged files are skipped; conflicting files (yours differ from the repo) are reported so you can choose.
 
 ---
 
 ## Contributing
 
-Develop against the source files in `agents/`, `skills/`, `hooks/`, and `chromadb-mcp/` — not against `~/.claude/` directly. After editing, run the installer locally to propagate into your own `~/.claude/`.
+Develop against the source files in `agents/`, `skills/`, `hooks/`, `chromadb-mcp/` — not `~/.claude/` directly. After editing, re-run the installer to propagate. Working agreements (enforced — see [`CLAUDE.md` §6](./CLAUDE.md)):
 
-Follow conventional commits (`feat(agents): ...`, `fix(installer): ...`, `docs(readme): ...`), always open a PR (never push to `main` directly), and add an entry to `CHANGELOG.md` under `[Unreleased]`.
-
-See [`CLAUDE.md`](./CLAUDE.md) for the full contribution workflow and the agent-level conventions.
+- Feature branch (`feat/<kebab>`, `fix/<kebab>`, `chore/<kebab>`, `docs/<kebab>`, `refactor/<kebab>`) — never commit on `main`.
+- Conventional-commit messages.
+- Never push to `main` directly — every change ships via pull request.
+- Every user-facing change updates `CHANGELOG.md` under `[Unreleased]`.
 
 ---
 

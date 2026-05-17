@@ -32,6 +32,17 @@ fi
 
 echo
 echo "############################################################"
+echo "# Suite 3: agents — YAML frontmatter validity"
+echo "############################################################"
+if uv run --with PyYAML python "$TESTS_DIR/test_agent_frontmatter.py"; then
+    echo "agent-frontmatter: PASS"
+else
+    echo "agent-frontmatter: FAIL"
+    FAILED=$((FAILED + 1))
+fi
+
+echo
+echo "############################################################"
 if [ $FAILED -eq 0 ]; then
     echo "# All suites passed."
     echo "############################################################"

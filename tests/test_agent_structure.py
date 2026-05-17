@@ -663,6 +663,146 @@ check("CHANGELOG.md [Unreleased] mentions Mandatory Working Agreements",
       "CHANGELOG entry for Mandatory Working Agreements section missing")
 
 # ---------------------------------------------------------------------------
+# Suite 16 — Session-docs hygiene guardrails
+#   qa.md: "Files I write (exhaustive)" + "Files I MUST NOT write"
+#   architect.md: "Forbidden output patterns" with no-history rule
+#   orchestrator.md: explicit plan-review routing + qa-substance ban
+# Triggered by a real failure in a downstream pipeline that accumulated
+# 01-coverage-review.md, 02-flow-coverage.md and a qa-reports/PR-N.md tree
+# alongside 01-architecture.md / 02-task-list.md instead of refining them
+# in place. These checks assert the guardrails are in the prompts so the
+# same drift cannot recur silently.
+# ---------------------------------------------------------------------------
+print()
+print("=== Suite 16: Session-docs hygiene guardrails ===")
+
+qa_md = read(AGENTS_DIR / "qa.md")
+architect_md = read(AGENTS_DIR / "architect.md")
+orchestrator_md = read(AGENTS_DIR / "orchestrator.md")
+
+# 1. qa.md declares an exhaustive file-output table at the top
+check("qa.md has '## Files I write (exhaustive)' section",
+      "## Files I write (exhaustive)" in qa_md,
+      "qa.md missing exhaustive file-output table")
+
+# 2. qa.md explicitly forbids the observed sibling-review filenames
+for forbidden in ("01-coverage-review.md", "02-flow-coverage.md", "qa-reports/"):
+    check(f"qa.md MUST NOT write list includes '{forbidden}'",
+          "## Files I MUST NOT write" in qa_md and forbidden in qa_md,
+          f"qa.md does not forbid '{forbidden}' explicitly")
+
+# 3. qa.md routes plan-shape / refinement requests to the right agents
+check("qa.md routes plan-shape audits to plan-reviewer",
+      "route to plan-reviewer" in qa_md,
+      "qa.md does not route plan-shape audits to plan-reviewer")
+check("qa.md routes substance refinement back to architect",
+      "route back to architect" in qa_md or "route to architect" in qa_md,
+      "qa.md does not route substance refinement to architect for in-place edits")
+
+# 4. architect.md declares the forbidden output patterns
+check("architect.md has '## Forbidden output patterns' section",
+      "## Forbidden output patterns" in architect_md,
+      "architect.md missing forbidden output patterns section")
+for ban in ("Version markers", "Previously decided", "Strikethrough"):
+    check(f"architect.md forbids '{ban}' in analysis docs",
+          ban in architect_md,
+          f"architect.md does not list '{ban}' as a forbidden pattern")
+
+# 5. architect.md ban applies to the canonical analysis docs
+for doc in ("01-architecture.md", "02-task-list.md", "00-task-intake.md"):
+    check(f"architect.md forbidden-patterns section names {doc}",
+          "Forbidden output patterns" in architect_md and doc in architect_md,
+          f"architect.md does not name {doc} as in-place-edit target")
+
+# 6. orchestrator.md routes 'revisa el plan' to plan-review direct mode
+check("orchestrator.md intent table has plan-review row",
+      "plan-review" in orchestrator_md and "revisa el plan" in orchestrator_md,
+      "orchestrator.md intent table missing plan-review routing")
+
+# 7. orchestrator.md explicitly bans qa-substance plan-review delegation
+check("orchestrator.md bans delegating substance-of-plan review to qa",
+      "Never delegate substance refinement of a plan to `qa`" in orchestrator_md
+      or "Never delegate substance refinement of a plan to qa" in orchestrator_md,
+      "orchestrator.md does not ban qa-substance plan-review delegation")
+
+# 8. orchestrator.md still names the canonical max-3 plan-review budget
+check("orchestrator.md keeps max-3 budget for plan-review round trips",
+      "max-3 budget for plan-review" in orchestrator_md,
+      "orchestrator.md does not declare the max-3 budget for plan-review iterations")
+
+# 9. orchestrator.md declares Phase 1.6 inviolable + agent-then-human contract preserved
+check("orchestrator.md Phase 1.6 is declared inviolable",
+      "Phase 1.6 is inviolable" in orchestrator_md,
+      "orchestrator.md does not declare Phase 1.6 as inviolable")
+check("orchestrator.md requires 01-plan-review.md present before STAGE-GATE-1",
+      "01-plan-review.md` MUST exist" in orchestrator_md
+      or "01-plan-review.md MUST exist" in orchestrator_md,
+      "orchestrator.md does not require 01-plan-review.md presence before STAGE-GATE-1")
+
+# 10. orchestrator.md defines inline fallback when Task subagent invocation fails
+check("orchestrator.md defines inline fallback for plan-review subagent failures",
+      "Inline fallback" in orchestrator_md
+      and "not available as subagent_type" in orchestrator_md
+      and "Task is not available inside subagents" in orchestrator_md,
+      "orchestrator.md does not define inline fallback for nested-subagent constraint")
+check("orchestrator.md inline fallback procedure references plan-reviewer.md as spec",
+      "Read `agents/plan-reviewer.md`" in orchestrator_md,
+      "orchestrator.md inline fallback does not point to plan-reviewer.md as procedure spec")
+check("orchestrator.md emits mode: subagent | inline for telemetry",
+      "mode: subagent | inline" in orchestrator_md or "mode: subagent" in orchestrator_md,
+      "orchestrator.md status block does not distinguish subagent vs inline execution")
+
+# 11. orchestrator.md ties both execution modes to the same max-3 budget
+check("orchestrator.md subjects subagent + inline runs to the same max-3 budget",
+      "same max-3 budget" in orchestrator_md or "does not reset the counter" in orchestrator_md,
+      "orchestrator.md does not bind subagent+inline runs to the same iteration budget")
+
+# 12. Self-describing task-list contract — architect.md declares the Status field
+implementer_md = read(AGENTS_DIR / "implementer.md")
+check("architect.md task-list template includes the Status field",
+      "**Status:** pending" in architect_md,
+      "architect.md task-list template does not declare the Status field with initial 'pending'")
+check("architect.md documents Self-describing task-list contract",
+      "Self-describing task-list contract" in architect_md,
+      "architect.md does not declare the Self-describing task-list contract")
+for status in ("in-progress", "verified", "merged", "blocked"):
+    check(f"architect.md task-list contract names Status value '{status}'",
+          status in architect_md,
+          f"architect.md does not enumerate Status value '{status}'")
+check("architect.md restricts post-gate writes on 02-task-list.md",
+      "Write scope (hard rule for all agents)" in architect_md
+      or "After STAGE-GATE-1 release, the only mutations allowed" in architect_md,
+      "architect.md does not pin the post-gate write scope on 02-task-list.md")
+
+# 13. qa.md mirrors AC PASS into 02-task-list.md checkboxes
+check("qa.md declares the AC-checkbox mirror in 02-task-list.md",
+      "AC checkbox mirror in `02-task-list.md`" in qa_md,
+      "qa.md does not declare the AC-checkbox mirror contract")
+check("qa.md restricts edits on 02-task-list.md to checkbox flips",
+      "only** edit you are allowed to make on `02-task-list.md`" in qa_md
+      or "only edit you are allowed to make on 02-task-list.md" in qa_md,
+      "qa.md does not pin its edit scope on 02-task-list.md to checkbox flips")
+
+# 14. orchestrator.md mirrors PR transitions to the Status field
+check("orchestrator.md declares Mirror PR-level progress into 02-task-list.md",
+      "Mirror PR-level progress into `02-task-list.md`" in orchestrator_md,
+      "orchestrator.md does not declare the Status mirror contract")
+for transition in ("in-progress", "verified", "merged", "blocked"):
+    check(f"orchestrator.md Status mirror table names '{transition}'",
+          transition in orchestrator_md,
+          f"orchestrator.md does not name '{transition}' in the Status mirror table")
+check("orchestrator.md hands the 'merged' transition to delivery",
+      "`delivery` agent owns the `merged` transition" in orchestrator_md
+      or "delivery agent owns the merged transition" in orchestrator_md,
+      "orchestrator.md does not assign the merged transition to delivery")
+
+# 15. implementer.md acknowledges it never writes 02-task-list.md
+check("implementer.md says it never writes to 02-task-list.md",
+      "NEVER write to `02-task-list.md`" in implementer_md
+      or "never write to 02-task-list.md" in implementer_md.lower(),
+      "implementer.md does not declare that it never writes to 02-task-list.md")
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 print()
