@@ -5,7 +5,7 @@
 # ///
 """claude-dev-team installer.
 
-Installs agents, skills, hooks, and the ChromaDB MCP server into ~/.claude/,
+Installs agents, skills, hooks, and the knowledge-graph MCP server into ~/.claude/,
 and registers the `memory` + `context7` MCP servers in ~/.claude.json.
 
 Safe updates:
@@ -28,7 +28,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -232,7 +232,7 @@ def register_mcp_servers(context7_key: str) -> Path | None:
 
     backup = backup_claude_json()
 
-    mcp_dir_posix = (CLAUDE_DIR / "chromadb-mcp").as_posix()
+    mcp_dir_posix = (CLAUDE_DIR / "knowledge-graph").as_posix()
 
     mcp_servers = data.setdefault("mcpServers", {})
     mcp_servers["memory"] = {
@@ -284,12 +284,50 @@ def install_hooks() -> None:
     )
 
 
-def install_chromadb_mcp() -> None:
+def install_knowledge_graph() -> None:
     copy_dir_recursive(
-        REPO_ROOT / "chromadb-mcp",
-        CLAUDE_DIR / "chromadb-mcp",
+        REPO_ROOT / "knowledge-graph",
+        CLAUDE_DIR / "knowledge-graph",
         executable_ext=".sh",
     )
+
+
+def detect_legacy_chromadb_mcp() -> None:
+    """Surface the legacy ~/.claude/chromadb-mcp/ folder if present.
+
+    In 1.0.x the knowledge-graph MCP server was installed at
+    ~/.claude/chromadb-mcp/. In 1.1.0 the install destination moved to
+    ~/.claude/knowledge-graph/. The MCP server entry in ~/.claude.json
+    is rewritten to point at the new path by register_mcp_servers(), so
+    nothing breaks if the legacy folder stays — it just becomes unused
+    code on disk.
+
+    The installer does NOT auto-delete the legacy folder (the user owns
+    ~/.claude/; see the no-overwrite contract). It surfaces the folder
+    so the user can clean it up manually if they want a tidy state. The
+    persistent KG data at ~/.claude/chromadb/ is owned by the ChromaDB
+    backend and is unaffected by the rename — it stays where it is and
+    keeps being read by the new install.
+    """
+    legacy = CLAUDE_DIR / "chromadb-mcp"
+    if not legacy.exists():
+        return
+
+    print()
+    print("Legacy install detected:")
+    print(f"  {legacy}")
+    print("  This folder was the 1.0.x install location of the knowledge-graph")
+    print("  MCP server. As of 1.1.0 the MCP server lives at")
+    print(f"  {CLAUDE_DIR / 'knowledge-graph'} and ~/.claude.json has been")
+    print("  rewritten to point at the new path. The legacy folder is unused.")
+    print("  To clean up (optional, the installer never deletes user files):")
+    if sys.platform == "win32":
+        print(f'    Remove-Item -Recurse -Force "{legacy}"')
+    else:
+        print(f"    rm -rf {legacy}")
+    print("  Persistent KG data at ~/.claude/chromadb/ is unaffected and")
+    print("  continues to be read by the relocated MCP server.")
+    print()
 
 
 # ---------------------------------------------------------------------------
@@ -318,7 +356,7 @@ def print_summary(claude_json_backup: Path | None) -> None:
 
     print()
     print("MCP servers registered in ~/.claude.json:")
-    print("  - memory   (ChromaDB-backed knowledge graph)")
+    print("  - memory   (knowledge graph)")
     print("  - context7 (library docs)")
     if claude_json_backup:
         print(f"  backup: {claude_json_backup}")
@@ -373,7 +411,8 @@ def main() -> None:
     install_agents()
     install_skills()
     install_hooks()
-    install_chromadb_mcp()
+    install_knowledge_graph()
+    detect_legacy_chromadb_mcp()
 
     print("Registering MCP servers in ~/.claude.json...")
     claude_json_backup = register_mcp_servers(context7_key)
