@@ -7,9 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-05-17
+
+Backend-agnostic naming for the knowledge-graph subsystem. The capability stays the same; the implementation (ChromaDB) is now decoupled from the user-facing surface so a future backend (cloud-hosted KG, alternative vector DB) can be swapped in without sed-across-the-repo.
+
+### Changed (knowledge-graph naming made technology-agnostic)
+
+- **Folder rename:** `chromadb-mcp/` → `knowledge-graph/` via `git mv` (history preserved). Installer copies to `~/.claude/knowledge-graph/` instead of `~/.claude/chromadb-mcp/`. The MCP server identifier in `~/.claude.json` (`mcpServers.memory`) is unchanged — it was already abstract.
+- **User-facing docs** swept across `README.md`, `CLAUDE.md`, `agents/*.md`, `skills/*.md`, `docs/*.md`, `shared-knowledge/*.md` to replace implementation-tied phrasing (`ChromaDB MCP tools`, `ChromaDB-backed`, `chromadb-mcp/` paths) with capability-based phrasing (`Knowledge Graph MCP tools`, `knowledge-graph/` paths, "current backend: ChromaDB" only in three intentional factual contexts).
+- **Internal impl files** in `knowledge-graph/` retain ChromaDB references (`server.py`, `pyproject.toml`, `migrate_knowledge.py` — they're the implementation, that's correct). `pyproject.toml` project name renamed `chromadb-mcp` → `knowledge-graph`; description reframed to "current backend: ChromaDB". `manage-server.sh` primary env var `KNOWLEDGE_GRAPH_DIR` with legacy `CHROMADB_MCP_DIR` honoured as fallback through 1.x for users who already set it in their shell config.
+- **Installer migration:** new `detect_legacy_chromadb_mcp()` function surfaces the orphaned `~/.claude/chromadb-mcp/` folder on 1.0.x → 1.1.0 upgrades, prints the platform-appropriate cleanup command (`Remove-Item -Recurse -Force` on Windows, `rm -rf` on Unix), and notes that persistent KG data at `~/.claude/chromadb/` is unaffected. Does NOT auto-delete — `~/.claude/` is owned by the user, the installer's no-overwrite contract extends to no-delete.
+- **Suite 17 of `tests/test_agent_structure.py`** scans every user-facing markdown file for forbidden phrases (`ChromaDB MCP tools`, `ChromaDB MCP server`, `ChromaDB MCP `` ` ``, `ChromaDB-backed`, `chromadb-mcp`) and reports violations by file path. CHANGELOG and `knowledge-graph/` are intentionally excluded. Suite total: 282 → 287 assertions.
+
 ### Changed (README — harness framing + functional walkthrough)
 
-- **`README.md`** rewritten with the harness framing made central and the layout improved for scan-ability. New title `# Claude Dev Team` (display name). New "What this is" section names it explicitly as a harness around Claude Code, not a prompt pack. New "How it works" section is a functional walkthrough — three short paragraphs describing what happens when you ask for a feature (Stage 1 → STAGE-GATE-1 → Stage 2 with parallel PR rounds → STAGE-GATE-2 → Stage 3 → STAGE-GATE-3 → push), instead of a phase-by-phase contract table. New "Why a harness" failure-mode table maps each pain point to the corresponding patched behaviour. Install section compressed to ~6 lines with a single quote-block for less common variants. Component summary (`What's inside`) reduced from per-section detail to a one-paragraph overview plus three compact sub-sections that link out to the canonical references (`agents/README.md`, `chromadb-mcp/README.md`, `docs/kg-content-policy.md`).
+- **`README.md`** rewritten with the harness framing made central and the layout improved for scan-ability. New title `# Claude Dev Team` (display name). New "What this is" section names it explicitly as a harness around Claude Code, not a prompt pack. New "How it works" section is a functional walkthrough — three short paragraphs describing what happens when you ask for a feature (Stage 1 → STAGE-GATE-1 → Stage 2 with parallel PR rounds → STAGE-GATE-2 → Stage 3 → STAGE-GATE-3 → push), instead of a phase-by-phase contract table. New "Why a harness" failure-mode table maps each pain point to the corresponding patched behaviour. Install section compressed to ~6 lines with a single quote-block for less common variants. Component summary (`What's inside`) reduced from per-section detail to a one-paragraph overview plus three compact sub-sections that link out to the canonical references (`agents/README.md`, `knowledge-graph/README.md`, `docs/kg-content-policy.md`).
 
 ## [1.0.0] - 2026-05-17
 

@@ -87,7 +87,7 @@ claude-dev-team/
 | Config | JSON (`hooks/config.json`) + `~/.claude.json` merge for `mcpServers` |
 | Visuals | Excalidraw (`.excalidraw` JSON), PNG preview |
 
-**Current version:** `1.0.0` (see `bin/install.py` `__version__` and `CHANGELOG.md`).
+**Current version:** `1.1.0` (see `bin/install.py` `__version__` and `CHANGELOG.md`).
 
 **No package manager, no lockfile, no build for the installer.** `bin/install.py` has zero third-party deps by design. `knowledge-graph/` is the one exception and uses `pyproject.toml` + `uv.lock` (managed by `uv`).
 
