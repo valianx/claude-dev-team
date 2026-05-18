@@ -112,10 +112,11 @@ All commands run from the repo root.
 | Import a shared KG JSON | `uv run --directory knowledge-graph/ python import.py shared-knowledge/<file>.json` |
 | Migrate from legacy Memory MCP | `uv run knowledge-graph/migrate_knowledge.py --source ~/.claude/knowledge.json` |
 | Validate agents/skills health | `/lint` inside Claude Code |
-| Run the verification suite (policy-block + structure + YAML frontmatter) | `bash tests/run-all.sh` |
+| Run the free verification suite (policy-block + structure + YAML frontmatter) | `bash tests/run-all.sh` |
 | Run only the policy-block functional tests | `bash tests/test_policy_block.sh` |
 | Run only the agent/skill/hook structural tests | `python3 tests/test_agent_structure.py` |
 | Run only the agent YAML frontmatter validator | `uv run --with PyYAML python tests/test_agent_frontmatter.py` |
+| Run the behavioral suite (dispatches orchestrator via `claude -p`, ~$1/run) | `bash tests/run-behavioral.sh` |
 
 **Not applicable to this repo:** typecheck, unit test of agent prompt behaviour, integration test of the live pipeline, e2e, build, dev server, migrations, deploy. The repo ships declarative assets, an installer, and one MCP server — no code pipeline. The `tests/` suite covers the **three surfaces that ARE testable without a live LLM**: `hooks/policy-block.sh` (functional, ~48 cases), the structural integrity of the agent / skill / hook `.md` and `.json` files (~282 assertions across 16 suites), and the YAML frontmatter parseability of every `agents/*.md` (~19 files — catches the silent-agent-drop class of bug). It does NOT validate prompt behaviour — that still requires running pipelines through Claude Code.
 
@@ -236,6 +237,19 @@ Routing table for this repo:
 - Adding/removing an agent → route to `architect` + `agent-builder`; also update `README.md` agent roster and the system diagram.
 - Hook changes or MCP server changes → flag for `security` review (both execute with the user's privileges).
 - Changing the orchestrator pipeline → architecture review mandatory; update `agents/orchestrator.md` + `agents/ref-direct-modes.md` + `agents/ref-special-flows.md` atomically.
+
+**Universal rule — auto-takeover on `blocked-no-dispatch` (applies regardless of how the orchestrator was invoked):**
+
+When the `orchestrator` subagent returns a response containing **"Dispatch handoff — top-level Claude takes over now"**, or when an existing `session-docs/{feature}/00-state.md` has `status: blocked-no-dispatch`, top-level Claude **MUST** take over dispatch immediately. This is not a user-decision point — the user already authorised the pipeline; the nested-context Task strip is a runtime detour, not a new authorisation. The takeover protocol is:
+
+1. Do NOT ask the user "should I take over?" The directive in the orchestrator's response is itself the authorisation.
+2. Do NOT re-invoke `@orchestrator` or any skill that routes via `Task(subagent_type=orchestrator, ...)` — that recreates the nested context and the boot probe will fail again.
+3. Follow the **Takeover playbook** embedded in the orchestrator's response (or, if no response is present and you're entering from `00-state.md`, follow the `## Handoff` section of that file): read `00-state.md`, read `agents/{next-agent}.md`, dispatch the named `next-agent` directly via `Task` from the top-level session, parse its status block, update `00-state.md`, continue through the remaining phases.
+4. Respect gate semantics during the takeover. STAGE-GATE-2 between PRs is skipped silently iff `autonomous: true`; STAGE-GATE-3 always stops for human approval regardless of autonomy.
+5. Top-level Claude still inherits the "you NEVER write code/tests/docs" contract during the takeover — dispatch agents for each phase, do not write `02-implementation.md` / `03-testing.md` / `04-validation.md` / `04-security.md` / `05-delivery.md` / `06-acceptance-check.md` inline.
+6. Report to the user only at pipeline completion, at a mandatory STAGE-GATE, or when a non-recoverable failure needs human input.
+
+This rule applies to **every** entry mode: `@orchestrator` mention, skill routing (`/issue`, `/recover`, `/plan`, `/design`, `/deliver`, `/validate`, `/research`, `/spike`, `/test`, etc.), or another agent's referral. The `blocked-no-dispatch` state is the system's documented self-healing path — leaving it open for the user to resolve manually defeats the purpose.
 
 ---
 
