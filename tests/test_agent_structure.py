@@ -855,6 +855,402 @@ for pattern in FORBIDDEN_PATTERNS:
         f"violations in: {', '.join(violators)} — replace with knowledge-graph naming")
 
 # ---------------------------------------------------------------------------
+# Suite 18 — Dispatch-blocked auto-takeover contract
+# ---------------------------------------------------------------------------
+# Guards against the recurring "orchestrator nested → Task stripped → user has
+# to manually take over" failure mode. The contract has three load-bearing
+# touchpoints that must stay coherent:
+#   1. agents/orchestrator.md  — the boot probe + Dispatch-blocked exit
+#   2. CLAUDE.md § 13          — the universal auto-takeover rule
+#   3. skills/README.md        — the canonical Continuity contract
+#
+# If any of these drifts (e.g. someone renames the status enum, drops the
+# imperative phrasing, weakens the anti-patterns), the auto-takeover stops
+# working and the user is back to relaying the handoff by hand.
+print("=== Suite 18: Dispatch-blocked auto-takeover contract ===")
+
+orchestrator_md = read(AGENTS_DIR / "orchestrator.md")
+claude_md = read(REPO_ROOT / "CLAUDE.md")
+skills_readme_md = read(SKILLS_DIR / "README.md")
+
+# Universal trigger phrase — top-level Claude scans for this in the subagent
+# response and switches into takeover mode. Must be identical across all
+# three files so the auto-takeover is unambiguous.
+TRIGGER_PHRASE = "Dispatch handoff — top-level Claude takes over now"
+STATUS_ENUM_VALUE = "blocked-no-dispatch"
+
+# --- orchestrator.md ---
+check(
+    "orchestrator.md has 'Mandatory boot sequence' section",
+    "Mandatory boot sequence" in orchestrator_md,
+    "missing boot sequence section — auto-takeover starts here",
+)
+check(
+    "orchestrator.md boot probe uses general-purpose subagent_type",
+    "subagent_type`: `general-purpose`" in orchestrator_md
+    or "subagent_type: general-purpose" in orchestrator_md,
+    "probe must dispatch general-purpose to test Task availability",
+)
+check(
+    "orchestrator.md boot probe expects single-word OK reply",
+    "Reply with the single word OK" in orchestrator_md,
+    "probe payload contract must be present so the check is unambiguous",
+)
+check(
+    "orchestrator.md has 'Dispatch-blocked exit' section",
+    "### Dispatch-blocked exit" in orchestrator_md,
+    "missing dispatch-blocked exit section",
+)
+check(
+    f"orchestrator.md status enum includes '{STATUS_ENUM_VALUE}'",
+    STATUS_ENUM_VALUE in orchestrator_md,
+    "status enum must list blocked-no-dispatch so 00-state.md is detectable",
+)
+check(
+    f"orchestrator.md response starts with universal trigger phrase '{TRIGGER_PHRASE}'",
+    TRIGGER_PHRASE in orchestrator_md,
+    "top-level Claude scans for this exact phrase to switch into takeover mode",
+)
+check(
+    "orchestrator.md response declares itself as a directive (not user report)",
+    "directive to top-level Claude" in orchestrator_md,
+    "framing must be imperative — drift toward 'status report' breaks auto-takeover",
+)
+check(
+    "orchestrator.md anti-pattern: 'Do NOT ask the user'",
+    "Do NOT ask the user" in orchestrator_md or "do NOT ask the user" in orchestrator_md,
+    "imperative must forbid asking the user for confirmation",
+)
+check(
+    "orchestrator.md anti-pattern: 'do NOT re-invoke `@orchestrator`'",
+    "Do NOT re-invoke `@orchestrator`" in orchestrator_md
+    or "do NOT re-invoke `@orchestrator`" in orchestrator_md,
+    "must forbid recreating the nested condition",
+)
+check(
+    "orchestrator.md response includes 'Takeover playbook' header",
+    "Takeover playbook" in orchestrator_md,
+    "playbook must be present and named consistently",
+)
+check(
+    "orchestrator.md Handoff template includes 'Next agent to dispatch:'",
+    "Next agent to dispatch:" in orchestrator_md,
+    "Handoff template must name the next agent for takeover",
+)
+check(
+    "orchestrator.md Handoff template includes 'Probe error:'",
+    "Probe error:" in orchestrator_md,
+    "Handoff must record the literal probe error for debugging",
+)
+check(
+    "orchestrator.md dispatch invariant #1 is conditional on probe success",
+    "After a successful boot probe" in orchestrator_md,
+    "invariant #1 must NOT unconditionally claim Task is present — that was the original bug",
+)
+# The "Tools in this invocation" section must NOT make unconditional Task claims.
+# Empirical finding from Test B: when the section said "Task is on the list. You
+# have Task." unconditionally, the agent emitted a hardcoded "Task is present"
+# line as its opening response even when Task had been stripped — a hallucination
+# cascade primed by the contradictory prose.
+check(
+    "orchestrator.md does NOT contain the unconditional 'Task is on the list' claim",
+    "Task is on the list. You have `Task`" not in orchestrator_md
+    and "Task is on the list. You have Task" not in orchestrator_md,
+    "unconditional 'You have Task' claim primes a hallucination — must stay removed",
+)
+check(
+    "orchestrator.md tools section explicitly warns that Task can be stripped at runtime",
+    "strips `Task`" in orchestrator_md or "strips Task" in orchestrator_md,
+    "tools section must acknowledge runtime stripping in nested invocations",
+)
+check(
+    "orchestrator.md tools section forbids opening claims about Task before probe",
+    "Do NOT emit any opening claim about `Task` availability before the boot probe" in orchestrator_md
+    or "do NOT emit any opening claim about" in orchestrator_md.lower(),
+    "explicit anti-hallucination instruction must remain",
+)
+check(
+    "orchestrator.md boot ack line references the probe, not a static tools-confirmed claim",
+    "dispatch probe OK — subagent dispatch verified by general-purpose probe" in orchestrator_md,
+    "boot ack must derive from the probe result, not from a hardcoded tool list",
+)
+check(
+    "orchestrator.md does NOT contain the legacy 'tools confirmed' acknowledgment",
+    "[orchestrator boot] tools confirmed:" not in orchestrator_md,
+    "legacy ack line was the hallucination vector — must stay removed",
+)
+check(
+    "orchestrator.md response respects 'never write code' contract in takeover",
+    "applies to top-level Claude too" in orchestrator_md
+    or "you NEVER write code/tests/docs" in orchestrator_md,
+    "takeover must inherit the no-inline-work contract",
+)
+
+# --- CLAUDE.md § 13 ---
+check(
+    "CLAUDE.md has universal auto-takeover rule",
+    "Universal rule — auto-takeover" in claude_md
+    or "auto-takeover on `blocked-no-dispatch`" in claude_md,
+    "missing CLAUDE.md universal rule — needed so the rule applies independently of skill wrappers",
+)
+check(
+    f"CLAUDE.md auto-takeover rule references status enum '{STATUS_ENUM_VALUE}'",
+    STATUS_ENUM_VALUE in claude_md,
+    "rule must name the same enum value used in orchestrator.md and 00-state.md",
+)
+check(
+    f"CLAUDE.md auto-takeover rule references trigger phrase '{TRIGGER_PHRASE}'",
+    TRIGGER_PHRASE in claude_md,
+    "rule must reference the same trigger phrase the orchestrator response uses",
+)
+check(
+    "CLAUDE.md rule explicitly says do NOT ask the user",
+    "Do NOT ask the user" in claude_md or "do NOT ask the user" in claude_md,
+    "rule must be imperative about not waiting for user confirmation",
+)
+check(
+    "CLAUDE.md rule covers STAGE-GATE-2 autonomy semantics",
+    "STAGE-GATE-2" in claude_md and "autonomous" in claude_md,
+    "takeover must respect autonomy gating between PRs",
+)
+check(
+    "CLAUDE.md rule covers STAGE-GATE-3 always-mandatory",
+    "STAGE-GATE-3" in claude_md,
+    "STAGE-GATE-3 always needs human approval — takeover must not bypass it",
+)
+check(
+    "CLAUDE.md rule applies regardless of invocation mode",
+    "regardless of how the orchestrator was invoked" in claude_md
+    or "every entry mode" in claude_md,
+    "must be explicit that the rule covers @mention, skills, and agent referrals",
+)
+
+# --- skills/README.md ---
+check(
+    "skills/README.md has 'Continuity contract' section",
+    "## Continuity contract" in skills_readme_md,
+    "missing continuity contract — needed as the canonical reference for routing skills",
+)
+check(
+    f"skills/README.md Continuity contract references '{STATUS_ENUM_VALUE}'",
+    STATUS_ENUM_VALUE in skills_readme_md,
+    "skills doc must use the same status enum",
+)
+check(
+    f"skills/README.md Continuity contract uses trigger phrase '{TRIGGER_PHRASE}'",
+    TRIGGER_PHRASE in skills_readme_md,
+    "skills doc must reference the same trigger phrase",
+)
+check(
+    "skills/README.md Continuity contract cross-refs orchestrator.md AND CLAUDE.md",
+    "agents/orchestrator.md" in skills_readme_md and "CLAUDE.md" in skills_readme_md,
+    "skills doc must point to both authoritative sources",
+)
+
+# --- Cross-file consistency ---
+# The three files must agree on the literal trigger phrase. If one of them
+# drifts (e.g. someone localises the orchestrator response to Spanish but
+# leaves CLAUDE.md in English), top-level Claude's scan no longer matches.
+all_three = (orchestrator_md, claude_md, skills_readme_md)
+check(
+    "trigger phrase identical across orchestrator.md, CLAUDE.md, skills/README.md",
+    all(TRIGGER_PHRASE in src for src in all_three),
+    "drift detected — the universal touchpoint must be byte-identical in all three files",
+)
+check(
+    "status enum value identical across orchestrator.md, CLAUDE.md, skills/README.md",
+    all(STATUS_ENUM_VALUE in src for src in all_three),
+    "drift detected — enum value must match in all three files",
+)
+
+# ---------------------------------------------------------------------------
+# Suite 19 — Agent identity & cross-reference consistency
+# ---------------------------------------------------------------------------
+# Regression guards for "I renamed/removed an agent and broke 5 references"
+# style breakage. Catches:
+#   - filename ↔ frontmatter `name:` drift (Claude Code loads the frontmatter
+#     name; if it doesn't match the filename, agents/init has trouble locating
+#     and references to the old name go stale)
+#   - agents that exist in agents/ but aren't listed in orchestrator's Your Team
+#     table, README roster, or anywhere else (orphan agent — never dispatched)
+#   - agent names referenced in CLAUDE.md / orchestrator.md / skills that don't
+#     resolve to an actual `agents/<name>.md` (dangling reference — dispatch
+#     will fail with "not a valid subagent_type")
+#   - skill names referenced from agents/CLAUDE.md that don't resolve to
+#     `skills/<name>.md` or `skills/<name>/SKILL.md`
+#   - phase numbers mentioned in orchestrator.md outside the canonical set
+#     (introducing "Phase 1.7" without wiring it in is silent UX breakage)
+print("=== Suite 19: Agent identity & cross-reference consistency ===")
+
+# Agents that legitimately have no .md file because they're reference files
+# (loaded on-demand by the orchestrator, not standalone agents)
+REFERENCE_ONLY_AGENTS = {"ref-direct-modes", "ref-special-flows"}
+
+# Pipeline + standalone + reference agents that legitimately exist
+ALL_AGENT_FILES = sorted(p.stem for p in AGENTS_DIR.glob("*.md") if p.stem != "README")
+
+# 1. Filename ↔ frontmatter `name:` match for every agent
+for agent_file in ALL_AGENT_FILES:
+    path = AGENTS_DIR / f"{agent_file}.md"
+    fm = parse_frontmatter(read(path))
+    declared_name = fm.get("name", "")
+    check(
+        f"agents/{agent_file}.md frontmatter name matches filename",
+        declared_name == agent_file,
+        f"frontmatter says name='{declared_name}', file is '{agent_file}.md' — "
+        f"rename one or the other so they agree (Claude Code loads frontmatter name)",
+    )
+
+# 2. Every agent file has a non-empty `description:` and a valid `model:`
+VALID_MODELS = {"sonnet", "opus", "haiku", "inherit"}
+for agent_file in ALL_AGENT_FILES:
+    path = AGENTS_DIR / f"{agent_file}.md"
+    fm = parse_frontmatter(read(path))
+    check(
+        f"agents/{agent_file}.md has non-empty description",
+        bool(fm.get("description", "").strip()),
+        "frontmatter `description` is empty — Claude Code uses it for routing",
+    )
+    model = fm.get("model", "")
+    check(
+        f"agents/{agent_file}.md declares a known model",
+        model in VALID_MODELS,
+        f"model='{model}' not in {sorted(VALID_MODELS)} — typo or new alias not "
+        "registered",
+    )
+
+# 3. Every agent file (except reference-only) appears in orchestrator's Your Team
+#    table OR is explicitly listed as standalone.
+orchestrator_md_v19 = orchestrator_md  # reuse from Suite 18 (already read)
+expected_in_orchestrator = {
+    name for name in ALL_AGENT_FILES if name not in REFERENCE_ONLY_AGENTS
+} - {"orchestrator"}  # orchestrator doesn't list itself
+for agent_name in sorted(expected_in_orchestrator):
+    # Must appear either in the Your Team table OR be named in the "Standalone
+    # agents" callout.
+    mentioned_in_team = f"`{agent_name}`" in orchestrator_md_v19
+    check(
+        f"agents/{agent_name}.md is referenced in orchestrator.md",
+        mentioned_in_team,
+        "agent file exists but orchestrator never mentions it — orphan agent "
+        "(no one will dispatch it) or stale leftover that should be deleted",
+    )
+
+# 4. Every agent name referenced inside CLAUDE.md resolves to a real file.
+#    We extract bare `agent_name` mentions from the routing table format
+#    `| ... | `agent` | ...` and verify each one exists.
+claude_md_v19 = claude_md  # reuse
+# Match patterns like `architect`, `implementer` etc. (single-word backtick refs)
+# This catches direct references; multi-word or phrase mentions are skipped.
+KNOWN_AGENT_NAMES = set(ALL_AGENT_FILES)
+referenced_in_claude_md = set(
+    re.findall(r"`([a-z][a-z0-9-]{2,})`", claude_md_v19)
+)
+# Filter to names that LOOK like agents (lowercase, hyphenated, short)
+plausible_agent_refs = {
+    n for n in referenced_in_claude_md
+    if n in KNOWN_AGENT_NAMES or n.endswith("-checker") or n.endswith("-reviewer")
+    or n in {"orchestrator", "architect", "implementer", "tester", "qa", "security",
+             "delivery", "init", "diagrammer", "reviewer", "translator"}
+}
+for ref in sorted(plausible_agent_refs):
+    if ref in KNOWN_AGENT_NAMES:
+        continue  # resolves cleanly
+    check(
+        f"CLAUDE.md reference `{ref}` resolves to an existing agent",
+        False,
+        f"agents/{ref}.md does not exist — rename in CLAUDE.md or restore the file",
+    )
+
+# 5. Phase numbers mentioned in orchestrator.md are in the canonical set.
+#    Canonical phases (per the Pipeline Flow ASCII art and Stage table):
+CANONICAL_PHASES = {
+    "0a", "0b", "1", "1.5", "1.6", "2", "2.5", "3", "3.5", "3.6", "4", "4.5", "5", "6",
+}
+# Extract `Phase X` mentions, case-insensitive.
+phase_mentions = set(re.findall(r"Phase\s+([0-9]+(?:\.[0-9]+)?[a-z]?)", orchestrator_md_v19))
+unknown_phases = phase_mentions - CANONICAL_PHASES - {"N"}  # "{N}" placeholder is OK
+check(
+    "orchestrator.md uses only canonical phase numbers",
+    not unknown_phases,
+    f"unknown phase numbers found: {sorted(unknown_phases)} — either add them "
+    "to the canonical set or fix the typo",
+)
+
+# 6. Every skill file (top-level .md) has a frontmatter name that — if present —
+#    matches its filename. Skills can omit frontmatter; only check when present.
+SKILL_FILES = sorted(
+    p.stem for p in SKILLS_DIR.glob("*.md") if p.stem != "README"
+)
+for skill_file in SKILL_FILES:
+    path = SKILLS_DIR / f"{skill_file}.md"
+    text = read(path)
+    if not text.startswith("---"):
+        continue  # skill without frontmatter — allowed
+    fm = parse_frontmatter(text)
+    declared = fm.get("name", "").strip()
+    if not declared:
+        continue
+    check(
+        f"skills/{skill_file}.md frontmatter name matches filename (if declared)",
+        declared == skill_file,
+        f"frontmatter name='{declared}' but file is '{skill_file}.md'",
+    )
+
+# 7. Every skill name listed in skills/README.md "Routes to orchestrator" line
+#    exists as either skills/<name>.md or skills/<name>/SKILL.md.
+skills_readme_v19 = skills_readme_md  # reuse from Suite 18
+# Extract names from the routing line: e.g. "/issue, /plan, /design, ..."
+routes_line_match = re.search(
+    r"\*\*Routes to orchestrator\*\*[^:]*:\s*([^\n]+)",
+    skills_readme_v19,
+)
+if routes_line_match:
+    declared_routing_skills = set(re.findall(r"/([a-z][a-z0-9-]+)", routes_line_match.group(1)))
+    for skill_name in sorted(declared_routing_skills):
+        file_exists = (SKILLS_DIR / f"{skill_name}.md").exists()
+        dir_exists = (SKILLS_DIR / skill_name / "SKILL.md").exists()
+        check(
+            f"skills/README.md routing skill '/{skill_name}' resolves to a real skill",
+            file_exists or dir_exists,
+            f"no skills/{skill_name}.md or skills/{skill_name}/SKILL.md found",
+        )
+else:
+    check(
+        "skills/README.md contains 'Routes to orchestrator' line",
+        False,
+        "expected line is missing from skills/README.md",
+    )
+
+# 8. Tools list in each agent frontmatter declares only known Claude Code tools.
+#    This catches typos like `Tash` instead of `Task` (silent failure — agent
+#    loads without that tool and the contract breaks).
+KNOWN_TOOLS = {
+    "Read", "Edit", "Write", "Bash", "Glob", "Grep", "Task", "WebFetch",
+    "WebSearch", "NotebookEdit", "PowerShell",
+}
+KNOWN_MCP_PREFIXES = ("mcp__memory__", "mcp__context7__", "mcp__")
+for agent_file in ALL_AGENT_FILES:
+    if agent_file in REFERENCE_ONLY_AGENTS:
+        continue
+    path = AGENTS_DIR / f"{agent_file}.md"
+    fm = parse_frontmatter(read(path))
+    tools_field = fm.get("tools", "")
+    if not tools_field:
+        continue  # agent declares no tools (rare, e.g. some reference agents)
+    declared_tools = [t.strip() for t in tools_field.split(",") if t.strip()]
+    unknown = [
+        t for t in declared_tools
+        if t not in KNOWN_TOOLS and not any(t.startswith(p) for p in KNOWN_MCP_PREFIXES)
+    ]
+    check(
+        f"agents/{agent_file}.md tools list contains only known tools",
+        not unknown,
+        f"unknown tool(s) in frontmatter: {unknown} — typo or new tool not in "
+        "the KNOWN_TOOLS set",
+    )
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 print()
