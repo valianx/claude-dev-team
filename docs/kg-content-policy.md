@@ -85,8 +85,7 @@ The filter lives **in one place only**: at write time.
 
 ## What to do when a violation is detected
 
-- **In your local KG**: delete the entity / observation via the `/memory` skill or the viewer (`uv run knowledge-graph/viewer/app.py`).
-- **In a shared file**: reject the PR in `shared-knowledge/`, ask the origin to curate and re-export.
+- **In your KG**: delete the offending entity / observation directly against the MCP backend. For `context-harness-mcp`: open the public viewer at `<your-mcp-url>/viewer/`, or run admin SQL via the underlying Postgres (soft-delete via `UPDATE nodes SET deleted_at = now() WHERE name = '...'`).
 - **In an agent's prompt**: open a PR adjusting the agent's prompt to comply.
 
 ## Language convention
@@ -101,6 +100,6 @@ All KG content is written in **English**, regardless of the conversation languag
 
 **Implementation status**:
 - ✅ Filter wired into `orchestrator.md` Phase 6 (Knowledge Save).
-- ✅ `knowledge-graph/export.py` and `knowledge-graph/import.py` available.
+- ✅ Backend-agnostic — applies to any MCP server registered as `mcpServers.memory`. For `context-harness-mcp`: the server-side `internal/validate/` Content Filter enforces a subset (size + secrets + taxonomy) at write time as defense-in-depth.
 
-This policy is **normative for humans and agents**. The orchestrator's filter is the first line of defense at write time; humans curate by reviewing PRs into `shared-knowledge/`.
+This policy is **normative for humans and agents**. The orchestrator's filter is the first line of defense at write time.

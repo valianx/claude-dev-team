@@ -89,7 +89,7 @@ Full roster (with model + effort matrix) in [`agents/README.md`](./agents/README
 
 ### Skills
 
-Slash-commands. Most route into the orchestrator; five are standalone utilities (`/lint`, `/status`, `/memory`, `/tmux`, `/kg-viewer`). Use what you need — common entries are `/design`, `/recover`, `/deliver`, `/review-pr`, `/issue`, `/background`.
+Slash-commands. Most route into the orchestrator; four are standalone utilities (`/lint`, `/status`, `/memory`, `/tmux`). Use what you need — common entries are `/design`, `/recover`, `/deliver`, `/review-pr`, `/issue`, `/background`.
 
 ### Hooks
 

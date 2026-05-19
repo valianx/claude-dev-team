@@ -835,12 +835,11 @@ USER_FACING_PATHS: list[Path] = [
 USER_FACING_PATHS.extend(sorted((REPO_ROOT / "agents").glob("*.md")))
 USER_FACING_PATHS.extend(sorted((REPO_ROOT / "skills").glob("*.md")))
 USER_FACING_PATHS.extend(sorted((REPO_ROOT / "docs").glob("*.md")))
-USER_FACING_PATHS.extend(sorted((REPO_ROOT / "shared-knowledge").glob("*.md")))
 
 # CHANGELOG is intentionally excluded: historical entries (1.0.0 and prior)
-# legitimately mention ChromaDB and must not be rewritten.
-# knowledge-graph/ folder is the implementation — ChromaDB references inside
-# are correct.
+# legitimately mention ChromaDB and must not be rewritten. The bundled
+# Python knowledge-graph/ folder and shared-knowledge/ were removed when
+# the Memory MCP moved to be an external service.
 
 for pattern in FORBIDDEN_PATTERNS:
     violators: list[str] = []

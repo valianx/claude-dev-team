@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - BREAKING: `knowledge-graph/` directory (Python ChromaDB MCP server source). The Memory MCP server now lives EXCLUSIVELY as an external service — typically `context-harness-mcp` deployed to the user's chosen cloud host. `claude-dev-team` is now a pure agents + skills + hooks + Go-installer distributor.
+- BREAKING: `shared-knowledge/` directory (drop-off for shared KG JSON exports). The export/import workflow was bundled with the Python ChromaDB server; with the server external, KG sharing is a non-goal of this repo. Operators who want cross-machine shared KGs use the external MCP's storage backend directly (e.g. shared Postgres) or roll their own export tooling.
+- BREAKING: `skills/kg-viewer.md` slash command. The viewer it launched (`uv run knowledge-graph/viewer/app.py`) targeted the deleted Python ChromaDB server. The current external Memory MCP (`context-harness-mcp`) ships its own web viewer at `/viewer/` on the deployed host.
 - `bin/install.py` (deprecated Python fallback). Deleted entirely — Go installer is the only path.
 - `install_knowledge_graph()` from the installer (no more copying Python KG server files into `~/.claude/`).
 - `uv` from required dependencies.
