@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 )
 
 // readExistingMCPServers returns the current mcpServers block from ~/.claude.json,
@@ -32,7 +31,7 @@ func readExistingMCPServers() map[string]interface{} {
 // produce zero backups and zero file modifications.
 //
 // Returns the backup path if a write occurred, or "" if the file was untouched.
-func registerMCPServers(context7Key string, kg KGBackendChoice) string {
+func registerMCPServers(context7Key string, choice MemoryMCPChoice) string {
 	// Read the whole file as a map of raw JSON values so unknown keys are preserved.
 	raw := map[string]json.RawMessage{}
 	if fileData, err := os.ReadFile(claudeJSON); err == nil {
@@ -45,7 +44,7 @@ func registerMCPServers(context7Key string, kg KGBackendChoice) string {
 		_ = json.Unmarshal(v, &mcpRaw)
 	}
 
-	newMemory := buildMemoryEntry(kg)
+	newMemory := buildMemoryEntry(choice)
 	var newContext7 map[string]interface{}
 	if context7Key != "" {
 		newContext7 = buildContext7Entry(context7Key)
@@ -53,10 +52,9 @@ func registerMCPServers(context7Key string, kg KGBackendChoice) string {
 
 	// Detect whether anything would actually change.
 	memoryChanged := newMemory != nil && !rawEntryMatches(mcpRaw["memory"], newMemory)
-	memoryRemoved := kg.Skipped && mcpRaw["memory"] != nil
 	context7Changed := newContext7 != nil && !rawEntryMatches(mcpRaw["context7"], newContext7)
 
-	if !memoryChanged && !memoryRemoved && !context7Changed {
+	if !memoryChanged && !context7Changed {
 		fmt.Println("  ~/.claude.json: no changes needed (mcpServers already match desired state)")
 		return ""
 	}
@@ -66,9 +64,6 @@ func registerMCPServers(context7Key string, kg KGBackendChoice) string {
 	if memoryChanged {
 		encoded, _ := json.Marshal(newMemory)
 		mcpRaw["memory"] = json.RawMessage(encoded)
-	} else if memoryRemoved {
-		delete(mcpRaw, "memory")
-		warnMemorySkipped()
 	}
 	if context7Changed {
 		encoded, _ := json.Marshal(newContext7)
@@ -103,25 +98,11 @@ func rawEntryMatches(existing json.RawMessage, desired map[string]interface{}) b
 	return string(desiredBytes) == string(existingBytes)
 }
 
-// buildMemoryEntry returns the desired mcpServers.memory dict, or nil when the
-// entry should be omitted (skipped backend).
-func buildMemoryEntry(kg KGBackendChoice) map[string]interface{} {
-	if kg.Skipped {
-		return nil
-	}
-	if kg.Backend == "context-harness" && kg.URL != "" {
-		return map[string]interface{}{
-			"type": "http",
-			"url":  kg.URL,
-		}
-	}
-	// Default: memory (stdio ChromaDB)
-	kgPath := filepath.Join(claudeDir, "knowledge-graph")
+// buildMemoryEntry returns the mcpServers.memory dict: always http type.
+func buildMemoryEntry(choice MemoryMCPChoice) map[string]interface{} {
 	return map[string]interface{}{
-		"type":    "stdio",
-		"command": "uv",
-		"args":    []string{"run", "--directory", toSlash(kgPath), "python", "-m", "server"},
-		"env":     map[string]interface{}{},
+		"type": "http",
+		"url":  choice.URL,
 	}
 }
 
@@ -134,13 +115,4 @@ func buildContext7Entry(key string) map[string]interface{} {
 			"CONTEXT7_API_KEY": key,
 		},
 	}
-}
-
-func warnMemorySkipped() {
-	fmt.Println()
-	fmt.Println("  [warn] No 'memory' MCP entry written. To complete setup later:")
-	fmt.Println("    - Deploy context-harness-mcp (see https://github.com/valianx/context-harness-mcp)")
-	fmt.Println("    - Re-run this installer, OR")
-	fmt.Println(`    - Manually add to ~/.claude.json under mcpServers:`)
-	fmt.Println(`      "memory": { "type": "http", "url": "https://<your-render-url>/mcp" }`)
 }

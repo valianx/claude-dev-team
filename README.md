@@ -28,13 +28,21 @@ cd claude-dev-team
 # .\bin\install.ps1      # Windows (PowerShell)
 ```
 
-Requirements: [Claude Code](https://docs.claude.com/en/docs/claude-code), [`gh`](https://cli.github.com/), and a [context7](https://context7.com/) API key. No Python or `uv` required — the bootstrap script downloads a prebuilt Go binary from the latest GitHub Release.
+Requirements: [Claude Code](https://docs.claude.com/en/docs/claude-code), [`gh`](https://cli.github.com/) (for orchestrator delivery flow), and a [context7](https://context7.com/) API key. Zero Python, zero `uv` — the bootstrap downloads a prebuilt Go binary from the latest GitHub Release and the agents talk to your external Memory MCP via HTTP.
+
+The installer prompts for one thing: the **Memory MCP URL**. This is the public URL of your Knowledge Graph MCP server — typically [`context-harness-mcp`](https://github.com/valianx/context-harness-mcp) deployed to Railway, Render, Fly, your own server, or any Docker host of your choice. Press Enter to use the local Docker default (`http://localhost:7654/mcp`).
+
+For unattended installs:
+
+```bash
+MEMORY_MCP_URL=https://your-mcp.example.com/mcp \
+CONTEXT7_API_KEY=ctx7sk-... \
+./bin/install.sh
+```
+
+Pass `--force` to reset existing `mcpServers` entries: `./bin/install.sh --force`.
 
 Restart Claude Code after install so it picks up the new agents and MCP servers. The installer is idempotent and never overwrites existing files (conflicts are reported, not silenced).
-
-The installer prompts for the **Knowledge Graph backend**: `context-harness` (Go + Postgres+pgvector, cloud or local — default) or `memory` (Python ChromaDB, local single-machine). For unattended installs use `KG_BACKEND=memory` or `KG_BACKEND=context-harness CONTEXT_HARNESS_URL=https://<url>/mcp`.
-
-> To skip all prompts: `CONTEXT7_API_KEY=ctx7sk-... KG_BACKEND=memory ./bin/install.sh`. Pass `--force` to reset existing mcpServer entries: `./bin/install.sh --force`.
 
 ---
 
@@ -58,7 +66,7 @@ A walkthrough of what happens when you ask for a feature.
 
 ## What's inside
 
-The system ships **17 agents**, **28 skills** (slash commands), three OS-native notification scripts plus a `PreToolUse` policy gate, and one MCP server (the knowledge graph). Full per-component contracts in [`CLAUDE.md`](./CLAUDE.md).
+The system ships **17 agents**, **28 skills** (slash commands), and three OS-native notification scripts plus a `PreToolUse` policy gate. The Knowledge Graph MCP server runs as an external service — see the Install section. Full per-component contracts in [`CLAUDE.md`](./CLAUDE.md).
 
 ### Agents
 
@@ -87,9 +95,9 @@ Slash-commands. Most route into the orchestrator; five are standalone utilities 
 
 `hooks/policy-block.sh` is the `PreToolUse` gate: 48 tested cases deny destructive Bash, force-push, no-verify, SQL DROP/TRUNCATE, writes to secret-bearing paths. Allow-list variants (`.env.example`, `.sample`, `.template`) explicitly permitted. Notification scripts (`notify-windows.sh` / `notify-mac.sh` / `notify-linux.sh`) are optional — merge their config block into `~/.claude/settings.json` to enable.
 
-### Knowledge graph (`knowledge-graph/`)
+### Knowledge graph (external MCP service)
 
-Semantic memory across projects. 9 entity types, 5 relation types, web viewer, export/import for non-destructive sharing. Current backend is ChromaDB (embedded, local, free); the folder name and external references are backend-agnostic so an alternative backend (e.g., a cloud-hosted KG) can be added without touching the agent prompts. Reference: [`knowledge-graph/README.md`](./knowledge-graph/README.md), [`docs/kg-content-policy.md`](./docs/kg-content-policy.md).
+Semantic memory across projects. Agents call the Memory MCP server at the URL you configured during install. The server (`context-harness-mcp` or any MCP-compatible service) lives outside this repo — deploy it to Railway, Render, Fly, a VPS, or run it locally via Docker. Reference: [`docs/kg-content-policy.md`](./docs/kg-content-policy.md).
 
 ---
 
@@ -140,7 +148,7 @@ The installer is idempotent. Unchanged files are skipped; conflicting files (you
 
 ## Contributing
 
-Develop against the source files in `agents/`, `skills/`, `hooks/`, `knowledge-graph/` — not `~/.claude/` directly. After editing, re-run the installer to propagate. Working agreements (enforced — see [`CLAUDE.md` §6](./CLAUDE.md)):
+Develop against the source files in `agents/`, `skills/`, `hooks/` — not `~/.claude/` directly. After editing, re-run the installer to propagate. Working agreements (enforced — see [`CLAUDE.md` §6](./CLAUDE.md)):
 
 - Feature branch (`feat/<kebab>`, `fix/<kebab>`, `chore/<kebab>`, `docs/<kebab>`, `refactor/<kebab>`) — never commit on `main`.
 - Conventional-commit messages.
