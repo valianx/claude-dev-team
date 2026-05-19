@@ -65,7 +65,6 @@ claude-dev-team/
 ├── go.mod               Go module (github.com/valianx/claude-dev-team, Go 1.23)
 ├── docs/
 │   └── knowledge.md     Project knowledge base — decisions, patterns, stack
-├── shared-knowledge/    Drop-off for shared KG exports (see folder README)
 ├── README.md            Human-facing overview
 ├── CHANGELOG.md         Keep-a-Changelog + semver
 ├── CLAUDE.md            This file
@@ -74,7 +73,7 @@ claude-dev-team/
 
 **Ownership boundaries.**
 - `agents/` — system prompts only. One `.md` = one agent.
-- `skills/` — slash-command entry points. Most are thin: parse args → route to orchestrator. A few are standalone (`/lint`, `/status`, `/memory`, `/tmux`, `/kg-viewer`).
+- `skills/` — slash-command entry points. Most are thin: parse args → route to orchestrator. A few are standalone (`/lint`, `/status`, `/memory`, `/tmux`).
 - `hooks/` — keep these **generic and portable** (no personal tokens, no private endpoints). User-specific hooks belong in `~/.claude/hooks/`, not here.
 - `cmd/install/` — Go installer source. No third-party deps (stdlib-only). Compiled with `CGO_ENABLED=0` for static single-file binaries.
 
@@ -130,7 +129,7 @@ All commands run from the repo root.
 
 - **One concern per file.** One agent per `.md` in `agents/`. One skill per `.md` in `skills/` (complex skills get their own subfolder).
 - **Frontmatter-driven agents.** Every agent file starts with YAML frontmatter (`name`, `description`, `model`, `color`). `init`, `architect`, `agent-builder` use `opus`; others generally use `sonnet`.
-- **Orchestrator is the hub.** Skills never invoke agents directly — they build a task payload and route to `orchestrator`. Exceptions: standalone utilities (`/lint`, `/status`, `/memory`, `/tmux`, `/kg-viewer`).
+- **Orchestrator is the hub.** Skills never invoke agents directly — they build a task payload and route to `orchestrator`. Exceptions: standalone utilities (`/lint`, `/status`, `/memory`, `/tmux`).
 - **Session-docs as the shared board.** Agents communicate through files in `session-docs/{feature-name}/`, never through return values. `session-docs/` is always git-ignored.
 - **Status-block return protocol.** Agents finish with a compact status block; the orchestrator gates on the block without re-reading full session-docs on happy paths.
 - **Installer is idempotent and non-destructive.** Conflicts (existing file with different hash) are reported, never overwritten. User must delete manually to force a re-install. `~/.claude.json` is backed up before every merge.

@@ -24,13 +24,13 @@ The top level also contains a one-file `<name>.md` sibling for each complex skil
 ## Routing
 
 - **Routes to orchestrator** (default for pipeline work): `/issue`, `/plan`, `/design`, `/research`, `/spike`, `/test`, `/test-pipeline`, `/validate`, `/define-ac`, `/security`, `/audit`, `/review-pr`, `/deliver`, `/diagram`, `/likec4-diagram`, `/d2-diagram`, `/translate`, `/init`, `/recover`, `/eval`, `/gcp-costs`, `/cross-repo`.
-- **Standalone** (no orchestrator involvement): `/lint`, `/status`, `/memory`, `/tmux`, `/kg-viewer`, `/background`.
+- **Standalone** (no orchestrator involvement): `/lint`, `/status`, `/memory`, `/tmux`, `/background`.
 
 ## Adding a simple skill
 
 1. Create `skills/<name>.md` with frontmatter and a short body.
 2. Default behaviour: parse args, route to orchestrator with a descriptive mode. Use existing skills as templates.
-3. Run `./bin/install.sh` (or `uv run bin/install.py`) to propagate.
+3. Run `./bin/install.sh` (or `.\bin\install.ps1` on Windows) to propagate.
 4. Add a `CHANGELOG.md` entry under `[Unreleased]`.
 5. Open a PR.
 
