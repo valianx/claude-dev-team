@@ -14,12 +14,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `bin/install.sh` and `bin/install.ps1` rewritten as thin bootstrap wrappers — detect OS+arch, download the right binary from the latest GH Release, exec it. End-user no longer needs `uv` or Python.
 - `go.mod`: claude-dev-team is now a Go module (`github.com/valianx/claude-dev-team`, Go 1.23).
 
+### Removed
+
+- BREAKING: `knowledge-graph/` directory (Python ChromaDB MCP server source). The Memory MCP server now lives EXCLUSIVELY as an external service — typically `context-harness-mcp` deployed to the user's chosen cloud host. `claude-dev-team` is now a pure agents + skills + hooks + Go-installer distributor.
+- `bin/install.py` (deprecated Python fallback). Deleted entirely — Go installer is the only path.
+- `install_knowledge_graph()` from the installer (no more copying Python KG server files into `~/.claude/`).
+- `uv` from required dependencies.
+
+### Changed
+
+- BREAKING: installer prompts simplified to a single Memory MCP URL question. Default is `http://localhost:7654/mcp` (local Docker). User pastes their cloud URL or hits Enter.
+- Env var contract: `KG_BACKEND` removed; `CONTEXT_HARNESS_URL` renamed to `MEMORY_MCP_URL`. The installer always writes `mcpServers.memory = {type: "http", url: ...}`.
+- `mcpServers.memory` preservation logic (PR #7) still accepts both http and legacy stdio shapes — existing installs with the legacy stdio entry are preserved unless `--force` is passed.
+
 ### Deprecated
 
 - `bin/install.py`: deprecation header added. Continues to work for one more release as a fallback. Will be removed in the next major.
-
-- `bin/install.py`: interactive prompt for KG backend choice (context-harness default, memory fallback) with hosting sub-prompt and soft reachability check; `KG_BACKEND` + `CONTEXT_HARNESS_URL` env vars for non-interactive installs.
-- `install_knowledge_graph()` now skipped when `context-harness` backend is chosen — saves the local ChromaDB Python install when the user has a remote backend.
 
 ### Fixed
 

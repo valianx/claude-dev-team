@@ -6,7 +6,7 @@
 
 ## 1. Purpose & Boundaries
 
-**What this repo is.** `claude-dev-team` is a **distribution of a Claude Code agent system**. It packages a curated set of agents (system prompts), skills (slash commands), hooks (OS-native notifications), a knowledge-graph MCP server (current backend: ChromaDB), and a cross-platform installer that wires everything into a developer's `~/.claude/` + `~/.claude.json`. Target audience: developers on Mario's team who already use Claude Code and want a standardized orchestrated dev-team setup.
+**What this repo is.** `claude-dev-team` is a **pure distribution of a Claude Code agent system**. It packages a curated set of agents (system prompts), skills (slash commands), hooks (OS-native notifications), and a cross-platform Go installer that wires everything into a developer's `~/.claude/` + `~/.claude.json`. The Memory MCP server (Knowledge Graph) is an **external service** — it lives outside this repo and is configured by a single URL during install. Target audience: developers on Mario's team who already use Claude Code and want a standardized orchestrated dev-team setup.
 
 **What this repo is NOT.**
 - Not an application, library, API, or service.
@@ -17,9 +17,7 @@
 **External dependencies (required).**
 - `gh` — GitHub CLI. Used by `/issue`, `/review-pr`, `/deliver`, and others. Install: https://cli.github.com/
 - **context7 API key** — for library docs retrieval. Get one at https://context7.com/ (the installer prompts for it or reads `CONTEXT7_API_KEY` from the environment).
-
-**External dependencies (required for the deprecated Python fallback only).**
-- `uv` — Python toolchain manager. Only needed if you run `bin/install.py` directly (deprecated fallback). The new Go binary installer requires only `curl` + `bash` (Unix/macOS) or PowerShell (Windows). Install: https://docs.astral.sh/uv/getting-started/installation/
+- **Memory MCP URL** — public URL of a running MCP-compatible server (e.g., `context-harness-mcp` deployed to Railway/Render/Fly/Docker). The installer prompts for it or reads `MEMORY_MCP_URL` from the environment. Default: `http://localhost:7654/mcp`.
 
 **External dependencies (optional).**
 - `d2` CLI — for `/d2-diagram`.
@@ -45,13 +43,6 @@ claude-dev-team/
 │   ├── notify-mac.sh
 │   ├── notify-linux.sh
 │   └── config.json      Per-OS hook templates for ~/.claude/settings.json
-├── knowledge-graph/        Knowledge-graph MCP server (Python + ChromaDB)
-│   ├── server.py
-│   ├── pyproject.toml
-│   ├── uv.lock
-│   ├── manage-server.sh     Optional: run in SSE mode
-│   ├── migrate_knowledge.py Optional: legacy JSONL → ChromaDB
-│   └── viewer/app.py        Optional: web UI to inspect the KG
 ├── cmd/
 │   └── install/         Go installer source (cross-compiled to GH Release assets)
 │       ├── main.go
@@ -61,14 +52,11 @@ claude-dev-team/
 │       ├── files.go
 │       ├── manifest.go
 │       ├── context7.go
-│       ├── install_kg.go
-│       ├── legacy.go
 │       ├── summary.go
 │       ├── util.go
 │       ├── platform.go
 │       └── preservation_test.go
 ├── bin/
-│   ├── install.py       DEPRECATED — Python installer (fallback; removed next major)
 │   ├── install.sh       Bootstrap for Unix/macOS (downloads Go binary from GH Release)
 │   └── install.ps1      Bootstrap for Windows (same via PowerShell)
 ├── .github/
@@ -88,11 +76,9 @@ claude-dev-team/
 - `agents/` — system prompts only. One `.md` = one agent.
 - `skills/` — slash-command entry points. Most are thin: parse args → route to orchestrator. A few are standalone (`/lint`, `/status`, `/memory`, `/tmux`, `/kg-viewer`).
 - `hooks/` — keep these **generic and portable** (no personal tokens, no private endpoints). User-specific hooks belong in `~/.claude/hooks/`, not here.
-- `knowledge-graph/` — the KG MCP server source. Runtime state (`.venv/`, `.server.pid`, `server.log`, `__pycache__/`) is git-ignored.
 - `cmd/install/` — Go installer source. No third-party deps (stdlib-only). Compiled with `CGO_ENABLED=0` for static single-file binaries.
-- `bin/install.py` — **deprecated** fallback (one release). Do not add logic here; new logic goes in `cmd/install/`.
 
-**Ephemeral content** (not committed): `session-docs/`, all runtime artifacts inside `knowledge-graph/`.
+**Ephemeral content** (not committed): `session-docs/`.
 
 ---
 
@@ -100,18 +86,18 @@ claude-dev-team/
 
 | Layer | Choice |
 |---|---|
-| Installer | Go 1.23+ (cross-compiled static binaries shipped as GH Release assets; source at `cmd/install/main.go`). `bin/install.py` kept as deprecated fallback for one release. |
-| Bootstrap scripts | Bash (`install.sh`) + PowerShell (`install.ps1`) — detect OS+arch, download the right Go binary from the latest GH Release, exec it. No `uv` or Python required. |
+| Installer | Go 1.23 (cross-compiled binaries shipped as GH Release assets; `cmd/install/main.go` is the source). |
+| Bootstrap scripts | Bash (`install.sh`) + PowerShell (`install.ps1`) — detect OS+arch, download the right Go binary from the latest GH Release, exec it. Zero Python, zero `uv` required. |
 | Agents / skills | Markdown with YAML frontmatter |
 | Complex skills | Markdown + referenced scripts (Python/Node via `uv run` or CLIs) |
 | Hooks | Bash scripts (`.sh`) — run via Git Bash on Windows, native on macOS/Linux |
-| KG MCP server | Python + ChromaDB (PersistentClient) + FastMCP, run via `uv run` |
+| Memory MCP | External service (e.g., `context-harness-mcp` on Railway/Render/Fly/Docker). Configured by URL in `~/.claude.json`. Not bundled in this repo. |
 | Config | JSON (`hooks/config.json`) + `~/.claude.json` merge for `mcpServers` |
 | Visuals | Excalidraw (`.excalidraw` JSON), PNG preview |
 
-**Current version:** `1.1.0` (see `bin/install.py` `__version__` and `CHANGELOG.md`).
+**Current version:** `1.1.0` (see `cmd/install/main.go` `version` variable and `CHANGELOG.md`).
 
-**No package manager, no lockfile, no build for the installer.** `bin/install.py` has zero third-party deps by design. `knowledge-graph/` is the one exception and uses `pyproject.toml` + `uv.lock` (managed by `uv`).
+**No package manager, no lockfile, no build for the installer.** The Go installer is stdlib-only with zero third-party deps.
 
 ---
 
@@ -123,19 +109,12 @@ All commands run from the repo root.
 |---|---|
 | Install (Unix / macOS) | `./bin/install.sh` |
 | Install (Windows PowerShell) | `.\bin\install.ps1` |
-| Non-interactive install (memory backend) | `CONTEXT7_API_KEY=<key> ./bin/install.sh` |
-| Non-interactive install (context-harness backend) | `CONTEXT7_API_KEY=<key> KG_BACKEND=context-harness CONTEXT_HARNESS_URL=https://<url>/mcp ./bin/install.sh` |
-| Force-reset MCP config in ~/.claude.json | `./bin/install.sh` then pass `--force` (downloads binary + runs it with `--force`; use only when intentionally resetting) |
+| Non-interactive install | `CONTEXT7_API_KEY=<key> MEMORY_MCP_URL=https://<url>/mcp ./bin/install.sh` |
+| Force-reset MCP config in ~/.claude.json | `./bin/install.sh --force` |
 | Build installer from source (requires Go 1.23+) | `go build ./cmd/install` |
-| Deprecated fallback (requires `uv`) | `uv run bin/install.py` |
 | View which files the installer would touch | Run the installer — it reports installed / unchanged / conflicts; never overwrites |
 | Resolve a conflict | Delete the conflicting file in `~/.claude/...` and re-run the installer |
 | Enable notification hooks | Open `hooks/config.json`, copy the section for your OS, merge it into `~/.claude/settings.json` under `"hooks"` |
-| Start the KG MCP in SSE mode | `./knowledge-graph/manage-server.sh start` (optional; stdio mode is the default and needs no server) |
-| Open the KG viewer | `uv run knowledge-graph/viewer/app.py` |
-| Export local KG to JSON | `uv run --directory knowledge-graph/ python export.py --out shared-knowledge/<name>-<date>.json` |
-| Import a shared KG JSON | `uv run --directory knowledge-graph/ python import.py shared-knowledge/<file>.json` |
-| Migrate from legacy Memory MCP | `uv run knowledge-graph/migrate_knowledge.py --source ~/.claude/knowledge.json` |
 | Validate agents/skills health | `/lint` inside Claude Code |
 | Run the free verification suite (policy-block + structure + YAML frontmatter) | `bash tests/run-all.sh` |
 | Run only the policy-block functional tests | `bash tests/test_policy_block.sh` |
@@ -156,7 +135,7 @@ All commands run from the repo root.
 - **Status-block return protocol.** Agents finish with a compact status block; the orchestrator gates on the block without re-reading full session-docs on happy paths.
 - **Installer is idempotent and non-destructive.** Conflicts (existing file with different hash) are reported, never overwritten. User must delete manually to force a re-install. `~/.claude.json` is backed up before every merge.
 - **Cross-platform first.** All scripts and agents must work on Windows, macOS, and Linux. Avoid Unix-only tools or shell-specific syntax in agent prompts.
-- **KG content is technical-only.** The knowledge graph must never store personal data, user profiles, preferences, tokens, or stakeholder names. (Policy document pending — see `docs/knowledge.md` or a future `docs/kg-content-policy.md`.)
+- **KG content is technical-only.** The knowledge graph must never store personal data, user profiles, preferences, tokens, or stakeholder names. See `docs/kg-content-policy.md`.
 
 **Architectural changes must be reviewed by the `architect` subagent before implementation.** Applies especially to: adding an agent, changing the pipeline flow, modifying the installer's contract with `~/.claude/` or `~/.claude.json`, introducing a new memory layer.
 
@@ -228,10 +207,10 @@ The repo has a verification suite at `tests/` that covers what is testable witho
 
 This repo ships assets to other developers, so the contribution flow matters more than code-level conventions.
 
-- **Develop in `agents/`, `skills/`, `hooks/`, `knowledge-graph/` directly.** Do not edit `~/.claude/` by hand for changes you intend to share — they'll get overwritten or drift.
-- **Propagate via installer.** After editing, run `./bin/install.sh` (or `uv run bin/install.py`) locally to sync into your own `~/.claude/`. The installer refuses to overwrite conflicts, so delete the target file if it already exists with a different hash.
+- **Develop in `agents/`, `skills/`, `hooks/` directly.** Do not edit `~/.claude/` by hand for changes you intend to share — they'll get overwritten or drift.
+- **Propagate via installer.** After editing, run `./bin/install.sh` locally to sync into your own `~/.claude/`. The installer refuses to overwrite conflicts, so delete the target file if it already exists with a different hash.
 - **Complex skills** live in `skills/{name}/` with a `SKILL.md` plus any `references/`. The installer recursively copies the whole subfolder to `~/.claude/skills/{name}/`.
-- **Never commit personal data.** Hooks must be generic (no tokens, no private endpoints). The knowledge-graph source has the same rule — never commit runtime state, API keys, or machine paths.
+- **Never commit personal data.** Hooks must be generic (no tokens, no private endpoints).
 
 ---
 
@@ -249,7 +228,6 @@ Routing table for this repo:
 |---|---|---|
 | Add/modify an agent, add/modify a skill, refactor the pipeline | `architect` + `agent-builder` | Design doc + updated `.md` files |
 | Installer changes, hooks refactor, cross-platform fixes | `architect` → `implementer` | Architecture note + code changes |
-| Knowledge-graph MCP changes (schema, API surface, storage layout) | `architect` → `implementer` | Architecture note + code changes; migration if storage touched |
 | Tests (if/when introduced) | `tester` | Test plan + tests with factory mocks |
 | Acceptance criteria + validation against AC | `qa` | AC list / validation report |
 | Docs, CHANGELOG, version bump, branch, commit, PR | `delivery` | Docs + CHANGELOG + commit + PR |
@@ -258,7 +236,7 @@ Routing table for this repo:
 | Visualize agent flow | `diagrammer` / `likec4-diagrammer` / `d2-diagrammer` | Diagram file + preview |
 
 **Escalation rules.**
-- Touching `bin/install.py`, `bin/install.sh`, or `bin/install.ps1` → route to `architect` first (installer contract with `~/.claude/` and `~/.claude.json` is load-bearing).
+- Touching `bin/install.sh`, `bin/install.ps1`, or any file under `cmd/install/` → route to `architect` first (installer contract with `~/.claude/` and `~/.claude.json` is load-bearing).
 - Adding/removing an agent → route to `architect` + `agent-builder`; also update `README.md` agent roster and the system diagram.
 - Hook changes or MCP server changes → flag for `security` review (both execute with the user's privileges).
 - Changing the orchestrator pipeline → architecture review mandatory; update `agents/orchestrator.md` + `agents/ref-direct-modes.md` + `agents/ref-special-flows.md` atomically.
@@ -284,7 +262,6 @@ This rule applies to **every** entry mode: `@orchestrator` mention, skill routin
 - Changing the installer's target layout under `~/.claude/` or touching new keys in `~/.claude.json` beyond `mcpServers.memory` / `mcpServers.context7` (breaks existing users or risks clobbering personal config).
 - Bundling personal tokens or user-specific hooks into the shared `hooks/` folder.
 - Renaming or removing an agent/skill that other agents reference.
-- Modifying the KG MCP storage schema (breaks existing KGs on developer machines).
 
 ---
 

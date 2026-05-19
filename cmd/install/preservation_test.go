@@ -62,7 +62,7 @@ func readClaudeJSON(t *testing.T) map[string]interface{} {
 	return out
 }
 
-// Fixture builders — match test_installer_preservation.py helpers.
+// Fixture builders.
 func memoryHTTP(url string) map[string]interface{} {
 	if url == "" {
 		url = "http://localhost:8080/mcp"
@@ -95,8 +95,11 @@ func context7Entry(key string) map[string]interface{} {
 	}
 }
 
-func makeKGChoice(backend, url string, skipped, preserved bool) KGBackendChoice {
-	return KGBackendChoice{Backend: backend, URL: url, Skipped: skipped, Preserved: preserved}
+func memChoice(url string, preserved bool) MemoryMCPChoice {
+	if url == "" {
+		url = "http://localhost:8080/mcp"
+	}
+	return MemoryMCPChoice{URL: url, Preserved: preserved}
 }
 
 // ---------------------------------------------------------------------------
@@ -174,7 +177,7 @@ func TestLooksLikeValidMemoryEntry_ValidHTTPS(t *testing.T) {
 
 func TestLooksLikeValidMemoryEntry_ValidStdio(t *testing.T) {
 	if !looksLikeValidMemoryEntry(memoryStdio("")) {
-		t.Error("expected true for valid stdio entry")
+		t.Error("expected true for valid stdio entry (legacy shape preserved)")
 	}
 }
 
@@ -238,14 +241,14 @@ func TestIsValidContext7Key_WrongPrefix(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// Tests: promptKGBackend — preservation path
+// Tests: promptMemoryMCPURL — preservation path
 // ---------------------------------------------------------------------------
 
-func TestPromptKGBackend_PreservesExistingMemoryHTTP(t *testing.T) {
+func TestPromptMemoryMCPURL_PreservesExistingHTTPEntry(t *testing.T) {
 	_, cleanup := testEnv(t)
 	defer cleanup()
 
-	url := "http://localhost:8080/mcp"
+	url := "https://my-mcp.example.com/mcp"
 	writeClaudeJSON(t, map[string]interface{}{
 		"mcpServers": map[string]interface{}{
 			"memory": memoryHTTP(url),
@@ -253,23 +256,18 @@ func TestPromptKGBackend_PreservesExistingMemoryHTTP(t *testing.T) {
 	})
 	forceFlag = false
 
-	choice := promptKGBackend()
+	choice := promptMemoryMCPURL()
 
 	if !choice.Preserved {
-		t.Error("expected Preserved=true")
-	}
-	if choice.Skipped {
-		t.Error("expected Skipped=false")
-	}
-	if choice.Backend != "context-harness" {
-		t.Errorf("expected backend=context-harness, got %s", choice.Backend)
+		t.Error("expected Preserved=true for existing valid http entry")
 	}
 	if choice.URL != url {
 		t.Errorf("expected URL=%s, got %s", url, choice.URL)
 	}
 }
 
-func TestPromptKGBackend_PreservesExistingMemoryStdio(t *testing.T) {
+func TestPromptMemoryMCPURL_PreservesExistingStdioEntry(t *testing.T) {
+	// Legacy stdio shape from pre-cutover installs must be preserved as-is.
 	_, cleanup := testEnv(t)
 	defer cleanup()
 
@@ -280,81 +278,113 @@ func TestPromptKGBackend_PreservesExistingMemoryStdio(t *testing.T) {
 	})
 	forceFlag = false
 
-	choice := promptKGBackend()
+	choice := promptMemoryMCPURL()
 
 	if !choice.Preserved {
-		t.Error("expected Preserved=true")
+		t.Error("expected Preserved=true for existing valid stdio entry")
 	}
-	if choice.Skipped {
-		t.Error("expected Skipped=false")
-	}
-	if choice.Backend != "memory" {
-		t.Errorf("expected backend=memory, got %s", choice.Backend)
-	}
+	// Stdio entries have no URL; urlFromEntry returns "".
 	if choice.URL != "" {
-		t.Errorf("expected empty URL, got %s", choice.URL)
+		t.Errorf("expected empty URL for stdio entry, got %s", choice.URL)
 	}
 }
 
-func TestPromptKGBackend_ForceFlagBypassesPreservation(t *testing.T) {
+func TestPromptMemoryMCPURL_ForceFlagBypassesPreservation(t *testing.T) {
 	_, cleanup := testEnv(t)
 	defer cleanup()
 
 	writeClaudeJSON(t, map[string]interface{}{
 		"mcpServers": map[string]interface{}{
-			"memory": memoryHTTP(""),
+			"memory": memoryHTTP("http://old-host/mcp"),
 		},
 	})
 	forceFlag = true
-	t.Setenv("KG_BACKEND", "memory")
+	t.Setenv("MEMORY_MCP_URL", "https://new-host.example.com/mcp")
 
-	choice := promptKGBackend()
+	choice := promptMemoryMCPURL()
 
 	if choice.Preserved {
 		t.Error("expected Preserved=false with --force")
 	}
-	if choice.Backend != "memory" {
-		t.Errorf("expected backend=memory, got %s", choice.Backend)
+	if choice.URL != "https://new-host.example.com/mcp" {
+		t.Errorf("expected env URL, got %s", choice.URL)
 	}
 }
 
-func TestPromptKGBackend_InvalidExistingEntryFallsThrough(t *testing.T) {
+func TestPromptMemoryMCPURL_EnvVarHighestPriority(t *testing.T) {
 	_, cleanup := testEnv(t)
 	defer cleanup()
 
-	writeClaudeJSON(t, map[string]interface{}{
-		"mcpServers": map[string]interface{}{
-			"memory": map[string]interface{}{},
-		},
-	})
+	// No existing entry → env var is the source.
 	forceFlag = false
-	t.Setenv("KG_BACKEND", "memory")
+	envURL := "https://railway.app/mcp"
+	t.Setenv("MEMORY_MCP_URL", envURL)
 
-	choice := promptKGBackend()
+	choice := promptMemoryMCPURL()
 
 	if choice.Preserved {
-		t.Error("expected Preserved=false for invalid existing entry")
+		t.Error("expected Preserved=false when using env var")
 	}
-	if choice.Backend != "memory" {
-		t.Errorf("expected backend=memory, got %s", choice.Backend)
+	if choice.URL != envURL {
+		t.Errorf("expected URL=%s, got %s", envURL, choice.URL)
 	}
 }
 
-func TestPromptKGBackend_FirstInstallNoExistingEntryUsesEnv(t *testing.T) {
+func TestPromptMemoryMCPURL_NonInteractiveDefault(t *testing.T) {
+	// Stdin is not a TTY in test execution, so non-interactive path runs.
 	_, cleanup := testEnv(t)
 	defer cleanup()
 
-	// No ~/.claude.json at all — fresh install scenario.
 	forceFlag = false
-	t.Setenv("KG_BACKEND", "memory")
+	t.Setenv("MEMORY_MCP_URL", "")
 
-	choice := promptKGBackend()
+	choice := promptMemoryMCPURL()
 
 	if choice.Preserved {
-		t.Error("expected Preserved=false for fresh install")
+		t.Error("expected Preserved=false for fresh install non-interactive")
 	}
-	if choice.Backend != "memory" {
-		t.Errorf("expected backend=memory, got %s", choice.Backend)
+	if choice.URL != defaultMemoryMCPURL {
+		t.Errorf("expected default URL=%s, got %s", defaultMemoryMCPURL, choice.URL)
+	}
+}
+
+func TestPromptMemoryMCPURL_InvalidURLRejected(t *testing.T) {
+	// validateMCPURL is the guard. Test the validator directly.
+	cases := []struct {
+		name string
+		url  string
+		want bool // true = valid, false = invalid
+	}{
+		{"empty", "", false},
+		{"bare word", "memory", false},
+		{"ftp scheme", "ftp://example.com/mcp", false},
+		{"http valid", "http://localhost:7654/mcp", true},
+		{"https valid", "https://my-service.com/mcp", true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateMCPURL(tc.url)
+			if tc.want && err != nil {
+				t.Errorf("expected valid URL, got error: %v", err)
+			}
+			if !tc.want && err == nil {
+				t.Error("expected invalid URL to return error")
+			}
+		})
+	}
+}
+
+func TestPromptMemoryMCPURL_TrimsWhitespace(t *testing.T) {
+	_, cleanup := testEnv(t)
+	defer cleanup()
+
+	forceFlag = false
+	t.Setenv("MEMORY_MCP_URL", "  https://trimmed.example.com/mcp  ")
+
+	choice := promptMemoryMCPURL()
+
+	if choice.URL != "https://trimmed.example.com/mcp" {
+		t.Errorf("expected trimmed URL, got %q", choice.URL)
 	}
 }
 
@@ -370,17 +400,16 @@ func TestRegisterMCPServers_NoWriteWhenNothingChanged(t *testing.T) {
 	key := "ctx7sk-real-key-99999"
 	initialData := map[string]interface{}{
 		"mcpServers": map[string]interface{}{
-			"memory":  memoryHTTP(url),
+			"memory":   memoryHTTP(url),
 			"context7": context7Entry(key),
 		},
 	}
 	writeClaudeJSON(t, initialData)
 
-	// Count backups before call.
 	backupsBefore, _ := filepath.Glob(claudeJSON + ".bak-*")
 
-	kg := makeKGChoice("context-harness", url, false, true)
-	backup := registerMCPServers(key, kg)
+	mc := memChoice(url, true)
+	backup := registerMCPServers(key, mc)
 
 	backupsAfter, _ := filepath.Glob(claudeJSON + ".bak-*")
 	if backup != "" {
@@ -400,13 +429,13 @@ func TestRegisterMCPServers_WritesWhenMemoryDiffers(t *testing.T) {
 	newURL := "http://new-host:9090/mcp"
 	writeClaudeJSON(t, map[string]interface{}{
 		"mcpServers": map[string]interface{}{
-			"memory":  memoryHTTP(oldURL),
+			"memory":   memoryHTTP(oldURL),
 			"context7": context7Entry(key),
 		},
 	})
 
-	kg := makeKGChoice("context-harness", newURL, false, false)
-	backup := registerMCPServers(key, kg)
+	mc := memChoice(newURL, false)
+	backup := registerMCPServers(key, mc)
 
 	if backup == "" {
 		t.Error("expected a backup when memory entry changes")
@@ -428,13 +457,13 @@ func TestRegisterMCPServers_WritesWhenContext7KeyChanges(t *testing.T) {
 	newKey := "ctx7sk-new-key-99999"
 	writeClaudeJSON(t, map[string]interface{}{
 		"mcpServers": map[string]interface{}{
-			"memory":  memoryHTTP(url),
+			"memory":   memoryHTTP(url),
 			"context7": context7Entry(oldKey),
 		},
 	})
 
-	kg := makeKGChoice("context-harness", url, false, true)
-	backup := registerMCPServers(newKey, kg)
+	mc := memChoice(url, true)
+	backup := registerMCPServers(newKey, mc)
 
 	if backup == "" {
 		t.Error("expected a backup when context7 key changes")
@@ -453,16 +482,15 @@ func TestRegisterMCPServers_CreatesFileOnFirstInstall(t *testing.T) {
 	_, cleanup := testEnv(t)
 	defer cleanup()
 
-	// No ~/.claude.json yet.
 	if _, err := os.Stat(claudeJSON); !os.IsNotExist(err) {
 		t.Fatal("expected claudeJSON to not exist at start of test")
 	}
 	key := "ctx7sk-first-install-key"
-	kg := makeKGChoice("context-harness", "http://localhost:8080/mcp", false, false)
+	mc := memChoice("http://localhost:8080/mcp", false)
 
-	backup := registerMCPServers(key, kg)
+	backup := registerMCPServers(key, mc)
 
-	// backup_claude_json returns "" when the file didn't exist yet.
+	// backupClaudeJSON returns "" when the file didn't exist yet.
 	if backup != "" {
 		t.Errorf("expected no backup for first install (file didn't exist), got %s", backup)
 	}

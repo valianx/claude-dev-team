@@ -7,7 +7,7 @@ import (
 )
 
 // printSummary prints the post-install report to stdout.
-func printSummary(claudeJSONBackup string, kg KGBackendChoice, context7Preserved bool) {
+func printSummary(claudeJSONBackup string, mem MemoryMCPChoice, context7Preserved bool) {
 	osLabel := map[string]string{
 		"windows": "windows",
 		"darwin":  "macos",
@@ -35,7 +35,7 @@ func printSummary(claudeJSONBackup string, kg KGBackendChoice, context7Preserved
 
 	fmt.Println()
 	fmt.Println("MCP servers in ~/.claude.json:")
-	fmt.Printf("  %s\n", formatKGBackendSummary(kg))
+	fmt.Printf("  %s\n", formatMemorySummary(mem))
 	c7Status := "updated"
 	if context7Preserved {
 		c7Status = "preserved"
@@ -58,18 +58,11 @@ func printSummary(claudeJSONBackup string, kg KGBackendChoice, context7Preserved
 	fmt.Printf("     ~/.claude/settings.json under the \"hooks\" key.\n")
 }
 
-// formatKGBackendSummary formats the memory backend line for the summary.
-func formatKGBackendSummary(kg KGBackendChoice) string {
-	if kg.Skipped {
-		return "- memory: (skipped - no MCP entry written)"
-	}
+// formatMemorySummary formats the memory MCP line for the summary.
+func formatMemorySummary(mem MemoryMCPChoice) string {
 	tag := " [updated]"
-	if kg.Preserved {
+	if mem.Preserved {
 		tag = " [preserved]"
 	}
-	if kg.Backend == "context-harness" && kg.URL != "" {
-		return fmt.Sprintf("- memory: context-harness (http) -> %s%s", kg.URL, tag)
-	}
-	kgPath := filepath.Join(claudeDir, "knowledge-graph")
-	return fmt.Sprintf("- memory: ChromaDB (stdio) -> %s%s", kgPath, tag)
+	return fmt.Sprintf("- memory (http) -> %s%s", mem.URL, tag)
 }

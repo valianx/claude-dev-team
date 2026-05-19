@@ -82,6 +82,22 @@ func safePrefix(s string, n int) string {
 	return s[:n]
 }
 
+// promptMenu prints the prompt and reads a single-character menu choice.
+// valid is the set of accepted lower-case characters; defaultVal is returned
+// when the user presses Enter without typing.
+func promptMenu(prompt string, valid map[string]bool, defaultVal string) string {
+	fmt.Print(prompt)
+	raw := strings.TrimSpace(readLine())
+	if raw == "" {
+		return defaultVal
+	}
+	lower := strings.ToLower(raw[:1])
+	if !valid[lower] {
+		return defaultVal
+	}
+	return lower
+}
+
 // readLine reads a line from stdin, trimming the trailing newline.
 func readLine() string {
 	scanner := bufio.NewScanner(os.Stdin)

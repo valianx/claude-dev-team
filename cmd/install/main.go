@@ -1,7 +1,10 @@
 // Package main is the claude-dev-team installer.
 //
-// It installs agents, skills, hooks, and the knowledge-graph MCP server into
-// ~/.claude/ and registers the memory + context7 MCP servers in ~/.claude.json.
+// It installs agents, skills, hooks, and registers the memory + context7 MCP
+// servers in ~/.claude/ and ~/.claude.json. The Memory MCP server is an
+// external service (context-harness-mcp or compatible); this installer does
+// not bundle or copy any server source code.
+//
 // Flags:
 //
 //	--force   bypass preservation; overwrite existing mcpServer entries.
@@ -54,8 +57,8 @@ func main() {
 	context7Key := getContext7APIKey()
 	fmt.Println()
 
-	fmt.Println("Knowledge Graph backend setup:")
-	kgChoice := promptKGBackend()
+	fmt.Println("Memory MCP setup:")
+	memChoice := promptMemoryMCPURL()
 	fmt.Println()
 
 	ensureDir(claudeDir)
@@ -72,16 +75,6 @@ func main() {
 	installSkills()
 	installHooks()
 
-	if kgChoice.Backend == "memory" && !kgChoice.Preserved {
-		installKnowledgeGraph()
-	} else if kgChoice.Preserved && kgChoice.Backend == "memory" {
-		fmt.Println("  knowledge-graph (ChromaDB): skipped (existing entry preserved)")
-	} else {
-		fmt.Println("  knowledge-graph (ChromaDB): skipped (using context-harness backend)")
-	}
-
-	detectLegacyChromadbMCP()
-
 	// Determine whether the context7 key will change for accurate summary reporting.
 	existing := readExistingMCPServers()
 	existingC7 := mapGet(existing, "context7")
@@ -89,11 +82,11 @@ func main() {
 	context7Preserved := context7Key == existingC7Key && isValidContext7Key(existingC7Key)
 
 	fmt.Println("Registering MCP servers in ~/.claude.json...")
-	backupPath := registerMCPServers(context7Key, kgChoice)
+	backupPath := registerMCPServers(context7Key, memChoice)
 
 	saveManifest()
 
-	printSummary(backupPath, kgChoice, context7Preserved)
+	printSummary(backupPath, memChoice, context7Preserved)
 }
 
 func parseFlags() {
