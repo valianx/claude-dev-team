@@ -32,8 +32,11 @@ jobs:
               EXT=""
               [ "$GOOS" = "windows" ] && EXT=".exe"
               echo "Building install-${target}${EXT}..."
+              # Strip the leading "v" from the tag (e.g. v2.0.1 → 2.0.1) so
+              # main.go's "v%s" printf doesn't produce "vv2.0.1". Issue #11.
+              VERSION="${GITHUB_REF_NAME#v}"
               CGO_ENABLED=0 GOOS=$GOOS GOARCH=$GOARCH go build \
-                  -ldflags="-s -w -X main.version=${GITHUB_REF_NAME}" \
+                  -ldflags="-s -w -X main.version=${VERSION}" \
                   -o dist/install-${target}${EXT} \
                   ./cmd/install
           done

@@ -28,10 +28,18 @@ func promptMemoryMCPURL() MemoryMCPChoice {
 	existing := readExistingMCPServers()
 	existingMemory, _ := existing["memory"].(map[string]interface{})
 
-	if !forceFlag && looksLikeValidMemoryEntry(existingMemory) {
-		kind, _ := existingMemory["type"].(string)
-		fmt.Printf("  Memory MCP URL: preserving existing mcpServers.memory (type=%s)\n", kind)
-		return MemoryMCPChoice{URL: urlFromEntry(existingMemory), Preserved: true}
+	if !forceFlag {
+		if looksLikeValidMemoryEntry(existingMemory) {
+			url := urlFromEntry(existingMemory)
+			fmt.Printf("  Memory MCP URL: preserving existing http entry (url=%s)\n", url)
+			return MemoryMCPChoice{URL: url, Preserved: true}
+		}
+		if isLegacyStdioMemoryEntry(existingMemory) {
+			fmt.Println("  Legacy stdio mcpServers.memory entry detected (v1 shape pointing at")
+			fmt.Println("  the removed knowledge-graph/ Python server). Migrating to http; the")
+			fmt.Println("  existing stdio entry will be replaced with an http entry derived from")
+			fmt.Println("  the MEMORY_MCP_URL env var or the prompt below.")
+		}
 	}
 
 	envURL := strings.TrimSpace(os.Getenv("MEMORY_MCP_URL"))
