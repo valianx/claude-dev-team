@@ -19,7 +19,10 @@ import (
 	"time"
 )
 
-// version is injected at build time via -ldflags "-X main.version=v1.2.0".
+// version is injected at build time via -ldflags "-X main.version=2.0.0".
+// Note: the value is the BARE semver (no leading "v"). The "v" is added by
+// the printf in main(). The release workflow strips the leading "v" from
+// the git tag (e.g. v2.0.1 → 2.0.1) before injecting — see release.yml.
 var version = "1.1.0"
 
 // forceFlag is set by parseFlags and read throughout the package.

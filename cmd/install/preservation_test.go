@@ -175,9 +175,30 @@ func TestLooksLikeValidMemoryEntry_ValidHTTPS(t *testing.T) {
 	}
 }
 
-func TestLooksLikeValidMemoryEntry_ValidStdio(t *testing.T) {
-	if !looksLikeValidMemoryEntry(memoryStdio("")) {
-		t.Error("expected true for valid stdio entry (legacy shape preserved)")
+func TestLooksLikeValidMemoryEntry_RejectsStdio(t *testing.T) {
+	// Issue #11: v2 only preserves http entries. Stdio entries (v1 shape) are
+	// rejected here so they fall through to env-var / prompt and get
+	// migrated to http. Preserving them would write {type:"http",url:""}.
+	if looksLikeValidMemoryEntry(memoryStdio("")) {
+		t.Error("expected false for stdio entry (v2 preserves only http; stdio must migrate)")
+	}
+}
+
+func TestIsLegacyStdioMemoryEntry_TrueForValidStdio(t *testing.T) {
+	if !isLegacyStdioMemoryEntry(memoryStdio("")) {
+		t.Error("expected true for valid stdio entry")
+	}
+}
+
+func TestIsLegacyStdioMemoryEntry_FalseForHTTP(t *testing.T) {
+	if isLegacyStdioMemoryEntry(memoryHTTP("")) {
+		t.Error("expected false for http entry")
+	}
+}
+
+func TestIsLegacyStdioMemoryEntry_FalseForStdioWithoutCommand(t *testing.T) {
+	if isLegacyStdioMemoryEntry(map[string]interface{}{"type": "stdio", "command": ""}) {
+		t.Error("expected false for stdio with empty command")
 	}
 }
 
@@ -266,8 +287,11 @@ func TestPromptMemoryMCPURL_PreservesExistingHTTPEntry(t *testing.T) {
 	}
 }
 
-func TestPromptMemoryMCPURL_PreservesExistingStdioEntry(t *testing.T) {
-	// Legacy stdio shape from pre-cutover installs must be preserved as-is.
+func TestPromptMemoryMCPURL_MigratesLegacyStdioEntry(t *testing.T) {
+	// Regression for Issue #11: v2 installer running over a v1 install left
+	// mcpServers.memory as {type:"http", url:""} because stdio was treated
+	// as "preserve" and urlFromEntry returned "" for stdio. Correct flow:
+	// stdio detected → migrate (don't preserve) → env var wins.
 	_, cleanup := testEnv(t)
 	defer cleanup()
 
@@ -276,16 +300,90 @@ func TestPromptMemoryMCPURL_PreservesExistingStdioEntry(t *testing.T) {
 			"memory": memoryStdio(""),
 		},
 	})
+	t.Setenv("MEMORY_MCP_URL", "https://migrated.example.com/mcp")
 	forceFlag = false
 
 	choice := promptMemoryMCPURL()
 
-	if !choice.Preserved {
-		t.Error("expected Preserved=true for existing valid stdio entry")
+	if choice.Preserved {
+		t.Error("expected Preserved=false for legacy stdio entry (must migrate, not preserve)")
 	}
-	// Stdio entries have no URL; urlFromEntry returns "".
-	if choice.URL != "" {
-		t.Errorf("expected empty URL for stdio entry, got %s", choice.URL)
+	if choice.URL != "https://migrated.example.com/mcp" {
+		t.Errorf("expected env URL to win over stdio existing, got %s", choice.URL)
+	}
+}
+
+func TestPromptMemoryMCPURL_StdioFallsThroughToDefaultNonInteractive(t *testing.T) {
+	// Same stdio-migration story but with no env var set and non-interactive
+	// (no TTY): falls through to default URL with notice, NOT preserve.
+	_, cleanup := testEnv(t)
+	defer cleanup()
+
+	writeClaudeJSON(t, map[string]interface{}{
+		"mcpServers": map[string]interface{}{
+			"memory": memoryStdio(""),
+		},
+	})
+	os.Unsetenv("MEMORY_MCP_URL")
+	forceFlag = false
+
+	choice := promptMemoryMCPURL()
+
+	if choice.Preserved {
+		t.Error("expected Preserved=false for legacy stdio entry")
+	}
+	if choice.URL != defaultMemoryMCPURL {
+		t.Errorf("expected default URL fallback, got %s", choice.URL)
+	}
+}
+
+// TestEndToEnd_V1StdioToV2HTTP is the integration test the issue called out
+// as missing: plant a v1 stdio entry on disk, run the v2 prompt + register
+// flow, assert the final entry written to ~/.claude.json has a non-empty
+// http URL. This is the test that would have caught Issue #11.
+func TestEndToEnd_V1StdioToV2HTTP(t *testing.T) {
+	_, cleanup := testEnv(t)
+	defer cleanup()
+
+	// 1. Plant a v1 install's mcpServers state on disk.
+	writeClaudeJSON(t, map[string]interface{}{
+		"mcpServers": map[string]interface{}{
+			"memory":   memoryStdio(""),
+			"context7": context7Entry(""),
+		},
+	})
+
+	// 2. Run the v2 flow in non-interactive mode with MEMORY_MCP_URL set
+	//    (matches what `MEMORY_MCP_URL=... ./bin/install.sh` does in CI).
+	t.Setenv("MEMORY_MCP_URL", "https://prod.example.com/mcp")
+	forceFlag = false
+	choice := promptMemoryMCPURL()
+	registerMCPServers("ctx7sk-real-key-12345", choice)
+
+	// 3. Assert the file ON DISK now has a working http memory entry.
+	final := readClaudeJSON(t)
+	servers, ok := final["mcpServers"].(map[string]interface{})
+	if !ok {
+		t.Fatal("mcpServers section missing from written file")
+	}
+	memory, ok := servers["memory"].(map[string]interface{})
+	if !ok {
+		t.Fatal("memory entry missing from written file")
+	}
+	if memory["type"] != "http" {
+		t.Errorf("expected type=http after migration, got %v", memory["type"])
+	}
+	url, _ := memory["url"].(string)
+	if url == "" {
+		t.Fatal("regression #11: memory entry has empty URL after v1 stdio → v2 http migration")
+	}
+	if url != "https://prod.example.com/mcp" {
+		t.Errorf("expected url from MEMORY_MCP_URL env, got %s", url)
+	}
+	// context7 must be preserved unchanged.
+	c7, _ := servers["context7"].(map[string]interface{})
+	if c7 == nil {
+		t.Fatal("context7 entry lost during migration")
 	}
 }
 
