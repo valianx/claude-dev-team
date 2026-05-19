@@ -16,3 +16,5 @@ Thumbs.db
 knowledge-graph/.venv/
 knowledge-graph/.server.pid
 knowledge-graph/server.log
+install
+install.exe
