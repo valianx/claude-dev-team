@@ -42,6 +42,11 @@ CLAUDE_DIR = HOME / ".claude"
 CLAUDE_JSON = HOME / ".claude.json"
 MANIFEST_PATH = CLAUDE_DIR / ".claude-dev-team-manifest.json"
 
+# ---------------------------------------------------------------------------
+# Global flags (set in main() from sys.argv)
+# ---------------------------------------------------------------------------
+force_flag: bool = False
+
 # Names to skip when recursing (runtime state, caches, venvs, folder docs)
 SKIP_NAMES = {".venv", "__pycache__", ".server.pid", "server.log", "README.md"}
 
@@ -83,6 +88,47 @@ def save_manifest() -> None:
     MANIFEST_PATH.write_text(
         json.dumps(_manifest, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Existing-config readers
+# ---------------------------------------------------------------------------
+def _read_existing_mcp_servers() -> dict:
+    """Return the current mcpServers block from ~/.claude.json, or {} if absent."""
+    if not CLAUDE_JSON.exists():
+        return {}
+    try:
+        data = json.loads(CLAUDE_JSON.read_text(encoding="utf-8"))
+        return data.get("mcpServers", {}) if isinstance(data, dict) else {}
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
+def _looks_like_valid_memory_entry(entry: dict) -> bool:
+    """Return True if the entry has the minimum shape of a usable memory mcpServer."""
+    if not entry:
+        return False
+    kind = entry.get("type", "")
+    if kind == "stdio":
+        return bool(entry.get("command", "").strip())
+    if kind == "http":
+        url = entry.get("url", "")
+        return url.startswith("http://") or url.startswith("https://")
+    return False
+
+
+# Placeholder used in the PR-5 manual test instructions — must not be treated as real.
+_FAKE_CONTEXT7_KEY = "ctx7sk-fake-test-key"
+
+
+def _is_valid_context7_key(key: str) -> bool:
+    """Return True if key looks like a real context7 key (not blank, not the test placeholder)."""
+    return (
+        bool(key)
+        and key.startswith("ctx7sk-")
+        and len(key) >= 12
+        and key != _FAKE_CONTEXT7_KEY
     )
 
 
@@ -195,8 +241,44 @@ def check_dependencies() -> None:
 # ---------------------------------------------------------------------------
 # context7 API key
 # ---------------------------------------------------------------------------
-def get_context7_api_key() -> str:
+def get_context7_api_key() -> str | None:
+    """Return the context7 API key to use, or None if it should be left unchanged.
+
+    Priority (when --force is NOT set):
+      1. Existing valid key in ~/.claude.json with no conflicting env var → preserve.
+      2. Env var present and matching existing key → preserve.
+      3. Env var differs from existing valid key → ask interactively; non-interactive prefers env.
+      4. No existing valid key → fall through to env var or interactive prompt.
+
+    With --force: existing key is ignored; env var or interactive prompt decides.
+    """
+    existing_entry = _read_existing_mcp_servers().get("context7", {})
+    existing_key = existing_entry.get("headers", {}).get("CONTEXT7_API_KEY", "").strip()
     env_key = os.environ.get("CONTEXT7_API_KEY", "").strip()
+
+    if not force_flag and _is_valid_context7_key(existing_key):
+        # Existing key is real. Decide whether to keep it.
+        if not env_key or env_key == existing_key:
+            print("  context7 API key: preserving existing key in ~/.claude.json")
+            return existing_key
+
+        # Env var present and different from the stored key.
+        if sys.stdin.isatty():
+            print(f"  context7 API key: existing ({existing_key[:12]}...) differs from env ({env_key[:12]}...).")
+            choice = input("  Use [E]xisting / [N]ew env key / [A]bort? [E]: ").strip().lower() or "e"
+            if choice == "e":
+                return existing_key
+            if choice == "n":
+                print("  context7 API key: using env var (user chose N)")
+                return env_key
+            print("Aborted.", file=sys.stderr)
+            sys.exit(1)
+        else:
+            # Non-interactive: env var wins when explicitly set (preserves CI override behavior).
+            print(f"  context7 API key: existing key differs from env; using env (non-interactive).")
+            return env_key
+
+    # No usable existing key — fall through to env var or interactive prompt.
     if env_key:
         print("  context7 API key: loaded from CONTEXT7_API_KEY env var")
         return env_key
@@ -218,9 +300,10 @@ def get_context7_api_key() -> str:
 # KG backend selection
 # ---------------------------------------------------------------------------
 class KGBackendChoice(NamedTuple):
-    backend: str       # "memory" or "context-harness"
-    url: str | None    # only set when backend == "context-harness" AND not skipped
-    skipped: bool      # True if backend == "context-harness" but user chose to skip
+    backend: str        # "memory" or "context-harness"
+    url: str | None     # only set when backend == "context-harness" AND not skipped
+    skipped: bool       # True if backend == "context-harness" but user chose to skip
+    preserved: bool = False  # True when the existing entry was kept without change
 
 
 def _check_url_reachability(url: str, *, interactive: bool) -> bool:
@@ -327,13 +410,25 @@ def _handle_context_harness_env_url() -> KGBackendChoice:
 
 
 def prompt_kg_backend() -> KGBackendChoice:
-    """Determine KG backend from env vars or interactive prompts.
+    """Determine KG backend from existing config, env vars, or interactive prompts.
 
-    Decision priority:
-      1. KG_BACKEND env var (non-interactive / CI / scripted installs).
-      2. Non-interactive without env vars — default to "memory".
-      3. Interactive TTY — prompt the user.
+    Decision priority (when --force is NOT set):
+      1. Existing valid mcpServers.memory in ~/.claude.json → preserve.
+      2. KG_BACKEND env var (non-interactive / CI / scripted installs).
+      3. Non-interactive without env vars — default to "memory".
+      4. Interactive TTY — prompt the user.
+
+    With --force: skips step 1 and falls through to env var / interactive.
     """
+    existing = _read_existing_mcp_servers().get("memory", {})
+
+    if not force_flag and _looks_like_valid_memory_entry(existing):
+        kind = existing.get("type", "")
+        url = existing.get("url") if kind == "http" else None
+        backend = "context-harness" if kind == "http" else "memory"
+        print(f"  KG backend: preserving existing mcpServers.memory (type={kind})")
+        return KGBackendChoice(backend=backend, url=url, skipped=False, preserved=True)
+
     env_backend = os.environ.get("KG_BACKEND", "").strip().lower()
     is_tty = sys.stdin.isatty()
 
@@ -388,59 +483,81 @@ def backup_claude_json() -> Path | None:
     return backup
 
 
-def register_mcp_servers(context7_key: str, kg_choice: KGBackendChoice) -> Path | None:
+def _build_memory_entry(kg_choice: KGBackendChoice) -> dict | None:
+    """Return the desired mcpServers.memory dict, or None when the entry should be removed."""
+    if kg_choice.skipped:
+        return None
+
+    if kg_choice.backend == "context-harness" and kg_choice.url:
+        return {"type": "http", "url": kg_choice.url}
+
+    # Default: memory (stdio ChromaDB)
+    mcp_dir_posix = (CLAUDE_DIR / "knowledge-graph").as_posix()
+    return {
+        "type": "stdio",
+        "command": "uv",
+        "args": ["run", "--directory", mcp_dir_posix, "python", "-m", "server"],
+        "env": {},
+    }
+
+
+def _build_context7_entry(key: str) -> dict:
+    """Return the desired mcpServers.context7 dict for the given API key."""
+    return {
+        "type": "http",
+        "url": "https://mcp.context7.com/mcp",
+        "headers": {"CONTEXT7_API_KEY": key},
+    }
+
+
+def _warn_memory_skipped() -> None:
+    print()
+    print("  [warn] No 'memory' MCP entry written. To complete setup later:")
+    print("    - Deploy context-harness-mcp (see https://github.com/valianx/context-harness-mcp)")
+    print("    - Re-run this installer, OR")
+    print('    - Manually add to ~/.claude.json under mcpServers:')
+    print('      "memory": { "type": "http", "url": "https://<your-render-url>/mcp" }')
+
+
+def register_mcp_servers(context7_key: str | None, kg_choice: KGBackendChoice) -> Path | None:
+    """Merge mcpServers entries into ~/.claude.json, skipping the write if nothing changed.
+
+    Returns the backup path if a write occurred, None if the file was left untouched.
+    """
     data: dict = {}
     if CLAUDE_JSON.exists():
         with CLAUDE_JSON.open("r", encoding="utf-8") as f:
             data = json.load(f)
 
+    mcp_servers = data.setdefault("mcpServers", {})
+    new_memory = _build_memory_entry(kg_choice)
+    new_context7 = _build_context7_entry(context7_key) if context7_key else None
+
+    # Detect whether anything would actually change.
+    memory_changed = new_memory is not None and mcp_servers.get("memory") != new_memory
+    memory_removed = kg_choice.skipped and "memory" in mcp_servers
+    context7_changed = new_context7 is not None and mcp_servers.get("context7") != new_context7
+
+    if not (memory_changed or memory_removed or context7_changed):
+        print("  ~/.claude.json: no changes needed (mcpServers already match desired state)")
+        return None  # no backup, no write
+
     backup = backup_claude_json()
 
-    mcp_servers = data.setdefault("mcpServers", {})
+    if memory_changed:
+        mcp_servers["memory"] = new_memory
+    elif memory_removed:
+        mcp_servers.pop("memory", None)
+        _warn_memory_skipped()
 
-    _write_memory_entry(mcp_servers, kg_choice)
-
-    mcp_servers["context7"] = {
-        "type": "http",
-        "url": "https://mcp.context7.com/mcp",
-        "headers": {"CONTEXT7_API_KEY": context7_key},
-    }
+    if context7_changed:
+        mcp_servers["context7"] = new_context7
 
     CLAUDE_JSON.write_text(
         json.dumps(data, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
     )
     return backup
-
-
-def _write_memory_entry(mcp_servers: dict, kg_choice: KGBackendChoice) -> None:
-    """Write (or omit) the 'memory' mcpServers entry based on the backend choice."""
-    if kg_choice.skipped:
-        # Remove any previously registered entry so we don't leave a stale one.
-        mcp_servers.pop("memory", None)
-        print()
-        print("  [warn] No 'memory' MCP entry written. To complete setup later:")
-        print("    - Deploy context-harness-mcp (see https://github.com/valianx/context-harness-mcp)")
-        print("    - Re-run this installer, OR")
-        print('    - Manually add to ~/.claude.json under mcpServers:')
-        print('      "memory": { "type": "http", "url": "https://<your-render-url>/mcp" }')
-        return
-
-    if kg_choice.backend == "context-harness" and kg_choice.url:
-        mcp_servers["memory"] = {
-            "type": "http",
-            "url": kg_choice.url,
-        }
-        return
-
-    # Default: memory (stdio ChromaDB)
-    mcp_dir_posix = (CLAUDE_DIR / "knowledge-graph").as_posix()
-    mcp_servers["memory"] = {
-        "type": "stdio",
-        "command": "uv",
-        "args": ["run", "--directory", mcp_dir_posix, "python", "-m", "server"],
-        "env": {},
-    }
 
 
 # ---------------------------------------------------------------------------
@@ -522,7 +639,11 @@ def detect_legacy_chromadb_mcp() -> None:
 # ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
-def print_summary(claude_json_backup: Path | None, kg_choice: KGBackendChoice) -> None:
+def print_summary(
+    claude_json_backup: Path | None,
+    kg_choice: KGBackendChoice,
+    context7_preserved: bool,
+) -> None:
     os_label = {
         "win32": "windows",
         "darwin": "macos",
@@ -544,11 +665,14 @@ def print_summary(claude_json_backup: Path | None, kg_choice: KGBackendChoice) -
             print(f"  - {c}")
 
     print()
-    print("MCP servers registered in ~/.claude.json:")
+    print("MCP servers in ~/.claude.json:")
     print(f"  {_format_kg_backend_summary(kg_choice)}")
-    print("  - context7 (library docs)")
+    c7_status = "preserved" if context7_preserved else "updated"
+    print(f"  - context7 (library docs): {c7_status}")
     if claude_json_backup:
         print(f"  backup: {claude_json_backup}")
+    elif not claude_json_backup:
+        print("  (no backup needed — file was not modified)")
 
     print()
     print(f"Manifest: {MANIFEST_PATH}")
@@ -563,18 +687,26 @@ def print_summary(claude_json_backup: Path | None, kg_choice: KGBackendChoice) -
 
 def _format_kg_backend_summary(kg_choice: KGBackendChoice) -> str:
     if kg_choice.skipped:
-        return "  KG backend: (skipped - no MCP entry written)"
+        return "- memory: (skipped - no MCP entry written)"
+    preserved_tag = " [preserved]" if kg_choice.preserved else " [updated]"
     if kg_choice.backend == "context-harness" and kg_choice.url:
-        return f"  KG backend: context-harness (http) -> {kg_choice.url}"
-    # memory
+        return f"- memory: context-harness (http) -> {kg_choice.url}{preserved_tag}"
     kg_path = CLAUDE_DIR / "knowledge-graph"
-    return f"  KG backend: memory (stdio) -> {kg_path}"
+    return f"- memory: ChromaDB (stdio) -> {kg_path}{preserved_tag}"
 
 
 # ---------------------------------------------------------------------------
 # Entry
 # ---------------------------------------------------------------------------
 def main() -> None:
+    global force_flag
+
+    # Parse --force before anything else so helpers can read the flag.
+    force_flag = "--force" in sys.argv
+    if force_flag:
+        sys.argv = [a for a in sys.argv if a != "--force"]
+        print("  --force: bypassing preservation; will overwrite existing entries.")
+
     # Force UTF-8 stdout so characters like em-dash render correctly on Windows.
     try:
         sys.stdout.reconfigure(encoding="utf-8")
@@ -615,19 +747,26 @@ def main() -> None:
     install_skills()
     install_hooks()
 
-    if kg_choice.backend == "memory":
+    if kg_choice.backend == "memory" and not kg_choice.preserved:
         install_knowledge_graph()
+    elif kg_choice.preserved and kg_choice.backend == "memory":
+        print("  knowledge-graph (ChromaDB): skipped (existing entry preserved)")
     else:
         print("  knowledge-graph (ChromaDB): skipped (using context-harness backend)")
 
     detect_legacy_chromadb_mcp()
+
+    # Determine whether the context7 key will change so we can report it accurately.
+    existing_c7_entry = _read_existing_mcp_servers().get("context7", {})
+    existing_c7_key = existing_c7_entry.get("headers", {}).get("CONTEXT7_API_KEY", "").strip()
+    context7_preserved = context7_key == existing_c7_key and _is_valid_context7_key(existing_c7_key)
 
     print("Registering MCP servers in ~/.claude.json...")
     claude_json_backup = register_mcp_servers(context7_key, kg_choice)
 
     save_manifest()
 
-    print_summary(claude_json_backup, kg_choice)
+    print_summary(claude_json_backup, kg_choice, context7_preserved)
 
 
 if __name__ == "__main__":

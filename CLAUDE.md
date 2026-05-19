@@ -104,6 +104,7 @@ All commands run from the repo root.
 | Install (any OS, with `uv` already present) | `uv run bin/install.py` |
 | Non-interactive install (memory backend) | `CONTEXT7_API_KEY=<key> uv run bin/install.py` |
 | Non-interactive install (context-harness backend) | `CONTEXT7_API_KEY=<key> KG_BACKEND=context-harness CONTEXT_HARNESS_URL=https://<url>/mcp uv run bin/install.py` |
+| Force-reset MCP config in ~/.claude.json | `uv run bin/install.py --force` (use only when intentionally resetting; default is preserve-existing) |
 | View which files the installer would touch | Run the installer — it reports installed / unchanged / conflicts; never overwrites |
 | Resolve a conflict | Delete the conflicting file in `~/.claude/...` and re-run the installer |
 | Enable notification hooks | Open `hooks/config.json`, copy the section for your OS, merge it into `~/.claude/settings.json` under `"hooks"` |
