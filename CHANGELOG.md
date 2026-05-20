@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `agents/delivery.md`: new **Step 11.5 — Persist a process-insight to the knowledge graph (passive capture)**. After the PR is created/updated, the delivery agent calls Memory MCP `create_nodes` once with `nodeType: "process-insight"`, synthesising one node from the session-docs + CHANGELOG entry. Best-effort: if the Memory MCP server is unreachable, the task is pure docs/chore with no reusable learning, or the call returns a `policy/*` code, the step logs the skip and continues — delivery never fails on KG errors. Hard guardrails on content (technical-only, no PR/branch/commit metadata that rots, no restatement of the CHANGELOG, each observation ≤ 280 chars). Optional `session_id` attribution when `session-docs/{feature}/session.json` is present (forward-compat with `context-harness-mcp` Phase 4 sessions — orchestrator does not yet call `session_start`, so the field is omitted in practice today). Status block gains `kg_passive_capture: written | skipped: <reason> | failed: <error>`.
+- `CLAUDE.md §5`: new architectural-conventions bullet documenting the KG passive-capture pattern at the team level (one process-insight per completed task, synthesised by `delivery`, best-effort).
+- `docs/knowledge.md`: `[patrón]` bullet recording the passive-capture pattern (v0.5.0+).
+
 ### Fixed
 
 - `cmd/install/claude_json.go`: installer no longer drops operator-set fields on `mcpServers` entries when running re-install. The previous behavior used byte-equality in `rawEntryMatches` and built memory entries with only `{type, url}` — so any operator-added `headers.Authorization` (Bearer for a remote auth-protected MCP like `context-harness-mcp` on Railway) was silently overwritten on every re-run, breaking the auth path. New behavior: `rawEntryMatches` checks subset semantics (existing entry satisfies all desired keys; extras tolerated), and when a real update is needed `mergeMCPEntry` overlays only the installer-owned fields on the existing entry. Headers and any other operator config survive. Regression covered by `TestRegisterMCPServers_PreservesMemoryHeaders` and `TestRegisterMCPServers_MergesHeadersOnURLChange` in `cmd/install/preservation_test.go`.
