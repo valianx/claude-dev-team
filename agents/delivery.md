@@ -575,6 +575,56 @@ Report the existing PR URL in the status block — do NOT fail.
 - If PR creation/update fails (e.g., no remote, no gh), report to the user
 - **Never fail just because a PR already exists** — always detect and handle gracefully
 
+### Step 11.5 — Persist a process-insight to the knowledge graph (passive capture)
+
+**Best-effort** — if the Memory MCP server is unavailable, log the skip and continue. Never fail the delivery on KG errors.
+
+**Purpose.** Build the team's institutional knowledge automatically. Each completed task that passes its acceptance criteria represents a learning — what worked, what surprised, what conventions emerged — and persisting that as a `process-insight` node in the KG makes it searchable by future agents on future tasks. This is **passive capture**: no human curates the entry; the delivery agent synthesises it from the session it just witnessed.
+
+**Inputs (read-only).** Use the session-docs you already loaded in Step 0 + the artifacts from later steps:
+- `session-docs/{feature-name}/00-task-intake.md` (or the issue body) — what was asked.
+- `session-docs/{feature-name}/01-architecture.md` — what was designed; surprises, constraints, alternatives rejected.
+- `session-docs/{feature-name}/02-implementation.md` — what was actually built; deviations from the plan.
+- `session-docs/{feature-name}/03-testing.md` + `04-validation.md` — what the AC look like in practice.
+- The CHANGELOG entry you wrote in Step 7.
+- The Knowledge Extracted (Step 4) + CLAUDE.md / docs/knowledge.md updates (Steps 5 / 5b).
+
+**What to write.** One MCP `create_nodes` call with **exactly one node**, shape:
+
+```json
+{
+  "nodes": [
+    {
+      "name": "{kebab-case slug, prefixed with the feature name}",
+      "nodeType": "process-insight",
+      "observations": [
+        "{1-2 sentence summary of the core insight — what is now true about this codebase / workflow that was not obvious before this task}",
+        "{Optional: a surprising constraint, a non-obvious convention, or an anti-pattern avoided}",
+        "{Optional: a forward-looking note — when would this pattern apply again?}"
+      ]
+    }
+  ]
+}
+```
+
+**Hard guardrails on content:**
+- **Technical only.** No stakeholder names, no Slack handles, no personal data, no tokens, no internal URLs. (See `docs/kg-content-policy.md` if present in this repo.)
+- **No PR / branch / commit metadata.** Those rot. Write the insight as a stable claim about the codebase or workflow.
+- **No restatement of the CHANGELOG.** The CHANGELOG describes what changed; the KG entry describes what was learned that future tasks can reuse. If you cannot articulate a learning beyond the changelog, write `null` and skip the call (see "When to skip").
+- **Each observation ≤ 280 chars.** Forces concision. Multi-sentence observations are fine; multi-paragraph are not.
+
+**Optional session attribution.** If `session-docs/{feature-name}/session.json` exists and contains a valid `session_id` (the orchestrator may have called `session_start` at the top of the pipeline — this is **not yet enforced** as of this writing), pass `"session_id": "<uuid>"` alongside `"nodes"` so the node is attached to the session. If the file is absent OR the `session_id` is the empty string OR `session_end` has already been called on that session, **omit the field** — `create_nodes` rejects ended sessions with `policy/session-already-ended`.
+
+**When to skip (log the reason and continue):**
+- The Memory MCP server is unreachable / errors out — log "KG passive capture skipped: MCP unreachable" and proceed.
+- The task is a pure docs / chore / CI refactor with no codebase learning — log "KG passive capture skipped: no reusable learning" and proceed.
+- The Step 4 Knowledge Extraction was empty AND CLAUDE.md/knowledge.md were not updated — same: log and skip.
+- The MCP call returns `policy/*` (content filter, taxonomy, naming) — log the policy code and skip. Do not retry with a mutated payload.
+
+**Idempotency.** If a node with this name already exists in the KG, `create_nodes` is a no-op (DB-level ON CONFLICT DO NOTHING). Re-running delivery on the same feature does not create duplicates.
+
+**Status block addition.** Add one line: `kg_passive_capture: written | skipped: <reason> | failed: <error>`.
+
 ---
 
 ## Session Documentation
