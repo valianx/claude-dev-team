@@ -598,7 +598,7 @@ func TestRegisterMCPServers_PreservesMemoryHeaders(t *testing.T) {
 	_, cleanup := testEnv(t)
 	defer cleanup()
 
-	url := "https://context-harness-mcp.up.railway.app/mcp/"
+	url := "https://team-harness.up.railway.app/mcp/"
 	bearer := "Bearer eyJhbGciOiJIUzI1NiJ9.test.signature"
 	writeClaudeJSON(t, map[string]interface{}{
 		"mcpServers": map[string]interface{}{
@@ -907,7 +907,7 @@ func TestRegisterMCPServers_FirstInstallWithBearer(t *testing.T) {
 	_, cleanup := testEnv(t)
 	defer cleanup()
 
-	url := "https://context-harness-mcp.up.railway.app/mcp"
+	url := "https://team-harness.up.railway.app/mcp"
 	bearer := "eyJhbGci.payload.signature"
 	mc := memChoiceWithBearer(url, bearer, false)
 
