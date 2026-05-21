@@ -589,8 +589,13 @@ for agent_name in ("architect", "qa", "tester", "security"):
           "Knowledge Graph Access" in agent_text and "create_entities" in agent_text and ("Do NOT" in agent_text or "NEVER" in agent_text),
           f"{agent_name} KG Access section does not explicitly forbid writes")
 
-# 6. Excluded agents do NOT have KG tools (regression guard)
-for agent_name in ("implementer", "delivery", "plan-reviewer", "reviewer"):
+# 6. Excluded agents do NOT have KG read tools (regression guard)
+# Note: `delivery` was removed from this list on 2026-05-21 (PR feat/kg-hygiene).
+# Step 11.5 now requires `mcp__memory__search_nodes` (Gate 2 dedup pre-flight) and
+# `mcp__memory__suggest_node_type` (Gate 1 specificity) before `create_nodes`.
+# Delivery's KG access is bounded by intent — write-mostly with one read-only
+# pre-flight call — and is documented inline in Step 11.5.
+for agent_name in ("implementer", "plan-reviewer", "reviewer"):
     fm = parse_frontmatter(read(AGENTS_DIR / f"{agent_name}.md"))
     tools_list = [t.strip() for t in fm.get("tools", "").split(",")]
     check(f"agents/{agent_name}.md excludes mcp__memory__* (per design)",
@@ -1377,6 +1382,113 @@ check(
     "00-execution-events.jsonl" in claude_md and "00-pipeline-summary.md" in claude_md,
     "canonical artifacts not both cited",
 )
+
+# ---------------------------------------------------------------------------
+# Suite 21 — KG hygiene (passive-capture gates, soft-delete default, sessions, policy)
+# ---------------------------------------------------------------------------
+print()
+print("=== Suite 21: KG hygiene ===")
+
+# --- delivery.md: pre-flight gates on Step 11.5 ---
+
+delivery_md = read(AGENTS_DIR / "delivery.md")
+
+delivery_kg_checks = [
+    ("delivery.md frontmatter declares mcp__memory__suggest_node_type",
+     "mcp__memory__suggest_node_type" in delivery_md.split("---", 2)[1]),
+    ("delivery.md frontmatter declares mcp__memory__create_nodes",
+     "mcp__memory__create_nodes" in delivery_md.split("---", 2)[1]),
+    ("delivery.md frontmatter declares mcp__memory__add_observations",
+     "mcp__memory__add_observations" in delivery_md.split("---", 2)[1]),
+    ("delivery.md frontmatter declares mcp__memory__search_nodes",
+     "mcp__memory__search_nodes" in delivery_md.split("---", 2)[1]),
+    ("Step 11.5 has Pre-flight quality gates section",
+     "Pre-flight quality gates" in delivery_md),
+    ("Step 11.5 Gate 1 — Specificity gate via suggest_node_type",
+     "Gate 1 — Specificity gate" in delivery_md and "suggest_node_type" in delivery_md),
+    ("Step 11.5 Gate 1 skip condition documented (Top-1 confidence < 0.5)",
+     "Top-1 confidence < 0.5" in delivery_md),
+    ("Step 11.5 Gate 2 — Dedup gate via search_nodes",
+     "Gate 2 — Dedup gate" in delivery_md and "search_nodes" in delivery_md),
+    ("Step 11.5 Gate 2 redirect to add_observations documented",
+     "merged-into" in delivery_md),
+    ("Step 11.5 status-block extended with new outcomes",
+     "merged-into:" in delivery_md and "written-with-relation-note" in delivery_md),
+]
+for label, condition in delivery_kg_checks:
+    check(f"delivery.md KG hygiene: {label}", condition)
+
+# --- skills/memory.md: mark_superseded + hard-delete sub-command ---
+
+memory_skill = read(SKILLS_DIR / "memory.md")
+
+memory_skill_checks = [
+    ("/memory prune uses mark_superseded as default (soft-delete)",
+     "mark_superseded" in memory_skill and "soft-delete" in memory_skill),
+    ("/memory consolidate uses mark_superseded",
+     memory_skill.count("mark_superseded") >= 2),
+    ("/memory hard-delete sub-command exists",
+     "### `hard-delete" in memory_skill),
+    ("hard-delete requires double confirmation",
+     "Final confirmation" in memory_skill or "Second confirmation" in memory_skill),
+    ("hard-delete asks user to type entity name exactly",
+     "Type the entity name exactly" in memory_skill),
+    ("hard-delete asks for DELETE <name> confirmation",
+     'Type "DELETE' in memory_skill or "Type 'DELETE" in memory_skill),
+    ("/memory usage help lists hard-delete",
+     "hard-delete <entity-name>" in memory_skill),
+    ("Important section reflects soft-delete-by-default",
+     "Soft-delete via `mark_superseded` is reversible" in memory_skill or
+     "Soft-delete via mark_superseded" in memory_skill),
+]
+for label, condition in memory_skill_checks:
+    check(f"skills/memory.md: {label}", condition)
+
+# --- docs/kg-content-policy.md: Volatility avoidance + Multi-tenant additions ---
+
+policy_md = read(REPO_ROOT / "docs" / "kg-content-policy.md")
+
+policy_checks = [
+    ("Volatility avoidance section exists",
+     "Volatility avoidance" in policy_md),
+    ("Volatility section forbids 'currently' without date",
+     "currently" in policy_md and "anchor" in policy_md.lower()),
+    ("Volatility section forbids 'recently'",
+     "recently" in policy_md),
+    ("Volatility section forbids 'as of writing'",
+     "as of writing" in policy_md),
+    ("Multi-tenant additions section exists",
+     "Multi-tenant additions" in policy_md),
+    ("Multi-tenant section forbids team-member handles as entities",
+     "Team-member handles" in policy_md),
+    ("Multi-tenant section requires author attribution on decisions",
+     "Author attribution" in policy_md and "decision" in policy_md.lower()),
+    ("Multi-tenant section discusses split-deployment as fallback",
+     "two MCP deployments" in policy_md or "second " in policy_md.lower()),
+]
+for label, condition in policy_checks:
+    check(f"docs/kg-content-policy.md: {label}", condition)
+
+# --- orchestrator.md: session_start in Phase 0a, session_end in Phase 6 ---
+
+orch_session_checks = [
+    ("orchestrator.md frontmatter declares mcp__memory__session_start",
+     "mcp__memory__session_start" in orch.split("---", 2)[1]),
+    ("orchestrator.md frontmatter declares mcp__memory__session_end",
+     "mcp__memory__session_end" in orch.split("---", 2)[1]),
+    ("Phase 0a calls session_start before search_nodes",
+     "session_start" in orch and "1b" in orch),
+    ("Phase 0a writes session.json",
+     "session.json" in orch),
+    ("Phase 6 closes session with session_end",
+     "session_end" in orch and "Close the KG session" in orch),
+    ("session_start failure is non-blocking",
+     "unavailable, skipping attribution" in orch or "session-management errors" in orch),
+    ("session.json schema documented (session_id + project + started_at)",
+     '"session_id"' in orch and '"started_at"' in orch),
+]
+for label, condition in orch_session_checks:
+    check(f"orchestrator.md session lifecycle: {label}", condition)
 
 # ---------------------------------------------------------------------------
 # Summary

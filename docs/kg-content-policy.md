@@ -75,6 +75,49 @@ When in doubt, the agent must **omit**. Adding content later is cheap; extractin
 
 ---
 
+## 🕓 Volatility avoidance (forbidden — added 2026-05-21)
+
+Observations rot when they encode "current state" without a date anchor. A reader six months later cannot tell whether "currently a template only" is still true. The following volatile constructions are **forbidden**:
+
+| Forbidden phrasing | Why it rots | Fix |
+|---|---|---|
+| `currently a template only` | "currently" has no date — meaning shifts with time | `As of 2026-05-18, the repo is a template only with the fictional acme-pay demo` |
+| `recently renamed from X` | "recently" anchors to write time, not read time | `Renamed from X to Y on 2026-05-18` |
+| `as of writing` / `at the time of writing` | self-referential to a moment no reader knows | `As of 2026-05-18, ...` |
+| `latest version` / `current version` of a library | the version shifts faster than the observation | `Pinned to v5.2.0 (2026-04, see go.mod)` |
+| `last updated 6 months ago` | the math is wrong the moment you read it | drop the relative time, or write `last updated 2025-11-21` |
+| `temporarily authorized` / `for now` / `until further notice` | scope is anchored to an undefined "now" | `Authorized 2026-05-18 through next major release; revisit after first real PSP integration ships` |
+| `roadmap item — to be done next` | no completion date; gets stale | drop the line, or write `Planned: <YYYY-MM>; cancelled if not started by <YYYY-MM>` |
+
+**Rule:** every claim about state, version, or scope MUST carry an explicit date (YYYY-MM-DD or YYYY-MM precision is fine). If you cannot date-anchor a claim, it is too fuzzy to persist — rewrite it as a stable invariant or drop it.
+
+**Example seen in current KG** (`providers-bridge`, 2026-05-18):
+- ❌ `Current state (2026-05-18): single-adapter template.` — borderline; the date is there but "current state" implies the reader should re-derive freshness.
+- ✅ `As of 2026-05-18, the repo is a single-adapter template; the 23 prior PSP adapters were removed in the same week.` — same fact, explicit anchor.
+
+---
+
+## 👥 Multi-tenant additions (added 2026-05-21)
+
+When the MCP backend serves >1 developer, the content-policy stakes change. The guiding principle remains "technical memory shareable across the team", but new failure modes appear:
+
+### Forbidden in multi-tenant mode
+
+- **Team-member handles as primary entities.** No `dev-john-permissions-cheat-sheet`, no `@mario-mcp-token-format`. Personal context belongs in the developer's own notes, not the shared KG. (Existing forbidden rule on "Personal data" already covers names — this restates it for clarity at the entity-name level.)
+- **Preferences without technical rationale.** Bad: `team-prefers-tabs-over-spaces`. Good: `tabs-required-by-eslint-config (zippy-payments — `.editorconfig` v0.3+ enforces).` The first encodes taste; the second cites enforcement.
+- **Vendor account names / tenant IDs / customer-specific configurations.** Even if "the technical pattern is reusable", account-specific configs leak who-uses-what.
+
+### Required in multi-tenant mode
+
+- **Author attribution on `[decision]` nodes.** Decisions are the highest-stakes type — readers need to know whose call it was. Promote `Decided by: <author-or-team>, <date>` to a required observation on every `[decision]` entry. The `session_start` / `session_end` tools provide the author proxy via `session_id`; orchestrator Phase 6 attaches the session_id to the `create_nodes` call.
+- **Project tag on every node.** The MCP's `project` field on nodes (set via `mark_superseded.project` etc.) becomes the namespace for multi-tenant scoping. Single-operator KG can leave it at `global`; team KG must set it explicitly. Recommendation: use the bare repo slug (e.g., `zippy-payments`, `team-harness`, `context-harness-mcp`). Cross-cutting constraints (PR-hygiene, branching conventions) stay at `global`.
+
+### When in doubt — split the deployment
+
+If a developer's work spans contexts that should not cross-leak (e.g., a personal side project + an employer's codebase), the cheapest fix is not policy — it is **two MCP deployments**. The bearer token + URL in `~/.claude.json` is the access boundary; provisioning a second `context-harness-mcp` instance and pointing the corporate workspace at it eliminates cross-context bleed at the storage layer. This is the recommended approach for any operator handling >1 employer or >1 trust boundary.
+
+---
+
 ## How the policy is applied
 
 - **At write time**: the `orchestrator` (and any agent that persists to the KG) must filter content against this policy before calling `create_entities` / `add_observations`. If an observation falls in the forbidden zone, it is omitted silently; if it falls in the gray zone, it is omitted by default.
