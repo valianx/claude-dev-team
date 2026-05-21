@@ -119,25 +119,59 @@ func rawEntryMatches(existing json.RawMessage, desired map[string]interface{}) b
 }
 
 // mergeMCPEntry returns a map that is the existing entry with `desired` keys
-// overlaid. Operator-set fields not in `desired` (notably `headers`) are
-// preserved. If `existing` is nil/invalid, the result is just `desired`.
+// overlaid. Operator-set fields not in `desired` are preserved.
+//
+// `headers` gets a nested overlay (key-by-key) so existing custom headers
+// (e.g. `X-Custom`) survive when `desired` only sets `Authorization`. Without
+// this, writing a new bearer would clobber any other operator-set header.
+// If `existing` is nil/invalid, the result is just `desired`.
 func mergeMCPEntry(existing json.RawMessage, desired map[string]interface{}) map[string]interface{} {
 	merged := map[string]interface{}{}
 	if existing != nil {
 		_ = json.Unmarshal(existing, &merged)
 	}
 	for k, v := range desired {
+		if k == "headers" {
+			merged["headers"] = mergeHeaders(merged["headers"], v)
+			continue
+		}
 		merged[k] = v
 	}
 	return merged
 }
 
+// mergeHeaders overlays `desired` headers onto `existing` headers (both
+// optional). When one side is nil/invalid the other wins. Both sides are
+// JSON map[string]interface{}.
+func mergeHeaders(existing, desired interface{}) map[string]interface{} {
+	out := map[string]interface{}{}
+	if m, ok := existing.(map[string]interface{}); ok {
+		for k, v := range m {
+			out[k] = v
+		}
+	}
+	if m, ok := desired.(map[string]interface{}); ok {
+		for k, v := range m {
+			out[k] = v
+		}
+	}
+	return out
+}
+
 // buildMemoryEntry returns the mcpServers.memory dict: always http type.
+// When choice.BearerToken is set, the entry includes
+// `headers.Authorization: "Bearer <token>"`.
 func buildMemoryEntry(choice MemoryMCPChoice) map[string]interface{} {
-	return map[string]interface{}{
+	entry := map[string]interface{}{
 		"type": "http",
 		"url":  choice.URL,
 	}
+	if choice.BearerToken != "" {
+		entry["headers"] = map[string]interface{}{
+			"Authorization": "Bearer " + choice.BearerToken,
+		}
+	}
+	return entry
 }
 
 // buildContext7Entry returns the desired mcpServers.context7 dict for the given API key.

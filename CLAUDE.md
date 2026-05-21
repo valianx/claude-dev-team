@@ -108,7 +108,7 @@ All commands run from the repo root.
 |---|---|
 | Install (Unix / macOS) | `./bin/install.sh` |
 | Install (Windows PowerShell) | `.\bin\install.ps1` |
-| Non-interactive install | `CONTEXT7_API_KEY=<key> MEMORY_MCP_URL=https://<url>/mcp ./bin/install.sh` |
+| Non-interactive install | `CONTEXT7_API_KEY=<key> MEMORY_MCP_URL=https://<url>/mcp [MEMORY_MCP_BEARER=<jwt>] ./bin/install.sh` |
 | Force-reset MCP config in ~/.claude.json | `./bin/install.sh --force` |
 | Build installer from source (requires Go 1.23+) | `go build ./cmd/install` |
 | View which files the installer would touch | Run the installer — it reports installed / unchanged / conflicts; never overwrites |
