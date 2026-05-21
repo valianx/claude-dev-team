@@ -71,34 +71,40 @@ Analyze the input: $ARGUMENTS
    Newest entity: {name}
    ```
 
-### `prune` — Find candidates for removal
+### `prune` — Find stale entities and soft-delete via `mark_superseded`
+
+**Default action is soft-delete (reversible), not hard-delete.** `prune` runs `mark_superseded(old=<stale>, new=<self-or-placeholder>, archive_old_observations=true)` to hide the stale node's observations without destroying them. Hard-delete lives in `/memory hard-delete` (separate sub-command, double confirmation required).
 
 1. Use Knowledge Graph MCP `read_graph` to get everything
 2. Analyze each entity for staleness:
    - Parse dates from observations (look for YYYY-MM-DD patterns)
    - Flag entities with no date or oldest date > 6 months ago
    - Flag entities whose observations reference outdated versions (e.g., "v4" when current is "v5")
-   - Flag potential duplicates (entities with very similar names or overlapping observations)
+   - Flag potential duplicates (use `find_conflicts` against the candidate when available; otherwise compare by name similarity + observation overlap)
 3. Display candidates:
    ```
-   Prune Candidates
-   ================
+   Prune Candidates (soft-delete via mark_superseded)
+   ===================================================
 
    Stale (>6 months, no recent update):
    - {entity-name} — last date: {date}
 
-   Potential duplicates:
+   Potential duplicates (use `consolidate` instead — it merges then supersedes):
    - {entity-a} ↔ {entity-b} — similar observations
 
    No date found (can't assess staleness):
    - {entity-name}
+
+   Action: mark_superseded archives observations but the node + relations stay
+   queryable as supersedes-relation targets. Reversible by removing the relation
+   and clearing deleted_at. Hard-delete requires `/memory hard-delete <name>`.
    ```
-4. Ask user: "Delete any of these? List entity names separated by commas, or 'none'."
-5. If user confirms → use Knowledge Graph MCP `delete_entities` for each confirmed entity
+4. Ask user: "Soft-delete (archive observations) any of these? List entity names separated by commas, or 'none'."
+5. If user confirms → for each entity, call Knowledge Graph MCP `mark_superseded(old=<name>, new=<name>, archive_old_observations=true, reason="prune: stale per /memory prune <date>")`. The self-supersedes pattern (`old == new`) marks the node archived without inventing a replacement — confirm the MCP backend accepts this; otherwise fall back to creating a placeholder entity `archived-<name>` of type `process-insight` with a single observation `"Archived: superseded entry for <name>, no replacement"` and use that as `new`.
 
-### `consolidate` — Merge similar entities
+### `consolidate` — Merge similar entities via `mark_superseded`
 
-1. Use Knowledge Graph MCP `read_graph`
+1. Use Knowledge Graph MCP `read_graph` (or `find_conflicts` per node for targeted audits)
 2. Find entities that could be merged:
    - Same type + overlapping observations
    - Same technology/library mentioned
@@ -106,16 +112,51 @@ Analyze the input: $ARGUMENTS
 3. For each merge candidate, propose:
    ```
    Merge candidate:
-   - {entity-a} (3 observations)
-   - {entity-b} (2 observations)
-   → Proposed: keep {entity-a}, add observations from {entity-b}, delete {entity-b}
+   - {entity-a} (3 observations, newer)
+   - {entity-b} (2 observations, older)
+   → Proposed: add missing observations from {entity-b} to {entity-a},
+     then mark {entity-b} as superseded by {entity-a}.
+
+   This preserves history: {entity-b}'s observations are archived (not deleted)
+   and the supersedes relation makes the trail discoverable.
 
    Approve? (y/n)
    ```
 4. If approved:
    - Use `add_observations` to add missing observations to the kept entity
-   - Use `delete_entities` to remove the merged entity
-   - Update relations if needed
+   - Use `mark_superseded(old=<b>, new=<a>, archive_old_observations=true, reason="consolidate via /memory")` — preserves {entity-b} as a queryable but archived node with a `supersedes` relation pointing to {entity-a}
+   - Update relations if needed (relations from {entity-b} should be re-pointed to {entity-a} via `create_relations`; relations into {entity-b} can stay — the supersedes edge makes the redirection discoverable)
+
+### `hard-delete <entity-name>` — Permanent deletion (double confirmation)
+
+**Use sparingly.** Most "remove this" cases are better served by `prune` (soft-delete via `mark_superseded`). Hard-delete is only for entries that violate the content policy or contain secrets/PII that must not remain queryable even via supersedes chains.
+
+1. Use Knowledge Graph MCP `open_nodes` to show the full entity (name, type, observations, relations)
+2. **First confirmation:** print:
+   ```
+   ⚠  Hard-delete request: {entity-name}
+   This permanently removes the node, all its observations, and all incoming/outgoing relations.
+   This is NOT reversible. The supersedes-archive trail is also destroyed.
+
+   Reasons hard-delete is appropriate:
+     • Content-policy violation (PII / secrets / forbidden volatile reference) that must not persist.
+     • Test / accident entry that should not exist.
+
+   Reasons hard-delete is WRONG (use `prune` instead):
+     • Outdated knowledge — soft-delete preserves history.
+     • Duplicate — use `consolidate` to merge into the canonical entry.
+
+   Confirm? Type the entity name exactly to proceed, or "abort".
+   ```
+3. If the user's input does not equal the entity name exactly → print `Aborted.` and exit.
+4. **Second confirmation:** print:
+   ```
+   Final confirmation. This action cannot be undone.
+   Type "DELETE {entity-name}" to proceed.
+   ```
+5. If the user's input does not equal `DELETE {entity-name}` exactly → print `Aborted.` and exit.
+6. Use Knowledge Graph MCP `delete_entities` for the entity.
+7. Print confirmation with the deletion timestamp and the recorded reason (if any).
 
 ### No args — Show usage help
 
@@ -123,12 +164,13 @@ Analyze the input: $ARGUMENTS
 Usage: /memory <action> [args]
 
 Actions:
-  search <query>        Search entities by text
-  list [type]           List all entities (filter: pattern/error/constraint/decision/tool-gotcha/project/service/stack-profile)
-  show <entity-name>    Show full entity details
-  stats                 Knowledge Graph statistics
-  prune                 Find and remove stale/duplicate entities
-  consolidate           Merge similar entities
+  search <query>              Search entities by text
+  list [type]                 List all entities (filter: pattern/error/constraint/decision/tool-gotcha/project/service/stack-profile)
+  show <entity-name>          Show full entity details
+  stats                       Knowledge Graph statistics
+  prune                       Soft-delete stale entities via mark_superseded (reversible)
+  consolidate                 Merge similar entities; old → mark_superseded by new (preserves history)
+  hard-delete <entity-name>   Permanent deletion — double confirmation, irreversible
 
 Examples:
   /memory search "Next.js auth"
@@ -138,6 +180,7 @@ Examples:
   /memory stats
   /memory prune
   /memory consolidate
+  /memory hard-delete leaked-customer-name-entity
 ```
 
 ---
@@ -153,8 +196,8 @@ Examples:
 ## Important
 
 - This skill does NOT route through the orchestrator
-- Uses Knowledge Graph MCP tools directly: `search_nodes`, `read_graph`, `open_nodes`, `create_entities`, `add_observations`, `delete_entities`, `delete_observations`, `create_relations`, `delete_relations`
-- Destructive actions (delete, merge) always require user confirmation
+- Uses Knowledge Graph MCP tools directly: `search_nodes`, `read_graph`, `open_nodes`, `create_entities`, `add_observations`, `mark_superseded`, `find_conflicts`, `delete_entities` (hard-delete only), `delete_observations`, `create_relations`, `delete_relations`
+- **Destructive actions require user confirmation.** Soft-delete via `mark_superseded` is reversible and is the default for `prune` and `consolidate`. Hard-delete via `delete_entities` requires double confirmation (the user types the entity name twice).
 - Never auto-prune or auto-consolidate without asking
 
 ## Content policy (mandatory before any write)
