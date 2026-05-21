@@ -102,6 +102,13 @@ func memChoice(url string, preserved bool) MemoryMCPChoice {
 	return MemoryMCPChoice{URL: url, Preserved: preserved}
 }
 
+func memChoiceWithBearer(url, bearer string, preserved bool) MemoryMCPChoice {
+	if url == "" {
+		url = "http://localhost:8080/mcp"
+	}
+	return MemoryMCPChoice{URL: url, BearerToken: bearer, Preserved: preserved}
+}
+
 // ---------------------------------------------------------------------------
 // Tests: readExistingMCPServers
 // ---------------------------------------------------------------------------
@@ -774,6 +781,239 @@ func TestGetContext7APIKey_FirstInstallUsesEnvKey(t *testing.T) {
 	result := getContext7APIKey()
 	if result != envKey {
 		t.Errorf("expected %s, got %s", envKey, result)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Tests: bearer-token support (one-step install — URL + Authorization in one run)
+// ---------------------------------------------------------------------------
+
+// TestBearerFromEntry_PresentReturnsRawToken verifies that the helper strips
+// the "Bearer " prefix and returns the raw JWT.
+func TestBearerFromEntry_PresentReturnsRawToken(t *testing.T) {
+	entry := map[string]interface{}{
+		"type": "http",
+		"url":  "https://x.example.com/mcp",
+		"headers": map[string]interface{}{
+			"Authorization": "Bearer eyJhbGci.payload.signature",
+		},
+	}
+	if got := bearerFromEntry(entry); got != "eyJhbGci.payload.signature" {
+		t.Errorf("expected raw token without prefix, got %q", got)
+	}
+}
+
+// TestBearerFromEntry_AbsentReturnsEmpty verifies the helper returns "" when
+// no headers are set (the localhost / unauthenticated case).
+func TestBearerFromEntry_AbsentReturnsEmpty(t *testing.T) {
+	entry := map[string]interface{}{"type": "http", "url": "http://localhost:7654/mcp"}
+	if got := bearerFromEntry(entry); got != "" {
+		t.Errorf("expected empty bearer, got %q", got)
+	}
+}
+
+// TestBearerFromEntry_NonBearerSchemeIgnored verifies that the helper only
+// extracts Bearer tokens — other auth schemes (Basic, custom) return "" so
+// the installer doesn't accidentally mangle them.
+func TestBearerFromEntry_NonBearerSchemeIgnored(t *testing.T) {
+	entry := map[string]interface{}{
+		"type": "http", "url": "https://x.example.com/mcp",
+		"headers": map[string]interface{}{
+			"Authorization": "Basic dXNlcjpwYXNz",
+		},
+	}
+	if got := bearerFromEntry(entry); got != "" {
+		t.Errorf("expected empty for non-Bearer scheme, got %q", got)
+	}
+}
+
+// TestBuildMemoryEntry_WithBearer verifies that a non-empty bearer is written
+// into headers.Authorization with the "Bearer " prefix.
+func TestBuildMemoryEntry_WithBearer(t *testing.T) {
+	entry := buildMemoryEntry(MemoryMCPChoice{URL: "https://x.example.com/mcp", BearerToken: "my-jwt"})
+	headers, ok := entry["headers"].(map[string]interface{})
+	if !ok {
+		t.Fatal("expected headers when bearer is set")
+	}
+	if headers["Authorization"] != "Bearer my-jwt" {
+		t.Errorf("expected 'Bearer my-jwt', got %v", headers["Authorization"])
+	}
+}
+
+// TestBuildMemoryEntry_WithoutBearer verifies that an empty bearer produces
+// no headers key — the localhost / unauthenticated case stays minimal.
+func TestBuildMemoryEntry_WithoutBearer(t *testing.T) {
+	entry := buildMemoryEntry(MemoryMCPChoice{URL: "http://localhost:7654/mcp"})
+	if _, has := entry["headers"]; has {
+		t.Error("expected no headers key when bearer is empty")
+	}
+}
+
+// TestPromptMemoryMCPURL_PreservesBearerOnKeepNonInteractive verifies that an
+// existing entry's bearer is captured into the choice when preserved silently
+// (non-TTY). This is the typical CI / scripted re-install case.
+func TestPromptMemoryMCPURL_PreservesBearerOnKeepNonInteractive(t *testing.T) {
+	_, cleanup := testEnv(t)
+	defer cleanup()
+
+	url := "https://prod.example.com/mcp"
+	bearer := "Bearer eyJ.preserved.signature"
+	writeClaudeJSON(t, map[string]interface{}{
+		"mcpServers": map[string]interface{}{
+			"memory": map[string]interface{}{
+				"type": "http", "url": url,
+				"headers": map[string]interface{}{"Authorization": bearer},
+			},
+		},
+	})
+	forceFlag = false
+
+	choice := promptMemoryMCPURL()
+
+	if !choice.Preserved {
+		t.Fatal("expected Preserved=true when existing valid http entry exists (non-interactive)")
+	}
+	if choice.URL != url {
+		t.Errorf("expected URL=%s, got %s", url, choice.URL)
+	}
+	if choice.BearerToken != "eyJ.preserved.signature" {
+		t.Errorf("expected bearer captured into choice (without prefix), got %q", choice.BearerToken)
+	}
+}
+
+// TestPromptMemoryMCPBearer_FromEnvVar verifies the MEMORY_MCP_BEARER env var
+// is honored in non-interactive mode (CI / scripted installs).
+func TestPromptMemoryMCPBearer_FromEnvVar(t *testing.T) {
+	t.Setenv("MEMORY_MCP_BEARER", "  env-supplied-jwt  ")
+	if got := promptMemoryMCPBearer(); got != "env-supplied-jwt" {
+		t.Errorf("expected trimmed env value, got %q", got)
+	}
+}
+
+// TestPromptMemoryMCPBearer_NoEnvNonInteractive verifies that absent env var,
+// non-interactive mode returns "" so unauthenticated localhost installs still
+// work in CI.
+func TestPromptMemoryMCPBearer_NoEnvNonInteractive(t *testing.T) {
+	t.Setenv("MEMORY_MCP_BEARER", "")
+	if got := promptMemoryMCPBearer(); got != "" {
+		t.Errorf("expected empty bearer without env in non-interactive, got %q", got)
+	}
+}
+
+// TestRegisterMCPServers_FirstInstallWithBearer verifies a fresh install with
+// URL + bearer writes both fields into ~/.claude.json on disk — the headline
+// "configure everything in one installer run" use case the operator asked for.
+func TestRegisterMCPServers_FirstInstallWithBearer(t *testing.T) {
+	_, cleanup := testEnv(t)
+	defer cleanup()
+
+	url := "https://context-harness-mcp.up.railway.app/mcp"
+	bearer := "eyJhbGci.payload.signature"
+	mc := memChoiceWithBearer(url, bearer, false)
+
+	registerMCPServers("ctx7sk-test-key-12345", mc)
+
+	result := readClaudeJSON(t)
+	mem := result["mcpServers"].(map[string]interface{})["memory"].(map[string]interface{})
+	if mem["url"] != url {
+		t.Errorf("url not written: want %q, got %v", url, mem["url"])
+	}
+	headers, ok := mem["headers"].(map[string]interface{})
+	if !ok {
+		t.Fatal("headers not written on first install with bearer")
+	}
+	if headers["Authorization"] != "Bearer "+bearer {
+		t.Errorf("Authorization wrong: want 'Bearer %s', got %v", bearer, headers["Authorization"])
+	}
+}
+
+// TestRegisterMCPServers_ChangeBearer verifies that supplying a new bearer
+// overwrites the old one while preserving other fields (the natural rotate-JWT
+// scenario when the operator regenerates a token in the dashboard).
+func TestRegisterMCPServers_ChangeBearer(t *testing.T) {
+	_, cleanup := testEnv(t)
+	defer cleanup()
+
+	url := "https://prod.example.com/mcp"
+	writeClaudeJSON(t, map[string]interface{}{
+		"mcpServers": map[string]interface{}{
+			"memory": map[string]interface{}{
+				"type": "http", "url": url,
+				"headers": map[string]interface{}{"Authorization": "Bearer old-token"},
+			},
+		},
+	})
+
+	mc := memChoiceWithBearer(url, "new-token", false)
+	backup := registerMCPServers("", mc)
+
+	if backup == "" {
+		t.Error("expected backup when bearer changes")
+	}
+	result := readClaudeJSON(t)
+	mem := result["mcpServers"].(map[string]interface{})["memory"].(map[string]interface{})
+	headers := mem["headers"].(map[string]interface{})
+	if headers["Authorization"] != "Bearer new-token" {
+		t.Errorf("expected new bearer, got %v", headers["Authorization"])
+	}
+}
+
+// TestRegisterMCPServers_BearerPreservesOtherHeaders verifies that setting a
+// new Authorization header does NOT clobber other operator-set headers (e.g.
+// a custom proxy header). Catches the regression where mergeMCPEntry replaced
+// the entire `headers` map.
+func TestRegisterMCPServers_BearerPreservesOtherHeaders(t *testing.T) {
+	_, cleanup := testEnv(t)
+	defer cleanup()
+
+	url := "https://prod.example.com/mcp"
+	writeClaudeJSON(t, map[string]interface{}{
+		"mcpServers": map[string]interface{}{
+			"memory": map[string]interface{}{
+				"type": "http", "url": url,
+				"headers": map[string]interface{}{
+					"X-Custom-Proxy": "internal-value",
+					"Authorization":  "Bearer old-jwt",
+				},
+			},
+		},
+	})
+
+	mc := memChoiceWithBearer(url, "new-jwt", false)
+	registerMCPServers("", mc)
+
+	result := readClaudeJSON(t)
+	mem := result["mcpServers"].(map[string]interface{})["memory"].(map[string]interface{})
+	headers := mem["headers"].(map[string]interface{})
+	if headers["X-Custom-Proxy"] != "internal-value" {
+		t.Errorf("custom header dropped: got %v", headers["X-Custom-Proxy"])
+	}
+	if headers["Authorization"] != "Bearer new-jwt" {
+		t.Errorf("authorization not updated: got %v", headers["Authorization"])
+	}
+}
+
+// TestRegisterMCPServers_NoWriteWhenBearerUnchanged verifies that re-running
+// the installer with the same URL + same bearer produces no backup.
+func TestRegisterMCPServers_NoWriteWhenBearerUnchanged(t *testing.T) {
+	_, cleanup := testEnv(t)
+	defer cleanup()
+
+	url := "https://prod.example.com/mcp"
+	bearer := "stable-jwt"
+	writeClaudeJSON(t, map[string]interface{}{
+		"mcpServers": map[string]interface{}{
+			"memory": map[string]interface{}{
+				"type": "http", "url": url,
+				"headers": map[string]interface{}{"Authorization": "Bearer " + bearer},
+			},
+		},
+	})
+
+	mc := memChoiceWithBearer(url, bearer, true)
+	backup := registerMCPServers("", mc)
+	if backup != "" {
+		t.Errorf("expected no backup when nothing changes, got %s", backup)
 	}
 }
 
