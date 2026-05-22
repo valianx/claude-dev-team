@@ -81,7 +81,7 @@ Each row is a real failure mode encountered and patched. See [`docs/knowledge.md
 ## What ships
 
 - **17 agents** (`orchestrator`, `architect`, `implementer`, `tester`, `qa`, `plan-reviewer`, `acceptance-checker`, `delivery`, `reviewer`, `security`, plus `diagrammer` / `likec4-diagrammer` / `d2-diagrammer`, `translator`, `gcp-cost-analyzer`, `init`, `agent-builder`). Full roster + model + effort matrix in [`agents/README.md`](../agents/README.md).
-- **28 skills** (slash commands). Most route into the orchestrator; four are standalone (`/lint`, `/status`, `/memory`, `/tmux`). Common entries: `/design`, `/recover`, `/deliver`, `/review-pr`, `/issue`, `/background`.
+- **29 skills** (slash commands). Most route into the orchestrator; five are standalone (`/lint`, `/status`, `/memory`, `/tmux`, `/th-update`). Common entries: `/design`, `/recover`, `/deliver`, `/review-pr`, `/issue`, `/background`.
 - **Hooks.** `hooks/policy-block.sh` is the `PreToolUse` gate (48 tested cases: destructive Bash, force-push, secret-file writes, etc.). Notification scripts per OS are optional opt-in.
 - **External Memory MCP** server. Semantic memory across projects. The server (`context-harness-mcp` or any MCP-compatible service) lives outside this repo. Reference: [`docs/kg-content-policy.md`](./kg-content-policy.md).
 

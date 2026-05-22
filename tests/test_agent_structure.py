@@ -323,9 +323,9 @@ check("README.md mentions /background",
       "/background" in top_readme)
 check("README.md surfaces PreToolUse policy gate",
       "PreToolUse" in top_readme or "policy gate" in top_readme.lower())
-check("README.md skill count is 28",
-      "28 skills" in top_readme,
-      "skill count not updated to 28")
+check("README.md skill count is 29",
+      "29 skills" in top_readme,
+      "skill count not updated to 29")
 check("README.md pipeline diagram mentions Constraint Reconciliation",
       "Constraint Reconciliation" in top_readme)
 check("README.md pipeline diagram mentions Internal Review",
