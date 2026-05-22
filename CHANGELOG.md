@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.8.0] - 2026-05-22
+
 ### Changed
 
 - th-orchestrator intent table extended with Spanish bug-fix triggers (`solucionar`, `arreglar`, `corregir`, `fixear`, `debuguear`, `regresión`, `error`) and common Spanish imperative phrasings (`corrija un bug`, `haga un fix`, `haga un hotfix`, `corregir error`). Closes a routing gap where Spanish bug-fix requests fell through to `unclear` instead of the full pipeline. PR-1 of the bug-fix pipeline design (`session-docs/bug-fix-flow/01-architecture.md`).
@@ -477,6 +479,7 @@ Initial release of the `claude-dev-team` agent system distribution.
 - `gh` — GitHub CLI (used by several skills).
 - **context7 API key** — for library docs retrieval.
 
+[2.8.0]: https://github.com/valianx/team-harness/compare/v2.7.0...v2.8.0
 [2.7.0]: https://github.com/valianx/team-harness/compare/v2.6.0...v2.7.0
 [2.6.0]: https://github.com/valianx/team-harness/compare/v2.5.1...v2.6.0
 [2.5.1]: https://github.com/valianx/team-harness/compare/v2.5.0...v2.5.1
