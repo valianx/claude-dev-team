@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Curl one-liner install (bash / PowerShell / cmd.exe)** matching the Claude Code quickstart pattern. Bootstrap scripts published to `https://valianx.github.io/team-harness/install.{sh,ps1,cmd}` via a new `.github/workflows/pages.yml` workflow triggered on release. New `bin/install.cmd` for legacy Windows cmd.exe hosts.
+
+### Changed
+
+- **Installer binary is now self-contained via `go:embed`** — agents, skills, and hooks are embedded in the binary at compile time (`//go:embed agents skills hooks` in `assets.go` at the repo root). The binary reads from the embedded FS at runtime and does not require a clone of the repo. Assets are pinned to the release tag for deterministic versioning.
+- **Bootstrap scripts simplified to deterministic-URL pattern** — `bin/install.sh` and `bin/install.ps1` now use `https://github.com/valianx/team-harness/releases/latest/download/install-{os}-{arch}` directly instead of calling the GitHub Releases API (`api.github.com`) and parsing JSON. Removes the unauthenticated rate-limit exposure (60/hour) and the brittle `grep '"tag_name"' | cut -d'"' -f4` parse.
+- **Clone-and-run path updated** — `bin/install.sh` and `bin/install.ps1` now download the released binary (same as the curl one-liner); contributors testing local edits use `go run ./cmd/install` (the `//go:embed` picks up working-tree bytes at compile time). `README.md §Install` foregrounds the three one-liners as the primary path; the clone path moves to the "From source / contributors" subsection.
+
+### Added
+
 - **Orchestrator stage-end notifications: 4 native OS toasts per pipeline** (after Stage 1 Analysis, Stage 2 Implementation batch, Stage 3 Verify, Stage 4 Delivery). Fires always regardless of autonomy mode and pipeline outcome. New script `hooks/notify-stage.sh` detects OS and routes to the existing per-OS `notify-{os}.sh`. Idempotent across context compaction and `/recover` via `stage.notify` event dedup in `00-execution-events.jsonl` (structured JSON parse, not regex — eliminates false-positive risk). Independent of the ultra-quiet hook preset (PR #26) — the preset controls Claude Code hook events; these toasts are fired directly by the orchestrator's `Bash` tool. New `## Stage-end notification protocol` section in `agents/orchestrator.md` documents the toast mapping table, JSON payload schema, JSONL event schema, idempotency mechanism, input sanitisation contract, and failure-safety guarantee.
 
 ### Changed
