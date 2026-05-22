@@ -54,4 +54,17 @@ fi
 chmod +x "$TMP/install"
 
 echo "Launching installer..."
-exec "$TMP/install" "$@"
+"$TMP/install" "$@"
+exit_code=$?
+
+# Keep the terminal open if a controlling terminal is available, so the
+# operator can read the install summary in environments that close the
+# terminal on shell exit (Terminal.app "Run command", double-clicked
+# .command files, IDE-launched shells). Gated on /dev/tty existence so
+# CI / scripted contexts (no controlling tty) skip the pause entirely.
+if [ -e /dev/tty ]; then
+    printf '\nPress Enter to close...'
+    read -r _ </dev/tty 2>/dev/null || true
+fi
+
+exit "$exit_code"

@@ -26,7 +26,9 @@ func getContext7APIKey() string {
 	if !forceFlag && isValidContext7Key(existingKey) {
 		// Non-interactive (CI / scripted re-installs): preserve silently
 		// unless env explicitly overrides with a different value.
-		if !isTerminal() {
+		// hasInteractiveInput also checks /dev/tty so curl | bash users
+		// (stdin is a pipe but /dev/tty is available) reach the prompt.
+		if !hasInteractiveInput() {
 			if envKey != "" && envKey != existingKey {
 				fmt.Println("  context7 API key: existing key differs from env; using env (non-interactive).")
 				return envKey

@@ -39,6 +39,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `skills/review-pr.md` gains `--multi` / `--reviewers <focuses>` flags; auto-suggest (>1500 lines OR >8 files → one info line, no cost warning); parallel focused reviewer dispatch; consolidation step; re-review continuity; Step 15.1 full focus-draft cleanup. No cost-warning UI per operator override Q-18.
 - `agents/ref-direct-modes.md` Review Mode gains `Mode: review-consolidate` routing and Step 2d (Consolidation).
 
+### Fixed
+
+- **Installer terminal closes on Mac/Linux after install** (`bin/install.sh`): replaced `exec` with subprocess invocation + final "Press Enter to close" prompt gated on `/dev/tty` availability. Operators running via terminal launchers that close on shell exit (`Terminal.app "Run command"`, double-clicked `.command` files, IDE-launched shells) now see the install summary and can review it before closing. CI / no-tty contexts skip the prompt silently. Exit code from the installer propagates correctly.
+- **Installer silently preserves existing config on `curl | bash`** (`cmd/install/prompts.go`, `cmd/install/context7.go`): the Keep/Change menu for existing Memory MCP URL and context7 API key was skipped when stdin was piped (curl | bash case), even though `/dev/tty` was available for interactive input. Added `hasInteractiveInput()` helper that considers either stdin TTY or `/dev/tty` as interactive, and switched the relevant gates to use it. Operators running `curl | bash` with existing valid config now get the Keep/Change menu and can edit their settings. True non-interactive contexts (CI) still preserve silently.
+
 ## [2.9.4] - 2026-05-22
 
 ### Fixed

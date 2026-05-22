@@ -48,7 +48,9 @@ func promptMemoryMCPURL() MemoryMCPChoice {
 
 			// Non-interactive (CI / scripted re-installs): preserve silently
 			// so an automated re-run doesn't break on a Keep/Change prompt.
-			if !isTerminal() {
+			// hasInteractiveInput also checks /dev/tty so curl | bash users
+			// (stdin is a pipe but /dev/tty is available) reach the prompt.
+			if !hasInteractiveInput() {
 				fmt.Printf("  Memory MCP URL: preserving existing %s (non-interactive)\n", existingURL)
 				return MemoryMCPChoice{URL: existingURL, BearerToken: existingBearer, Preserved: true}
 			}
