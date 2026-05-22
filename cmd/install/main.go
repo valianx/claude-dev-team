@@ -50,7 +50,6 @@ func main() {
 
 	fmt.Println("Checking dependencies...")
 	checkDependencies()
-	fmt.Println("  gh: ok")
 	fmt.Println()
 
 	fmt.Println("context7 setup:")
@@ -118,11 +117,10 @@ func resolveClaudePaths() {
 	claudeJSON = fmt.Sprintf("%s/.claude.json", home)
 }
 
-// checkDependencies ensures required CLI tools are in PATH.
+// checkDependencies checks CLI tools used by agents and skills at runtime.
+// gh is recommended (graceful fallback paths exist) but not required.
 func checkDependencies() {
-	// uv is only needed by the deprecated Python installer; the Go binary doesn't
-	// require it.  We still check for gh, which is used by skills at runtime.
-	requireCLI("gh", "Install GitHub CLI: https://cli.github.com/")
+	warnCLI("gh", "Install GitHub CLI: https://cli.github.com/")
 }
 
 // backupClaudeJSON copies ~/.claude.json to a timestamped backup.

@@ -2967,8 +2967,22 @@ check(
     "installAgents must call copyEmbeddedDirRecursive to install agents/_shared/ tree",
 )
 
-# Checks 10-15 (consumer cross-references and warnCLI) are added in their
-# respective PRs (PR-2 through PR-6) where the actual changes land.
+# (10) installer warnCLI function exists (gh downgraded from required to recommended).
+_util_go = read(REPO_ROOT / "cmd" / "install" / "util.go")
+_main_go_pr2 = read(REPO_ROOT / "cmd" / "install" / "main.go")
+check(
+    "cmd/install/util.go declares warnCLI function",
+    "func warnCLI" in _util_go,
+    "warnCLI function missing from util.go — gh must be recommended, not required",
+)
+check(
+    "cmd/install/main.go calls warnCLI (not requireCLI) for gh",
+    "warnCLI" in _main_go_pr2 and 'requireCLI("gh"' not in _main_go_pr2,
+    "main.go still calls requireCLI for gh — must downgrade to warnCLI",
+)
+
+# Checks 11-15 (consumer cross-references) are added in their
+# respective PRs (PR-3 through PR-6) where the actual changes land.
 
 # ---------------------------------------------------------------------------
 # Summary

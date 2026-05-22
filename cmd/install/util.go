@@ -18,6 +18,19 @@ func requireCLI(cmd, hint string) {
 	}
 }
 
+// warnCLI prints a non-fatal note when a recommended CLI is missing.
+// Unlike requireCLI it does NOT exit — the installer continues and the
+// agent/skill fallback paths handle the missing tool at runtime.
+func warnCLI(cmd, hint string) {
+	if _, err := exec.LookPath(cmd); err != nil {
+		fmt.Printf("  [note] '%s' not found — recommended but not required.\n", cmd)
+		fmt.Printf("         Skills /issue, /deliver, /review-pr will fall back to manual paths.\n")
+		fmt.Printf("         %s\n", hint)
+		return
+	}
+	fmt.Printf("  %s: ok\n", cmd)
+}
+
 // readLineFrom reads a single line from scan, trimming the trailing newline.
 func readLineFrom(scan *bufio.Scanner) string {
 	if scan.Scan() {
