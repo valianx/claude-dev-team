@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -89,97 +90,128 @@ func transformAgentFile(srcBytes []byte, agentName string, mode InstallMode) []b
 		return srcBytes
 	}
 
-	// Locate the frontmatter block: must start with "---\n" at byte 0, then
-	// find the first "\n---\n" (or "\n---" at EOF) after position 3.
-	if !bytes.HasPrefix(srcBytes, []byte("---\n")) {
+	// Locate the frontmatter block. Accept both LF ("---\n") and CRLF
+	// ("---\r\n") openers — Windows with core.autocrlf=true produces CRLF
+	// in checked-out .md files, and we must not silently fall through on the
+	// target platform.
+	hasCRLF := bytes.HasPrefix(srcBytes, []byte("---\r\n"))
+	hasLF := bytes.HasPrefix(srcBytes, []byte("---\n"))
+	if !hasCRLF && !hasLF {
 		fmt.Fprintf(os.Stderr, "  [warn] transformAgentFile(%s): no opening frontmatter '---'; leaving unchanged\n", agentName)
 		return srcBytes
 	}
 
-	// Find the closing --- of the frontmatter. We search from position 4 so
+	// preambleLen is the byte length of the opening fence including its newline.
+	preambleLen := 4 // "---\n"
+	if hasCRLF {
+		preambleLen = 5 // "---\r\n"
+	}
+
+	// lineEnding is the newline sequence detected from the first line.
+	// All output from rewriteFrontmatterLines will use this separator so that
+	// a CRLF-encoded file is never silently normalised to LF (which would
+	// mutate the bytes and trigger spurious conflict on re-install).
+	lineEnding := "\n"
+	if hasCRLF {
+		lineEnding = "\r\n"
+	}
+
+	// Find the closing --- of the frontmatter. We search from preambleLen so
 	// the opening marker itself is not matched.
-	fmEnd := findFrontmatterEnd(srcBytes)
+	fmEnd := findFrontmatterEnd(srcBytes, preambleLen)
 	if fmEnd < 0 {
 		fmt.Fprintf(os.Stderr, "  [warn] transformAgentFile(%s): no closing frontmatter '---'; leaving unchanged\n", agentName)
 		return srcBytes
 	}
 
-	// fmEnd points at the '\n' that precedes the closing "---" fence.
+	// fmEnd points at the '\n' (or '\r') that precedes the closing "---" fence.
 	// Split into three regions:
-	//   preamble  = "---\n"                        (bytes 0..3)
-	//   fmBody    = YAML lines, no trailing '\n'   (bytes 4..fmEnd-1)
-	//   suffix    = "---\n" + rest of file         (bytes fmEnd+1..)
+	//   preamble  = "---\n" or "---\r\n"          (bytes 0..preambleLen-1)
+	//   fmBody    = YAML lines, no trailing newline (bytes preambleLen..fmEnd-1)
+	//   suffix    = "---\n" + rest of file          (bytes fmEnd+1..)
 	//
-	// We skip the '\n' at fmEnd when reconstructing so the rewritten lines
-	// (each ending with '\n') directly adjoin the closing "---" without an
-	// extra blank line.
-	frontmatter := srcBytes[4:fmEnd]  // YAML lines, no trailing '\n'
-	suffix := srcBytes[fmEnd+1:]      // "---\n" + prompt body
+	// For CRLF the '\r' before the closing fence newline is part of fmEnd, so
+	// we step back one extra byte when slicing fmBody to exclude it.
+	fmBodyEnd := fmEnd
+	if hasCRLF && fmBodyEnd > preambleLen && srcBytes[fmBodyEnd-1] == '\r' {
+		fmBodyEnd--
+	}
+	frontmatter := srcBytes[preambleLen:fmBodyEnd] // YAML lines, no trailing newline
+	suffix := srcBytes[fmEnd+1:]                   // "---\n" or "---\r\n" + prompt body
 
-	rewritten := rewriteFrontmatterLines(frontmatter, override)
+	rewritten := rewriteFrontmatterLines(frontmatter, override, lineEnding)
 	var out bytes.Buffer
-	out.WriteString("---\n")
+	out.WriteString("---" + lineEnding)
 	out.Write(rewritten)
 	out.Write(suffix)
 	return out.Bytes()
 }
 
 // findFrontmatterEnd locates the end of the frontmatter block in src.
-// The opening "---\n" at position 0 must already have been confirmed by the caller.
-// Returns the byte offset of the '\n' that immediately precedes the closing "---"
-// line, or -1 if no closing fence is found.
+// The opening "---\n" or "---\r\n" at position 0 must already have been
+// confirmed by the caller. preambleLen is the byte length of that opener
+// (4 for LF, 5 for CRLF). Returns the byte offset of the '\n' (or '\r' for
+// CRLF files) that immediately precedes the closing "---" line, or -1 if no
+// closing fence is found.
 //
-// Example: "---\nkey: val\n---\nrest" → returns offset of the '\n' before the
-// second "---", i.e. the '\n' after "key: val".
-func findFrontmatterEnd(src []byte) int {
-	// We look for "\n---" starting at offset 4 (after the opening "---\n").
+// Example (LF): "---\nkey: val\n---\nrest" → returns offset of the '\n'
+// before the second "---", i.e. the '\n' after "key: val".
+func findFrontmatterEnd(src []byte, preambleLen int) int {
+	// We look for "\n---" starting after the opening fence.
 	search := []byte("\n---")
-	idx := bytes.Index(src[4:], search)
+	idx := bytes.Index(src[preambleLen:], search)
 	if idx < 0 {
 		return -1
 	}
-	// idx is relative to src[4:]. Convert back to absolute and point at the '\n'.
-	return 4 + idx
+	// idx is relative to src[preambleLen:]. Convert back to absolute and point at the '\n'.
+	return preambleLen + idx
 }
 
 // rewriteFrontmatterLines scans each line in the frontmatter block (the bytes
 // between the two "---" fences, not including the fences or the separating
-// newlines) and replaces lines that begin with "model:" or "effort:"
+// newlines) and replaces lines that begin with exactly "model:" or "effort:"
 // (case-sensitive, with optional leading whitespace) with the override values.
-// Every scanned line is re-emitted with a trailing '\n'. The caller is
-// responsible for not including a trailing '\n' in block (see transformAgentFile).
-func rewriteFrontmatterLines(block []byte, override AgentOverride) []byte {
+// lineEnding is the newline sequence to emit (either "\n" or "\r\n") — it is
+// preserved from the source file so that CRLF files are not silently normalised
+// to LF. The caller is responsible for not including a trailing newline in block.
+func rewriteFrontmatterLines(block []byte, override AgentOverride, lineEnding string) []byte {
 	var out bytes.Buffer
 	scanner := bufio.NewScanner(bytes.NewReader(block))
 	for scanner.Scan() {
 		line := scanner.Text()
+		// scanner.Text() strips the trailing newline (and \r for CRLF) so
+		// line contains the raw key: value content without any line endings.
 		key := strings.TrimLeft(line, " \t")
 		switch {
-		case strings.HasPrefix(key, "model:"):
-			out.WriteString("model: " + override.Model + "\n")
-		case strings.HasPrefix(key, "effort:"):
-			out.WriteString("effort: " + override.Effort + "\n")
+		case isExactKey(key, "model:"):
+			out.WriteString("model: " + override.Model + lineEnding)
+		case isExactKey(key, "effort:"):
+			out.WriteString("effort: " + override.Effort + lineEnding)
 		default:
-			out.WriteString(line + "\n")
+			out.WriteString(line + lineEnding)
 		}
 	}
 	return out.Bytes()
 }
 
+// isExactKey reports whether line starts with prefix where prefix ends in ':'
+// and the character immediately following (if any) is a space or tab.
+// This prevents false-positive matches on keys like "model_id:" or "effort_baseline:".
+func isExactKey(line, prefix string) bool {
+	if !strings.HasPrefix(line, prefix) {
+		return false
+	}
+	// The prefix ends with ':', so len(prefix) is the index right after ':'.
+	// If nothing follows, this is a bare "key:" with no value — still an exact match.
+	if len(line) == len(prefix) {
+		return true
+	}
+	next := line[len(prefix)]
+	return next == ' ' || next == '\t'
+}
+
 // agentNameFromPath derives the agent name (filename stem without extension)
 // from a filesystem path. Used by copyAgentFile to look up the matrix entry.
 func agentNameFromPath(path string) string {
-	base := path
-	// Strip directory component.
-	for i := len(path) - 1; i >= 0; i-- {
-		if path[i] == '/' || path[i] == '\\' {
-			base = path[i+1:]
-			break
-		}
-	}
-	// Strip ".md" extension.
-	if strings.HasSuffix(base, ".md") {
-		return base[:len(base)-3]
-	}
-	return base
+	return strings.TrimSuffix(filepath.Base(path), ".md")
 }

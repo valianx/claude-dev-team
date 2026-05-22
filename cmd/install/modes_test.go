@@ -194,6 +194,54 @@ func TestTransformAgentFile_LowCostMode_EmptyInput(t *testing.T) {
 	}
 }
 
+// TestTransformAgentFile_LowCostMode_CRLFInput_RewritesCorrectly verifies that
+// agent files with CRLF line endings (produced by git on Windows with
+// core.autocrlf=true, the default) are correctly transformed and that the CRLF
+// line endings are preserved verbatim in the output — not normalised to LF.
+// This is the platform-correctness test for IR-001.
+func TestTransformAgentFile_LowCostMode_CRLFInput_RewritesCorrectly(t *testing.T) {
+	// Fixture with CRLF throughout — mirrors what git checkout produces on
+	// Windows with core.autocrlf=true for a typical agent file.
+	src := []byte("---\r\nname: architect\r\nmodel: opus\r\neffort: max\r\n---\r\nBody text.\r\n")
+	got := transformAgentFile(src, "architect", ModeLowCost)
+
+	// model: must be rewritten to sonnet.
+	if !strings.Contains(string(got), "model: sonnet\r\n") {
+		t.Errorf("CRLF input: expected 'model: sonnet\\r\\n' in output; got: %q", got)
+	}
+	// effort: must be rewritten to high (architect is in the high tier).
+	if !strings.Contains(string(got), "effort: high\r\n") {
+		t.Errorf("CRLF input: expected 'effort: high\\r\\n' in output; got: %q", got)
+	}
+	// No LF-only newlines should appear — all lines must end with CRLF.
+	// A LF not preceded by CR indicates the transformer silently converted the file.
+	gotStr := string(got)
+	for i, ch := range gotStr {
+		if ch == '\n' && (i == 0 || gotStr[i-1] != '\r') {
+			t.Errorf("CRLF input: bare LF found at position %d — transformer must not normalise line endings; full output: %q", i, got)
+			break
+		}
+	}
+}
+
+// TestTransformAgentFile_LowCostMode_ModelIDKey_NotRewritten verifies that a
+// hypothetical future frontmatter key like "model_id:" is not matched by the
+// "model:" prefix check. This is the regression fixture for IR-004.
+func TestTransformAgentFile_LowCostMode_ModelIDKey_NotRewritten(t *testing.T) {
+	// Frontmatter with model_id: alongside the real model: key.
+	src := []byte("---\nname: architect\nmodel: opus\nmodel_id: 4-6\neffort: max\n---\nbody.\n")
+	got := transformAgentFile(src, "architect", ModeLowCost)
+
+	// model: must be rewritten.
+	if !strings.Contains(string(got), "model: sonnet\n") {
+		t.Errorf("expected 'model: sonnet' in output; got: %q", got)
+	}
+	// model_id: must be left untouched.
+	if !strings.Contains(string(got), "model_id: 4-6\n") {
+		t.Errorf("model_id: line was incorrectly rewritten; got: %q", got)
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Suite E — agentNameFromPath
 // ---------------------------------------------------------------------------
@@ -361,8 +409,8 @@ func TestAC5_CrossModeReinstall_WithForce_Overwrites(t *testing.T) {
 	stats.Conflicts = nil
 	copyAgentFile(srcPath, destPath, ModeStandard)
 
-	if len(stats.Installed)+len(stats.Updated) != 1 {
-		t.Errorf("cross-mode with --force must install/update; got installed=%v updated=%v conflicts=%v",
+	if len(stats.Updated) != 1 {
+		t.Errorf("cross-mode with --force must report updated (not installed); got installed=%v updated=%v conflicts=%v",
 			stats.Installed, stats.Updated, stats.Conflicts)
 	}
 
