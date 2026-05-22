@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Bug-fix Pipeline**: dedicated flow for `type: fix` and `type: hotfix` that produces the full session-docs artifact set (same backbone as feature flow), with new artifacts `01-root-cause.md` (architect's focused root-cause analysis, 1pg max) and `02-regression-test.md` (tester's failing test authored BEFORE implementer runs). Security agent runs always for bugs (overrides the conditional `security-sensitive` flag). plan-reviewer gains Rules 7 + 8 for regression-test gating. Implementer enforces scope discipline (zero tangential refactors). Type-classified by intent triggers from v2.8.0; operator-facing surface is unchanged (no new slash command — `/hotfix` deferred to v2).
+
 ### Fixed
 
 - GitHub Pages landing version had drifted from `v2.3.0` across releases v2.4.0 through v2.8.0 because the version was hardcoded in `site/index.html` and not bumped at release time. The `pages.yml` workflow now extracts the version from `cmd/install/main.go` and substitutes a `{{VERSION}}` placeholder into the published landing at every publish event. The page is now self-correcting on every release; no manual bump required.

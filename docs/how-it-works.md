@@ -52,6 +52,24 @@ PRs run in parallel rounds computed from their `Depends on:` field (round 1 is e
 
 ---
 
+## Bug-fix flow (type: fix and type: hotfix)
+
+When the th-orchestrator classifies a request as `type: fix` or `type: hotfix` (via signals like `bug`, `solucionar`, `arreglar`, `corregir`, `regresión`, urgency markers, or GitHub `bug` label), the pipeline runs the **Bug-fix Pipeline** — the same 3-stage shell as feature flow, with type-specific content shifts. Nothing is stripped from the session-docs backbone; every artifact a feature produces is also produced for a bug fix.
+
+| Stage | Bug-fix difference |
+|---|---|
+| Stage 1 — Analysis | The architect runs in **root-cause mode** and produces `01-root-cause.md` (1 page max, focused on file:line + mechanism + scope) instead of `01-architecture.md`. plan-reviewer gains Rules 7 + 8 (Regression Test Approach declared in `01-root-cause.md`; regression test cross-referenced in every PR's AC). |
+| Phase 2.0 — Regression Test (NEW, between STAGE-GATE-1 and Phase 2) | The tester authors a **failing test** in `02-regression-test.md` BEFORE the implementer touches source code. The test becomes the implementer's contract. Mandatory always; there is no fallback. |
+| Stage 2 — Implementation | The implementer runs under a **scope-discipline contract**: zero tangential refactors, no "while I'm here" cleanups. Spotted issues go to `## Follow-ups Spotted`, not into the diff. |
+| Stage 2 — Verify | `security` agent runs **always** in parallel with `tester` and `qa`, regardless of any other criterion. Defense-in-depth: many bugs have non-obvious security implications. |
+| Stage 3 — Delivery | CHANGELOG entry goes under `### Fixed`. PR title is `fix(area): <summary>` (or `... (hotfix)` for hotfix). PR body includes a mandatory **Bug Report** section with reproduction steps + root cause + regression test path. `Fixes #N` triggers GitHub's auto-close. |
+
+For `type: hotfix`: Phase 1 (architect root-cause) is skipped entirely; the th-orchestrator emits a one-sentence prose plan at STAGE-GATE-1 instead. Phase 2.0 (regression test) is still mandatory.
+
+Full flow definition: [`agents/ref-special-flows.md`](../agents/ref-special-flows.md) § Bug-fix Flow.
+
+---
+
 ## Resume any time
 
 All state lives in files. `/recover {feature-name}` reads `00-state.md` and continues from `next_action`. Works across compactions, across sessions, across machines (as long as `session-docs/` travels with the repo).

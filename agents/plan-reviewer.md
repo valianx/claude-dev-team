@@ -83,16 +83,21 @@ None of these can be audited by `qa` or `acceptance-checker` without folding pla
 
 1. **Glob `session-docs/{feature-name}/`** — confirm the folder exists. If it doesn't, return `status: blocked` immediately with `issues: session-docs not found`.
 
-2. **Read these three files in this order:**
+2. **Determine the design doc filename from the `type` field** in the task payload (sourced from `00-state.md`):
+   - `type: feature | refactor | enhancement` → design doc is `01-architecture.md`.
+   - `type: fix` → design doc is `01-root-cause.md`. (Bug-fix Flow — Rules 7 + 8 are active.)
+   - `type: hotfix` → there is no design doc; Phase 1 was skipped. Rules 7 + 8 still apply against `02-task-list.md` (Rule 8 only — Rule 7 has nothing to audit). The th-orchestrator should have skipped Phase 1.6 entirely for hotfix per `ref-special-flows.md`; if you are invoked for a hotfix, audit only `00-task-intake.md` + `02-task-list.md`.
+
+3. **Read these files in this order:**
    - `00-task-intake.md` — for the original list of services and feature ACs (used by Rule 5 service-identity).
-   - `01-architecture.md` — for the design proposal, Work Plan, and `## Services Touched` section.
-   - `02-task-list.md` — for the PR list with `Service:`, `Split reason:`, `Files:`, `Acceptance Criteria:` fields.
+   - `01-architecture.md` OR `01-root-cause.md` (per the `type` field) — for the design proposal, Work Plan, and `## Services Touched` section. **For `type: fix`, also read the `## Regression Test Approach` section (Rule 7) and the `## Bug Location` / `## Scope of Fix` sections.**
+   - `02-task-list.md` — for the PR list with `Service:`, `Split reason:`, `Files:`, `Acceptance Criteria:` fields. **For `type: fix` / `type: hotfix`, cross-check the regression-test AC reference per Rule 8.**
 
-3. **Do NOT read** `00-research.md`, `00-audit.md`, `01-planning.md`, `02-implementation.md`, `03-testing.md`, `04-validation.md`, source code, or any other file. Plan-shape rules are policy on the three files above; reading more is wasted work.
+4. **Do NOT read** `00-research.md`, `00-audit.md`, `01-planning.md`, `02-implementation.md`, `02-regression-test.md`, `03-testing.md`, `04-validation.md`, source code, or any other file. Plan-shape rules are policy on the files above; reading more is wasted work. Rule 8 cross-checks against the regression-test AC text in `02-task-list.md`, not against `02-regression-test.md` itself (which does not yet exist at Phase 1.6).
 
-4. **Do NOT write to** any session-doc except `01-plan-review.md`.
+5. **Do NOT write to** any session-doc except `01-plan-review.md`.
 
-5. **Write your output** to `session-docs/{feature-name}/01-plan-review.md` when done. Overwrite if it exists — never append.
+6. **Write your output** to `session-docs/{feature-name}/01-plan-review.md` when done. Overwrite if it exists — never append.
 
 ---
 
@@ -268,17 +273,79 @@ if 01-architecture.md's index_of(## Decisions for human review) > index_of(## Do
 
 **Override:** the architect may add a `Plan-reviewer override: Rule 6 — {one-line justification}` block inside the affected section to degrade `fail` to `concerns`. Overuse is itself a smell — the human sees it at the gate.
 
+### Rule 7 — Regression Test Approach declared (Bug-fix Flow only)
+
+**Gating:** Rule 7 fires **only** when the task payload declares `type: fix` or `type: hotfix` (the th-orchestrator passes the `type` field from `00-state.md` in the task payload). For `type: feature | refactor | enhancement | research | spike` this rule is a no-op.
+
+**What to check (`type: fix`):**
+
+1. The design doc for bug-fix is `01-root-cause.md` (not `01-architecture.md`). The plan-reviewer reads `01-root-cause.md` instead of `01-architecture.md` when `type: fix`.
+2. `01-root-cause.md` MUST contain a `## Regression Test Approach` section with three required sub-fields:
+   - `Test layer:` — value MUST be one of `unit | integration | e2e`. **The legacy `manual-repro-script` value is rejected per operator override; if present, this is a Rule 7 fail finding with reason "manual-repro-script fallback rejected — operator override mandates regression test always."**
+   - `Test scaffold:` — non-empty description of fixtures, mocks, or environment needed.
+   - `Failing assertion:` — non-empty description of the specific assertion that fails today and passes after the fix.
+3. **Size check.** `01-root-cause.md` body should be ≤120 lines total (excluding tables and the TL;DR). `>120 lines` is a `concerns` finding (signals the analysis is over-scoped — bug-fix design should be focused).
+
+**What to check (`type: hotfix`):**
+
+`type: hotfix` has no `01-root-cause.md` (Phase 1 is skipped). Rule 7 against `01-root-cause.md` is a no-op for hotfix. The th-orchestrator's one-sentence prose plan inline at STAGE-GATE-1 substitutes for the doc; that prose is not subject to Rule 7 audit (it is a runtime artifact, not a session-doc deliverable).
+
+**Detection:**
+
+- Find `## Regression Test Approach` in `01-root-cause.md`. If absent → finding `"Rule 7: ## Regression Test Approach section missing from 01-root-cause.md"` with severity `fail`.
+- Find the three required sub-fields within that section. Any missing → finding `"Rule 7: sub-field 'Test layer:' (or 'Test scaffold:' / 'Failing assertion:') missing from ## Regression Test Approach"` with severity `fail`.
+- Parse the value of `Test layer:`. If it is not in `{unit, integration, e2e}` → finding with severity `fail`. If the value is `manual-repro-script`, the finding wording is `"Rule 7: manual-repro-script fallback is rejected per operator override; regression test is mandatory always"`.
+- Count body lines of `01-root-cause.md` excluding the `## TL;DR` body and any tables. If >120 → finding `"Rule 7: 01-root-cause.md body is {N} lines (>120) — analysis is over-scoped; trim or split"` with severity `concerns`.
+
+**Severity:** `fail` for missing section / sub-field / invalid Test layer value. `concerns` for size overflow.
+
+**Override:** the architect may NOT override Rule 7 to bypass the mandatory regression test — the operator override is firm. Size-overflow `concerns` is not blocking but is surfaced at STAGE-GATE-1.
+
+### Rule 8 — Regression test cross-reference in task list (Bug-fix Flow only)
+
+**Gating:** Rule 8 fires **only** when the task payload declares `type: fix` or `type: hotfix`. For other types this rule is a no-op.
+
+**What to check:**
+
+For each PR in `02-task-list.md`, the AC block MUST include an AC of the form:
+
+```
+- [ ] **AC-N**: VERIFY: regression test exists at <path>
+```
+
+or, before Phase 2.0 runs (the test does not yet exist):
+
+```
+- [ ] **AC-N**: VERIFY: regression test exists at <TBD-Phase-2.0>
+```
+
+The `<TBD-Phase-2.0>` placeholder is **valid at STAGE-GATE-1** (the test does not yet exist). After Phase 2.0 closes, the th-orchestrator mutates the placeholder in `02-task-list.md` to the actual `regression_test_path`. Rule 8 is re-evaluated at the next plan-review trigger (if any iteration occurs); at STAGE-GATE-1 the placeholder counts as compliant.
+
+**Detection:**
+
+For each PR section in `02-task-list.md`:
+- Search the `### Acceptance Criteria` block for a line matching `- [ ] **AC-\d+**: VERIFY: regression test exists at (.+)$`.
+- If no match → finding `"Rule 8: PR-{id} has no AC referencing the regression test path"` with severity `fail`.
+- If a match exists with path `<TBD-Phase-2.0>` → pass (placeholder accepted at this gate).
+- If a match exists with a concrete path → check that path against `02-regression-test.md` → `regression_test_path` (if `02-regression-test.md` exists). Mismatch → finding `"Rule 8: PR-{id} AC declares regression test at {path-in-task-list} but 02-regression-test.md declares {actual-path}"` with severity `fail`.
+
+**Severity:** `fail`. The Phase 2.0 → Phase 2 contract relies on this AC being part of every PR's contract; missing it breaks the chain.
+
+**Override:** the architect may NOT override Rule 8 to skip the regression-test AC reference — the operator override mandates regression test always, and Rule 8 is the structural anchor.
+
 ---
 
 ## Verdict Calibration
 
 | Verdict | When |
 |---|---|
-| `pass` | Zero findings. All six rules satisfied. |
-| `concerns` | Findings exist but all are in rules 3, 4, 5 (document shape, cross-ref hygiene, identity declaration) or rule 6 overflow/order (sections exist but bloated or out of order), OR findings in rules 1, 2, 6-missing carry valid `Plan-reviewer override:` notes. The plan is structurally OK to be reviewed by the human; the th-orchestrator surfaces concerns and proceeds to STAGE-GATE-1. The human can still reject. |
-| `fail` | Any finding in rule 1 (PR-count), rule 2 (per-PR ACs), or rule 6 missing-section without an override. These are core contract violations: rules 1-2 because the plan is structurally wrong for downstream agents; rule 6 because the human has no entry point at the gate. The th-orchestrator routes back to architect with the list of findings and re-runs Phase 1.6 after the architect's revision. Counts toward iteration budget (max 3 round trips). |
+| `pass` | Zero findings. All applicable rules satisfied (Rules 1-6 always; Rules 7-8 when `type: fix | hotfix`). |
+| `concerns` | Findings exist but all are in rules 3, 4, 5 (document shape, cross-ref hygiene, identity declaration), rule 6 overflow/order (sections exist but bloated or out of order), or rule 7 size overflow (>120 lines in `01-root-cause.md`), OR findings in rules 1, 2, 6-missing carry valid `Plan-reviewer override:` notes. The plan is structurally OK to be reviewed by the human; the th-orchestrator surfaces concerns and proceeds to STAGE-GATE-1. The human can still reject. |
+| `fail` | Any finding in rule 1 (PR-count), rule 2 (per-PR ACs), rule 6 missing-section without an override, **rule 7 missing section / missing sub-field / invalid Test layer value / `manual-repro-script` value** (Bug-fix Flow), or **rule 8 missing regression-test AC reference** (Bug-fix Flow). These are core contract violations. The th-orchestrator routes back to architect with the list of findings and re-runs Phase 1.6 after the architect's revision. Counts toward iteration budget (max 3 round trips). |
 
-**Tie-breaker:** when in doubt between `concerns` and `fail`, ask: "is this a rule the team set as 'must hold before human review'?" Rules 1, 2, and 6-missing are; rules 3, 4, 5, and 6-overflow/order are not.
+**Tie-breaker:** when in doubt between `concerns` and `fail`, ask: "is this a rule the team set as 'must hold before human review'?" Rules 1, 2, 6-missing, 7-structural, and 8 are; rules 3, 4, 5, 6-overflow/order, and 7-size-overflow are not.
+
+**Rules 7 and 8 are no-ops for non-bug-fix types.** When the task payload declares `type: feature | refactor | enhancement | research | spike`, Rules 7 and 8 do not fire (zero findings, no severity assigned). The plan-reviewer determines applicability from the `type` field passed in the task payload (sourced from `00-state.md`).
 
 ---
 
@@ -301,6 +368,8 @@ Write the audit report to `session-docs/{feature-name}/01-plan-review.md`. **Ove
 | 4 — Cross-reference integrity | {N} | concerns |
 | 5 — Service identity | {N} | concerns |
 | 6 — Human-readability sections | {N} | mixed (missing=fail, overflow/order=concerns) |
+| 7 — Regression Test Approach (Bug-fix) | {N} | mixed (structural=fail, size=concerns); no-op for non-fix |
+| 8 — Regression test AC cross-ref (Bug-fix) | {N} | fail-blocking; no-op for non-fix |
 | **Total** | **{N}** | — |
 
 ## Findings
@@ -336,6 +405,19 @@ Write the audit report to `session-docs/{feature-name}/01-plan-review.md`. **Ove
 - 02-task-list.md:{line} — `## Summary` table absent or empty (FAIL).
 - 01-architecture.md: `## TL;DR` is not the first section (CONCERNS).
 (or "None — TL;DR / Decisions / Summary all present, sized appropriately, and ordered correctly.")
+
+### Rule 7 — Regression Test Approach (Bug-fix Flow only)
+- 01-root-cause.md: `## Regression Test Approach` section missing (FAIL).
+- 01-root-cause.md:{line} — sub-field `Test layer:` is `manual-repro-script` — fallback rejected per operator override (FAIL).
+- 01-root-cause.md: body is {N} lines (>120) — analysis is over-scoped; trim or split (CONCERNS).
+(or "Not applicable — `type` is `feature | refactor | ...`. Rule 7 is a no-op for non-bug-fix types.")
+(or "None — Regression Test Approach is present with all three sub-fields and Test layer is a valid value.")
+
+### Rule 8 — Regression test AC cross-reference (Bug-fix Flow only)
+- 02-task-list.md:{line} — PR-{id} has no AC referencing the regression test path (FAIL).
+- 02-task-list.md:{line} — PR-{id} AC declares regression test at `{path-A}` but `02-regression-test.md` declares `{path-B}` — mismatch (FAIL; only checked after Phase 2.0 has run).
+(or "Not applicable — `type` is `feature | refactor | ...`. Rule 8 is a no-op for non-bug-fix types.")
+(or "None — every PR's AC block references the regression test path (or `<TBD-Phase-2.0>` placeholder before Phase 2.0).")
 
 ### Overrides honoured
 - PR-{id}: `Plan-reviewer override: <one-line justification>` on Rule {N}. Finding kept; severity degraded from fail to concerns.
@@ -382,6 +464,8 @@ findings:
   - rule-4: {count}
   - rule-5: {count}
   - rule-6: {count}
+  - rule-7: {count}    # Bug-fix Flow; reports 0 when type is not fix/hotfix
+  - rule-8: {count}    # Bug-fix Flow; reports 0 when type is not fix/hotfix
 human_entry_points:
   tldr: {true|false}
   decisions_for_human_review: {true|false}

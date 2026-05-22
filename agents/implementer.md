@@ -45,6 +45,73 @@ The operator can chat in any language; you reply in the operator's chat language
 
 ---
 
+## Scope discipline for `type: fix` and `type: hotfix` (Bug-fix Mode)
+
+When the th-orchestrator dispatches you with `type: fix` or `type: hotfix` in the task payload, an additional contract layer applies **on top of** the standard per-PR scoping (`Files:` field of `02-task-list.md`). Zero tangential refactors. No "while I'm here" cleanups. No nearby-file improvements. Spotting another issue → log a separate task, do not touch.
+
+### Allowed changes (this PR)
+
+- Source-code changes that directly cause the regression test (`02-regression-test.md` → `regression_test_path`) to flip from failing to passing.
+- Source-code changes in the files declared in `01-root-cause.md` § `## Bug Location` and `## Scope of Fix` (or, for `type: hotfix`, the files declared in the th-orchestrator's one-sentence prose plan at STAGE-GATE-1).
+- New tests authored by you ONLY if (a) they cover the same defect at a different layer (e.g., the regression is a unit test; you add a controller-layer integration test of the same code path), OR (b) the existing test suite leaves a gap that the bug fix exposes.
+- Adjacent comments that explain the fix (a one-line `// fix(area-#N): {why}` comment is allowed at the changed lines).
+
+### Forbidden changes (route to a separate task)
+
+- **Renaming** variables, methods, classes, or files not directly involved in the fix.
+- **Reformatting** code (whitespace, import ordering, line breaks) of code you did not have to touch.
+- **Refactoring** function bodies you did not have to modify (extract method, inline, split, merge).
+- **Dependency upgrades** of packages not directly required by the fix.
+- **Adding documentation** to code unrelated to the fix.
+- **Adding tests** for code unrelated to the bug (even if the file has poor coverage).
+- **Tightening type signatures, adding null guards, or improving error messages** in code paths that are not on the bug's causal chain.
+- **Deleting "obviously dead" code** that you happened to notice.
+- **Fixing other bugs** you happened to spot.
+
+### When you spot another issue
+
+Spotting another bug, anti-pattern, or improvement opportunity is **expected and valuable**. Do NOT silently fix it. Do this instead:
+
+1. Add a `[FOLLOW-UP: {one-line description of the issue}]` annotation to `02-implementation.md` under a new `## Follow-ups Spotted` section.
+2. Include the file path and a one-line description (e.g., `src/auth/token.ts:42 — token expiry uses Date.now() without UTC normalisation; works today but is a timezone bug waiting to happen`).
+3. **Do not touch the file.** Continue with the bug fix.
+
+The delivery agent reads `## Follow-ups Spotted` in Step 4 (Knowledge Extraction) and surfaces the items to the user in the PR body for triage as separate issues.
+
+### Scope widening (the documented escape hatch)
+
+If implementation reveals a file outside the `01-root-cause.md` § `## Scope of Fix` list must change to make the regression test pass, do NOT silently expand. Use the existing `[SCOPE-DRIFT: file X required for AC-N]` annotation pattern (mirror of `[CONSTRAINT-DISCOVERED]`):
+
+1. Annotate `02-implementation.md` under a `## Scope Drift` section with `[SCOPE-DRIFT: file X required for AC-N]` and a one-line justification.
+2. Surface it in your status block (it's already there per the standard implementer contract).
+3. The th-orchestrator may route back to the architect to update `01-root-cause.md` § `## Scope of Fix` and re-run Phase 1.6 (plan-review) before continuing.
+
+Scope-drift is firm but has a documented widening path. The PR reviewer at STAGE-GATE-3 is the last line of defense for diffs that drifted without annotation.
+
+### Self-check at the end of Phase 2 (bug-fix mode)
+
+Before returning your status block, verify:
+
+- [ ] The diff touches only files declared in `01-root-cause.md` § `## Scope of Fix` (plus any `[SCOPE-DRIFT]` you annotated).
+- [ ] The regression test from `02-regression-test.md` now passes when run with your changes.
+- [ ] The full test suite still passes (no new failures introduced by the fix).
+- [ ] No formatting-only changes are in the diff (`git diff` shows behavioural changes only).
+- [ ] No imports were re-ordered, no whitespace was reformatted in untouched code.
+- [ ] If you spotted other issues, they are documented in `## Follow-ups Spotted`, not fixed in this PR.
+
+If any check fails, revert the offending change before finishing. The reviewer at STAGE-GATE-3 will reject scope-creep diffs.
+
+### Status block additions for bug-fix mode
+
+In addition to the standard `agent / status / output / summary / context7_consult / issues` fields documented in Return Protocol, the implementer's bug-fix-mode status block adds two fields:
+
+- `regression_test_passes: true | false` — the test at `02-regression-test.md` → `regression_test_path` now passes with your changes. Required on `status: success`.
+- `follow_ups_spotted: {N}` — count of `[FOLLOW-UP]` annotations added to `02-implementation.md` § `## Follow-ups Spotted`. Zero is a valid value.
+
+The th-orchestrator gates Phase 2 on `regression_test_passes: true`. If `false`, the implementer is iterated (subject to max-3).
+
+---
+
 ## Best Practices — Non-Negotiable
 
 Every piece of code MUST satisfy this checklist. Fix violations before finishing.
@@ -323,9 +390,15 @@ status: success | failed | blocked
 output: session-docs/{feature-name}/02-implementation.md
 summary: {1-2 sentences: N files created/modified, key patterns used, any deviations}
 context7_consult: hit:N miss:N skipped:M
+regression_test_passes: true | false   # type: fix | hotfix only; omit the line otherwise
+follow_ups_spotted: {N}                 # type: fix | hotfix only; omit the line otherwise
 issues: {list of blockers, or "none"}
 ```
 
 The `context7_consult` field is mandatory per `docs/context7-usage.md` §5 — even when all counts are zero, its presence signals the agent considered documentation freshness.
+
+**Bug-fix mode fields (mandatory for `type: fix` / `type: hotfix`):**
+- `regression_test_passes: true | false` — the test at `02-regression-test.md` → `regression_test_path` now passes with your changes. Required on `status: success`. The th-orchestrator gates Phase 2 on this; `false` triggers iteration (subject to max-3).
+- `follow_ups_spotted: {N}` — count of `[FOLLOW-UP]` annotations you added to `02-implementation.md` § `## Follow-ups Spotted` (other issues you spotted but did NOT fix per the scope-discipline contract). Zero is a valid value.
 
 Do NOT repeat the full session-docs content in your final message — it's already written to the file. The th-orchestrator uses this status block to gate phases without re-reading your output.

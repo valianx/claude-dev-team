@@ -407,6 +407,24 @@ Responsive Criteria:
 
 **Spec annotations:** If any AC still has a `[CONSTRAINT-DISCOVERED]` tag (wasn't reconciled by the th-orchestrator), treat the annotation as context — validate against the AC as written but note the discrepancy in your report under Warnings.
 
+### Bug-fix mode contract (validate mode for type: fix and type: hotfix)
+
+When the task payload declares `type: fix` or `type: hotfix`, two additional validations apply on top of the standard AC-vs-code check:
+
+1. **AC-1 (reproduction-no-longer-bug):** read the `## Bug Report` block of `00-task-intake.md` (specifically `### Reported behaviour` and `### Expected behaviour` and `### Reproduction steps`). Verify the implementation's behaviour matches the Expected behaviour. Set `reproduction_steps_validated: true` in your status block on confirmation. This is read-only AC validation — you do NOT execute the reproduction steps yourself; the tester's regression test in Phase 3 already covers the deterministic case. Your job is to confirm the per-AC mapping in `04-validation.md` cross-references the reproduction steps verbatim or paraphrased, with file:line evidence pointing to the source change that implements the Expected behaviour.
+
+2. **AC-2 (regression-test-exists):** read `02-regression-test.md` and cross-check the declared `regression_test_path` against `03-testing.md` AC Coverage table (the tester confirms the regression test is in the suite post-fix). The path must appear at least once in both files. Set `regression_test_referenced: true` in your status block on confirmation. The `04-validation.md` per-AC table for AC-2 includes a `Verified by` column pointing to `02-regression-test.md` AND `02-implementation.md`.
+
+The `04-validation.md` template for bug-fix mode adds a `Verified by` column on each AC row. Example:
+
+```markdown
+### From Spec (00-task-intake.md)
+1. **AC-1**: Reproduction steps no longer produce the observed result; expected behaviour observed instead — PASS — `src/date-range/picker.ts:42` (boundary check now uses `<` instead of `<=`) — verified by `02-implementation.md` § Files Modified + `03-testing.md` AC Coverage entry for AC-1.
+2. **AC-2**: Regression test exists at `tests/date-range/picker.spec.ts` — PASS — `tests/date-range/picker.spec.ts:18-34` (test `should_exclude_to_boundary` fails on pre-fix, passes on post-fix) — verified by `02-regression-test.md` (authoring) + `03-testing.md` (post-fix suite).
+```
+
+**`security-sensitive: true` is forced for `type: fix | hotfix`** at Phase 0a Step 7 in the th-orchestrator. The security agent runs in parallel with you at Phase 3 regardless of any other criterion. The qa validate-mode is unchanged by this — security findings live in `04-security.md`, not in your scope.
+
 1. **Verify each criterion** — check the code implements what was specified
 2. **Check test coverage** — ensure tests exist for the defined criteria
 3. **Run validation checks** based on project type:
@@ -535,13 +553,20 @@ When invoked by the th-orchestrator via Task tool, your **FINAL message** must b
 
 ```
 agent: qa
+mode: validate | define-ac | ratify-plan | reconcile | review
 status: success | failed | blocked
-output: session-docs/{feature-name}/{04-validation|00-acceptance-criteria}.md
+output: session-docs/{feature-name}/{04-validation|00-acceptance-criteria|01-architecture}.md
 summary: {1-2 sentences: N/N AC passed, any critical findings}
 memory_consult: search_nodes:N open_nodes:N
 kg_save_candidates: [entity-name-1, entity-name-2]
+regression_test_referenced: true | false       # validate mode for type: fix | hotfix only; omit otherwise
+reproduction_steps_validated: true | false      # validate mode for type: fix | hotfix only; omit otherwise
 issues: {list of failed criteria, or "none"}
 ```
+
+**Bug-fix mode fields (mandatory for `type: fix` / `type: hotfix` in validate mode):**
+- `regression_test_referenced: true | false` — `true` when AC-2 (regression-test-exists) is mapped in `04-validation.md` with file:line evidence pointing to both `02-regression-test.md` (authoring) and `03-testing.md` (post-fix suite confirmation). `false` blocks the acceptance gate.
+- `reproduction_steps_validated: true | false` — `true` when AC-1 (reproduction-no-longer-bug) is mapped in `04-validation.md` with the implementation's behaviour confirmed to match Expected behaviour from `00-task-intake.md` § Bug Report. `false` blocks the acceptance gate.
 
 **Mandatory tool-usage fields:**
 - `memory_consult` — count of Knowledge Graph queries made this run. Zero is a valid value.

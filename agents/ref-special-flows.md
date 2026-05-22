@@ -107,9 +107,150 @@ This mirrors how human teams work with dependent features.
 
 ---
 
-## Hotfix Flow
+## Bug-fix Flow
 
-Same full pipeline as any other development task (Specify → Design → Implement → Verify → Delivery). The only difference: Design can be shorter (focus on the fix, not full architecture). Iteration still applies if tests fail.
+When `type: fix` is classified (Phase 0a Step 7), the th-orchestrator runs the **Bug-fix Pipeline** — the same 3-stage shell as feature flow, with type-specific content shifts. Every artifact of the feature backbone is produced; nothing is stripped. The pipeline replaces `01-architecture.md` with `01-root-cause.md` (1 page max, focused on file:line + mechanism + scope), inserts a new **Phase 2.0 — Regression Test Authoring** between STAGE-GATE-1 and Phase 2, enforces the implementer scope-discipline contract, routes the CHANGELOG entry to `### Fixed`, and **runs the `security` agent at Phase 3 regardless of the `security-sensitive` flag** (defense-in-depth — many bugs have non-obvious security implications).
+
+### Full session-docs artifact set (type: fix)
+
+Every bug-fix pipeline produces all of these. **Operator override:** the full backbone is preserved — nothing is stripped vs feature flow.
+
+| Artifact | Required | Content notes |
+|---|---|---|
+| `00-task-intake.md` | Yes | Bug report content + reproduction steps from operator |
+| `00-state.md` | Yes | Standard schema, `type: fix` |
+| `00-execution-events.jsonl` | Yes | Standard event trace |
+| `00-pipeline-summary.md` | Yes | Standard rollup |
+| `01-root-cause.md` | Yes (replaces `01-architecture.md`) | 1 pg max, file:line + mechanism + scope |
+| `01-plan-review.md` | Yes | plan-reviewer output, includes Rules 7 + 8 |
+| `02-task-list.md` | **Yes (always)** | Tasks of the fix: reproduce, root-cause confirm, regression test, fix, verify. Minimum 4 lines |
+| `02-regression-test.md` | **Yes (NEW artifact)** | tester's failing test (path + content + how to run) BEFORE implementer touches anything |
+| `02-implementation.md` | Yes | implementer's report |
+| `03-testing.md` | Yes | tester's post-fix verification |
+| `04-validation.md` | **Yes (mandatory)** | qa validation — never skipped |
+| `04-security.md` | **Yes (mandatory always)** | security agent runs ALWAYS for bugs, regardless of `security-sensitive` flag — hard requirement override |
+| `05-delivery.md` | Yes | delivery report |
+| `06-acceptance-check.md` | Yes | acceptance-checker output |
+
+**Why security is mandatory for bugs.** Many bugs have non-obvious security implications (input-validation bugs that are actually injection, race conditions that are TOCTOU vulnerabilities, error-handling bugs that leak information). Fixes can also introduce new vulnerabilities. The defense-in-depth answer: every bug gets a security review. For `type: fix` / `type: hotfix`, the th-orchestrator forces `security-sensitive: true` at Phase 0a Step 7 classification.
+
+### Phase structure (type: fix)
+
+| Phase | Owner | Output | Notes |
+|---|---|---|---|
+| 0a Intake | th-orchestrator | `00-state.md` initial | KG session start, KG query, CLAUDE.md read, type classified as `fix`, `security-sensitive: true` forced |
+| 0b Specify | th-orchestrator | `00-task-intake.md` (bug-report format) | Reported behaviour / Expected behaviour / Reproduction steps / Environment / AC (AC-1 reproduction-no-longer-bug, AC-2 regression-test-exists mandatory) |
+| 0.5 Bootstrap | th-orchestrator | — | Same as feature flow |
+| 1 Root-cause | architect (mode: root-cause) | `01-root-cause.md` | 1 page max, replaces `01-architecture.md` |
+| 1.5 Plan ratification | qa (mode: ratify-plan) | append to `01-root-cause.md` | Usually skipped for `type: fix` (≤3 AC) |
+| 1.6 Plan review | plan-reviewer | `01-plan-review.md` | Rules 1-6 plus Rules 7 + 8 (gated on `type: fix | hotfix`) |
+| STAGE-GATE-1 | th-orchestrator | STOP block | Plan-reviewer verdict + TL;DR from `01-root-cause.md` + PR Summary from `02-task-list.md` |
+| **2.0 Regression Test (NEW)** | tester (mode: pre-fix-regression) | `02-regression-test.md` | Failing test authored BEFORE implementer runs; never skipped |
+| 2 Implement | implementer | `02-implementation.md` | Scope-discipline contract: zero tangential refactors |
+| 2.5 Reconcile | th-orchestrator + qa (reconcile) | — | Same as feature flow |
+| 3 Verify | tester + qa + **security (always)** | `03-testing.md`, `04-validation.md`, `04-security.md` | Parallel; security runs always for bugs |
+| 3.5 Acceptance gate | th-orchestrator | — | Same as feature flow; regression test must still be in suite |
+| 3.6 Acceptance check | acceptance-checker | `06-acceptance-check.md` | Conditional per existing gates |
+| 4 Delivery | delivery | `05-delivery.md` | CHANGELOG `### Fixed`, PR title `fix(area):`, Bug Report section in PR body, `Fixes #N` |
+| 4.5 Internal review | reviewer (mode: internal) | — | Conditional per diff-size gate |
+| STAGE-GATE-3 | th-orchestrator | STOP block | ship / amend / abort |
+| 5 GitHub update | th-orchestrator | — | Comment with regression test path + Before/After |
+| 6 KG save | th-orchestrator | — | `process-insight` describes failure mode learned, not feature shipped |
+
+### Phase 2.0 — Regression Test Authoring (mandatory, never skipped)
+
+**Why this slots between STAGE-GATE-1 and Phase 2.** The human at STAGE-GATE-1 approves the approach (root-cause + regression-test plan). After approval, the tester writes the failing test. The implementer is dispatched at Phase 2 with a test that is already failing. The contract: "make this test pass without breaking the rest." This is the cleanest test-driven bug-fix pattern.
+
+**Operator override (rejects the architect's documented exit hatch):** **Regression test is mandatory always, no exceptions, no fallback.** The architect's design doc proposed a manual-repro-script fallback for race/timing/environment-dependent bugs. The fallback is **rejected**. If the tester cannot author a regression test, the pipeline blocks with `status: blocked` and surfaces to the operator. There is no exit hatch.
+
+**Dispatch:** th-orchestrator invokes `tester` via Task with:
+- Feature name for session-docs
+- Pointer to `00-task-intake.md` (reproduction steps + expected behaviour + AC)
+- Pointer to `01-root-cause.md` (Regression Test Approach section)
+- `mode: pre-fix-regression`
+- Instruction: "Write a failing test that captures the bug described in `00-task-intake.md` reproduction steps. The test MUST fail against the current codebase. Do NOT modify any source code — test files only. Output the test path in your status block; write your summary to `02-regression-test.md`."
+
+**Gate (th-orchestrator):**
+
+| `status` | `tests_failing_as_expected` vs `tests_added` | Action |
+|---|---|---|
+| `success` | equal AND `suite_still_passing: true` | Proceed to Phase 2. Mutate `<TBD-Phase-2.0>` placeholder in `02-task-list.md` to `regression_test_path` |
+| `success` | unequal OR `suite_still_passing: false` | Route back to tester; treat as iteration of Phase 2.0 (max-3) |
+| `failed` with `regression_test_status: bug-not-reproducible` | n/a | Route back to architect — root-cause is wrong. Re-run Phase 1, then Phase 2.0. Counts toward Phase 1.6 iteration budget |
+| `blocked` | n/a | Cannot author a test. Pipeline blocks with `status: blocked`; surface to operator. **No fallback** |
+
+### Implementer scope-discipline contract (for `type: fix` / `type: hotfix`)
+
+Documented inline in `agents/implementer.md` under `## Scope discipline for type: fix and type: hotfix (Bug-fix Mode)`. Zero tangential refactors. Spotted issues go to `## Follow-ups Spotted`, not into the diff. The `[SCOPE-DRIFT: file X required for AC-N]` annotation pattern (existing for feature flow) routes back to the architect to update `01-root-cause.md` and re-run Phase 1.6.
+
+### Plan-reviewer Rules 7 + 8 (gated on `type: fix | hotfix`)
+
+Documented in `agents/plan-reviewer.md`. Fire only when the th-orchestrator's task payload declares `type: fix` or `type: hotfix`:
+
+- **Rule 7** — `01-root-cause.md` declares a `## Regression Test Approach` section with Test layer (unit / integration / e2e), Test scaffold, Failing assertion. Size cap on `01-root-cause.md` ≤120 lines (>120 = `concerns` finding).
+- **Rule 8** — every PR in `02-task-list.md` has an AC referencing the regression test path: `VERIFY: regression test exists at <path>` (or `<TBD-Phase-2.0>` before Phase 2.0 runs).
+
+### qa validate-mode for `type: fix | hotfix`
+
+`agents/qa.md` validate mode adds two boolean fields to the status block:
+- `regression_test_referenced: true | false` — confirms the per-AC mapping in `04-validation.md` cross-references `02-regression-test.md`
+- `reproduction_steps_validated: true | false` — confirms the AC-1 (reproduction-no-longer-bug) was checked against `00-task-intake.md` Reproduction steps
+
+### Type classification — auto-detect bug-fix vs hotfix
+
+The th-orchestrator's Phase 0a Step 7 classification logic uses these signal lists:
+
+- **`fix`** — request describes broken/incorrect behaviour; keywords: `bug`, `solucionar`, `arreglar`, `corregir`, `fixear`, `debuguear`, `regresión`, `error en`, `no funciona`, `está rompiendo`, GitHub label `bug`.
+- **`hotfix`** — all signals of `fix` PLUS urgency markers (`hotfix`, `urgente`, `crítico`, `production down`, `usuarios afectados`) AND scope ≤2 files (inferred from Phase 0b Step 1) AND single causal site described by operator.
+
+**Operator override:** the operator can force a classification by saying so directly. E.g., `@th-orchestrator this is a hotfix:` forces `type: hotfix`.
+
+**Architect re-classification (operator-in-loop):** during Phase 1, if the architect determines the bug is actually a missing feature, the architect emits `type_reclassify: true` and a 1-line rationale in its status block. The th-orchestrator surfaces both the rationale and the AC list to the operator for decision. The architect does not auto-route.
+
+### Multi-bug requests
+
+Routes through existing `plan-and-execute` flow. Each bug is one sub-task in `01-planning.md`; each sub-task dispatches as its own worktree running the full bug-fix pipeline via Multi-Task Orchestration. No new batch-bug-fix path is created.
+
+### KG process-insight semantics for bugs
+
+`agents/th-orchestrator.md` Phase 6 reuses the existing `process-insight` schema. Content shifts semantically: the observation describes the **failure mode learned**, not the feature shipped. Example good capture: `nestjs-typeorm-decimal-stringification — TypeORM returns decimal columns as strings; arithmetic on the returned value produces string concatenation. Discovered while fixing aggregation-totals-mismatch in zippy-commission-api.`
+
+---
+
+## Hotfix sub-flow (type: hotfix)
+
+The Hotfix sub-flow is a tighter variant of the Bug-fix Flow for trivially scoped defects with urgency markers. **Phase 1 (Root-Cause Analysis) is skipped entirely** — no architect dispatch, no `01-root-cause.md`. Everything else from the Bug-fix Flow is preserved, including Phase 2.0 (mandatory regression test), Phase 4 delivery routing (`### Fixed` CHANGELOG, `fix(area): ... (hotfix)` PR title), and Phase 6 (KG save). The Phase 4 PR title appends `(hotfix)` to signal urgency to the reviewer.
+
+### Skipped phases (relative to type: fix)
+
+- Phase 1 — no architect dispatch, no `01-root-cause.md`.
+
+### Modified phases
+
+- Phase 0b — bug-report intake same as `type: fix`, but the AC list is tighter (typically only AC-1 reproduction-no-longer-bug and AC-2 regression-test-exists).
+- Phase 1.5 and 1.6 — still run. Plan ratification + plan review operate against the regression test + task list + 1-sentence prose plan emitted by the th-orchestrator inline at STAGE-GATE-1. plan-reviewer Rules 7 + 8 still apply.
+- STAGE-GATE-1 — uses a tighter STOP block with a one-sentence prose plan from the th-orchestrator.
+
+### Unchanged from `type: fix`
+
+- Phase 2.0 (Regression Test) — **still mandatory**. The operator override "regression test is mandatory always" applies to hotfixes too.
+- Phase 2 (Implementation) — scope-discipline contract still applies.
+- Phase 3 (Verify) — `security` agent still runs always (defense-in-depth override).
+- Phase 3.5 (Acceptance Gate) — same.
+- Phase 3.6 (Acceptance Check) — already skipped by existing gate for hotfix + single-file fix.
+- STAGE-GATE-2 — irrelevant in practice (hotfix is typically 1 PR / 1 round).
+- Phase 4 (Delivery) — same `### Fixed` routing; PR title gains `(hotfix)` suffix.
+- Phase 4.5 (Internal Review) — already skipped by existing gate for hotfix + single-file fix.
+- STAGE-GATE-3 — always mandatory.
+- Phases 5 (GitHub Update) and 6 (KG Save) — same.
+
+### Session-docs artifact set (type: hotfix)
+
+Every artifact required by `type: fix` is also required by `type: hotfix`, **with one exception**: `01-root-cause.md` is omitted (Phase 1 skipped). `02-task-list.md` is **still produced** (minimum 4-line task list: reproduce, regression test, fix, verify). All other artifacts in the table above for `type: fix` are produced for `type: hotfix` too — `01-plan-review.md`, `02-regression-test.md`, `02-implementation.md`, `03-testing.md`, `04-validation.md`, `04-security.md`, `05-delivery.md`, `06-acceptance-check.md`.
+
+### Operator-facing surface
+
+v1 detects hotfix by keyword in natural language (auto-classification + operator override). The `/hotfix` slash command is deferred to v2.
 
 ---
 
