@@ -25,7 +25,12 @@ $TmpDir = Join-Path ([System.IO.Path]::GetTempPath()) ([System.IO.Path]::GetRand
 New-Item -ItemType Directory -Path $TmpDir | Out-Null
 
 try {
-    $InstallerPath = Join-Path $TmpDir "install.exe"
+    # NOTE: filename must NOT contain "install", "setup", "update", or "patch" —
+    # Windows applies an "installer detection" heuristic to executables with
+    # those names and forces UAC elevation even when launched via CreateProcess
+    # with UseShellExecute=$false. Using a neutral name (th-bootstrap.exe)
+    # bypasses the heuristic. See `docs/install.md §Windows UAC` for context.
+    $InstallerPath = Join-Path $TmpDir "th-bootstrap.exe"
     Write-Host "Downloading $Asset from latest release..."
     try {
         Invoke-WebRequest -Uri $Url -OutFile $InstallerPath -UseBasicParsing -TimeoutSec 120
@@ -36,6 +41,15 @@ try {
         Write-Host "  Releases: https://github.com/$Repo/releases"
         exit 1
     }
+
+    # Strip Mark-of-the-Web Zone Identifier from the downloaded file.
+    # Invoke-WebRequest tags downloads with a Zone.Identifier ADS marking them
+    # as "from internet." Without stripping, SmartScreen / Defender can
+    # interfere with execution in some user environments. Unblock-File is a
+    # no-op if the ADS does not exist; -ErrorAction SilentlyContinue makes
+    # the call safe on older PowerShell versions where the cmdlet behaves
+    # differently.
+    Unblock-File -Path $InstallerPath -ErrorAction SilentlyContinue
 
     Write-Host "Launching installer..."
     # Use .NET ProcessStartInfo directly with UseShellExecute=$false to avoid
