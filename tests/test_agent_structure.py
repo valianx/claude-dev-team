@@ -2042,6 +2042,28 @@ def _extract_section(text: str, start_marker: str, end_marker: str) -> str:
     return text[start:end] if end > start else text[start:]
 
 
+# Baked-in `## Voice` contract section (CLAUDE.md §7.1 inlined into every
+# agent and standalone skill prompt). The section lists the same forbidden
+# tone markers and emoji as illustrative negative examples, so the voice
+# checks below need to strip it before scanning — same rationale as the
+# CLAUDE.md §7.1 OUT-section allowlist a few lines below.
+_VOICE_CONTRACT_START = "## Voice\n\nYou speak as a professional instrument"
+_VOICE_CONTRACT_END = "The operator can chat in any language; you reply in the operator's chat language, but the voice rules above apply regardless of language."
+
+
+def _strip_voice_contract(text: str) -> str:
+    """Strip the baked-in `## Voice` contract section if present."""
+    start = text.find(_VOICE_CONTRACT_START)
+    if start < 0:
+        return text
+    end = text.find(_VOICE_CONTRACT_END, start)
+    if end < 0:
+        return text
+    # Include the end marker itself in the strip range.
+    end += len(_VOICE_CONTRACT_END)
+    return text[:start] + text[end:]
+
+
 # Closed list of high-confidence Spanish words for the language-leak checks.
 # The list is intentionally narrow — it targets words that are unambiguously
 # Spanish and appear in actual violation patterns found during the audit.
@@ -2076,6 +2098,9 @@ for _md_file in _md_files_to_scan:
             _content, "**OUT** — what never appears in committed copy:", "**IN** — what conformant copy looks like:"
         )
         _scan_content = _content.replace(_voice_guide_section, "")
+    # For agent and skill files: strip the baked-in `## Voice` contract
+    # section which legitimately lists banned markers as negative examples.
+    _scan_content = _strip_voice_contract(_scan_content)
     for _marker in _BANNED_TONE_MARKERS:
         if _marker in _scan_content:
             _banned_found.append(f"{_md_file.name}: {_marker!r}")
@@ -2091,6 +2116,9 @@ _EMOJI_CODEPOINTS = ["✅", "⚠️", "🎉", "✨"]
 _emoji_found: list[str] = []
 for _skill_file in SKILLS_DIR.glob("*.md"):
     _content = read(_skill_file)
+    # Strip the baked-in `## Voice` contract section, which lists the same
+    # emoji codepoints as illustrative forbidden examples.
+    _content = _strip_voice_contract(_content)
     for _emoji in _EMOJI_CODEPOINTS:
         if _emoji in _content:
             _emoji_found.append(f"{_skill_file.name}: {_emoji!r}")

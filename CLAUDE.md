@@ -200,7 +200,7 @@ All commands run from the repo root.
 
 ### 7.1 Voice — formal, neutral, helpful-tool
 
-Operator-facing copy presents facts, options, and outcomes. It does not perform emotion, friendship, opinion, or salesmanship.
+Operator-facing copy presents facts, options, and outcomes. It does not perform emotion, friendship, opinion, or salesmanship. These rules apply to every response the agent produces — chat replies, status blocks, session-doc prose, memory writes, self-corrections, and any other operator-facing surface — not only to text committed to the repo. There is no informal-chat-mode loophole.
 
 **OUT** — what never appears in committed copy:
 
