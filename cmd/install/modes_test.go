@@ -15,10 +15,11 @@ import (
 // TestLowCostMatrixInvariants verifies the canonical constraints on the matrix:
 //   - every model is "sonnet" (no opus, no haiku)
 //   - every effort is "medium" or "high" (no max, no low)
-//   - all 17 expected agents are present
+//   - all 18 expected agents are present
 func TestLowCostMatrixInvariants(t *testing.T) {
 	expectedAgents := []string{
 		"th-orchestrator", "architect", "agent-builder", "security", "reviewer",
+		"reviewer-consolidator",
 		"qa", "plan-reviewer", "gcp-cost-analyzer", "init", "implementer",
 		"tester", "acceptance-checker", "diagrammer", "likec4-diagrammer",
 		"d2-diagrammer", "translator", "delivery",

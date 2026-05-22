@@ -50,6 +50,7 @@ The combination of `model` + `effort` + `tools` below is the canonical matrix fo
 | `d2-diagrammer` | sonnet | `medium` | Read, Edit, Write, Glob, Grep, Bash | D2 diagrams. |
 | `translator` | sonnet | `medium` | Read, Edit, Write, Glob, Grep, Bash | i18n discovery, glossary, translation. |
 | `delivery` | sonnet | `medium` | Read, Edit, Write, Bash, Glob, Grep | Docs, changelog, version, branch, commit, PR. |
+| `reviewer-consolidator` | opus | `high` | Read, Edit, Write, Glob, Grep | Merges 2-3 focused review drafts (security/architecture/style) into a single unified review. De-duplicates findings, surfaces contradictions, determines verdict. Invoked by th-orchestrator after parallel focused reviewer passes in multi-reviewer mode. |
 
 Plus reference files (`ref-direct-modes.md`, `ref-special-flows.md`) loaded on-demand by the th-orchestrator. They are not invocable subagents — their `model` field is vestigial and not enforced by `/lint`.
 
@@ -80,6 +81,7 @@ When you run the installer interactively it asks: `Install mode [s/l]? [s]:` —
 | `agent-builder` | opus | max | sonnet | high | Agent/skill authoring; effort high preserves design depth. Human reviews the diff at PR time. |
 | `security` | opus | max | sonnet | high | Security audit; effort high is the cap. Human reads `04-security.md` at STAGE-GATE-2/3. |
 | `reviewer` | opus | max | sonnet | high | PR review gate; effort high preserves severity calibration. Human approves at STAGE-GATE-3. |
+| `reviewer-consolidator` | opus | high | sonnet | high | Multi-reviewer merge step; effort high preserves de-dup and contradiction detection quality. |
 | `qa` | opus | high | sonnet | high | AC validation; effort high retained — drives merge decision at STAGE-GATE-2/3. |
 | `plan-reviewer` | sonnet | medium | sonnet | medium | No change — already at the floor; gate role is inviolable. |
 | `gcp-cost-analyzer` | opus | high | sonnet | medium | Non-blocking advisory report; human decides on all output. |
@@ -93,7 +95,7 @@ When you run the installer interactively it asks: `Install mode [s/l]? [s]:` —
 | `translator` | sonnet | medium | sonnet | medium | No change — glossary is the contextual anchor; human reviews diff at PR time. |
 | `delivery` | sonnet | medium | sonnet | medium | No change — mechanical; reviewer audits at Phase 4.5; human approves PR. |
 
-**Tally:** all 17 agents on `sonnet` in low-cost mode. Effort: 6 × `high` (gate-makers + design heavyweights + acceptance auditors), 11 × `medium` (everything else). No `max`, no `low`, no `haiku`, no `opus`.
+**Tally:** all 18 agents on `sonnet` in low-cost mode. Effort: 7 × `high` (gate-makers + design heavyweights + acceptance auditors + consolidator), 11 × `medium` (everything else). No `max`, no `low`, no `haiku`, no `opus`.
 
 ## Adding or modifying an agent
 
