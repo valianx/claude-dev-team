@@ -166,10 +166,12 @@ The `/review-pr` skill handles ALL Bash (fetching PR metadata, git diff, etc.) a
 
 ### Submode routing
 
-Check the `Submode` field in the task payload:
+Check the `Submode` / `Mode` field in the task payload:
+- `Mode: review-consolidate` → jump to **Step 2d** (Consolidation — multi-reviewer merge)
 - `Submode: update-body` → jump to **Step 2b** (Update Body)
 - `Submode: reply` → jump to **Step 2c** (Reply)
-- No submode or `Submode: fresh` → proceed to **Step 1** (Fresh Review, default)
+- No submode or `Submode: fresh`, with `Focus:` field → **Focused Fresh Review** (step 2 with Focus parameter)
+- No submode or `Submode: fresh`, no `Focus:` → proceed to **Step 1** (Fresh Review, default)
 
 ### Step 1 — Receive pre-fetched data (Fresh Review)
 
@@ -256,6 +258,34 @@ Thread ID: {comment_id}
 ```
 
 The skill handles user approval and publishing via `POST .../comments/{id}/replies`.
+
+### Step 2d — Consolidation (Mode: review-consolidate)
+
+Invoked when the skill ran 2+ parallel focused reviewers and needs the drafts merged.
+
+Extract from the payload:
+- `Focuses:` list (e.g., `["security","architecture","style"]`)
+- PR metadata (number, title, author, URL)
+
+Invoke `reviewer-consolidator` via Task tool, passing:
+```
+Focuses: {focuses list}
+PR: #{number}
+Title: {title}
+Author: {author}
+URL: {url}
+Draft Files: .claude/pr-review-draft-{focus}.md per focus
+Inline Files: .claude/pr-review-inline-{focus}.json per focus
+```
+
+The consolidator reads the focus draft files, applies de-dup rules, builds the unified review_body and inline_findings, and writes `.claude/pr-review-draft.md` and `.claude/pr-review-inline.json`.
+
+Return to the skill:
+```
+Consolidated review draft written to .claude/pr-review-draft.md
+Decision: {APPROVE or CHANGES_REQUESTED}
+Contradictions: {true|false}
+```
 
 ### Step 3 — Build draft
 
