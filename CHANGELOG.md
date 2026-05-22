@@ -34,6 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `agents/reviewer.md`: Focus modes section (`general`/`security`/`architecture`/`style`); Policy-aware review section (`Has Policy` field, `## Violaciones de política` body section, de-dup rule, policy criticals non-overridable).
 - `skills/review-pr.md` Step 1.5 loads `.team-harness/review-policy.md`. Phase 2 payload gains `Has Policy:` and `Review Policy:` fields. `agents/ref-direct-modes.md` Review Mode Step 2 passes the policy fields to the reviewer.
 - `agents/init.md` Phase 4.5 `--scaffold-review-policy` behaviour. `skills/init.md` parses and propagates both scaffold flags.
+- `agents/reviewer-consolidator.md` (new): merges 2-3 focused review drafts into one unified PR review. De-dup, contradiction surfacing, strict verdict, Spanish output per §7.3.
+- `agents/README.md` roster and low-cost matrix updated to 18 agents. `cmd/install/modes.go` and tests updated.
 
 ## [2.9.4] - 2026-05-22
 

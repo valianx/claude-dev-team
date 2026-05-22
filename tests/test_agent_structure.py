@@ -62,6 +62,7 @@ print("=== Suite 1: Tool allowlist per agent ===")
 
 EXPECTED_AGENTS = [
     "th-orchestrator", "architect", "agent-builder", "security", "reviewer",
+    "reviewer-consolidator",
     "qa", "gcp-cost-analyzer", "init", "implementer", "tester",
     "acceptance-checker", "plan-reviewer", "diagrammer", "likec4-diagrammer",
     "d2-diagrammer", "translator", "delivery",
@@ -1730,9 +1731,10 @@ check(
     "section missing — low-cost matrix has no human-readable documentation",
 )
 
-# (a) continued: the section contains a 17-row table (count pipe-separated rows
+# (a) continued: the section contains an agent table (count pipe-separated rows
 #     with | in the body; each data row has at least one agent name backtick).
-# We detect "17-row table" by counting occurrences of "| `" inside the section.
+# We detect the table by counting occurrences of "| `" inside the section.
+# Minimum 17 rows (the original roster); rows are added as new agents are added.
 low_cost_section = ""
 if "## Low-cost mode" in agents_readme:
     low_cost_section = agents_readme.split("## Low-cost mode", 1)[1]
@@ -1745,7 +1747,7 @@ table_rows = low_cost_section.count("| `")
 check(
     "agents/README.md Low-cost mode section has a 17-row agent table",
     table_rows >= 17,
-    f"found {table_rows} table rows with backtick agent names, expected 17",
+    f"found {table_rows} table rows with backtick agent names, expected >= 17",
 )
 
 # (b) Every agent in the canonical Roster also appears in the low-cost table.
@@ -2194,6 +2196,13 @@ for _agent_file in AGENTS_DIR.glob("*.md"):
         _glossary = _extract_section(_content, "## Phase 1 — Glossary", "## Phase 2")
         if _glossary:
             _allowed_sections.append(_glossary)
+    elif _name == "reviewer-consolidator.md":
+        # Allow the Output contract section which contains the Spanish review_body
+        # template (same §7.3 exception as reviewer.md — the consolidator's output
+        # is a GitHub PR review body that stays Spanish per the reviewer contract).
+        _rc_output = _extract_section(_content, "## Output contract", "## Return Protocol")
+        if _rc_output:
+            _allowed_sections.append(_rc_output)
 
     for _word in _SPANISH_WORDS:
         # Strip each allowed section from a scratch copy before checking.
@@ -3067,7 +3076,37 @@ check(
     "skills/init.md does not propagate the --scaffold-rereview-workflow flag",
 )
 
-# (19) assets/scaffolds/review-policy.md exists (added in PR-10).
+# (19) agents/reviewer-consolidator.md exists (added in PR-11).
+_CONSOLIDATOR = AGENTS_DIR / "reviewer-consolidator.md"
+check(
+    "agents/reviewer-consolidator.md exists",
+    _CONSOLIDATOR.exists(),
+    "reviewer-consolidator agent missing — needed for multi-reviewer mode",
+)
+if _CONSOLIDATOR.exists():
+    _rc = read(_CONSOLIDATOR)
+    check(
+        "agents/reviewer-consolidator.md has de-duplication rules section",
+        "De-duplication rules" in _rc or "De-dup" in _rc,
+        "consolidator must document de-dup rules (same file:line handling)",
+    )
+    check(
+        "agents/reviewer-consolidator.md has contradictions detection",
+        "Contradicciones detectadas" in _rc or "contradictions" in _rc.lower(),
+        "consolidator must surface contradictions between focused reviewers",
+    )
+    check(
+        "agents/reviewer-consolidator.md has strict verdict rule (any CHANGES_REQUESTED wins)",
+        "REQUEST_CHANGES" in _rc and "APPROVE" in _rc,
+        "consolidator must document the strict any-CHANGES_REQUESTED verdict rule",
+    )
+    check(
+        "agents/reviewer-consolidator.md output contract documents two files",
+        "pr-review-draft.md" in _rc and "pr-review-inline.json" in _rc,
+        "consolidator must write pr-review-draft.md and pr-review-inline.json",
+    )
+
+# (20) assets/scaffolds/review-policy.md exists (added in PR-10).
 _REVIEW_POLICY_SCAFFOLD = _SCAFFOLD_DIR / "review-policy.md"
 check(
     "assets/scaffolds/review-policy.md exists",

@@ -37,12 +37,13 @@ type AgentOverride struct {
 // Both are verified at test time by TestLowCostMatrixInvariants in modes_test.go.
 var lowCostMatrix = map[string]AgentOverride{
 	// Gate-makers, design heavyweights, acceptance auditors — effort: high
-	"th-orchestrator":  {Model: "sonnet", Effort: "high"},
-	"architect":     {Model: "sonnet", Effort: "high"},
-	"agent-builder": {Model: "sonnet", Effort: "high"},
-	"security":      {Model: "sonnet", Effort: "high"},
-	"reviewer":      {Model: "sonnet", Effort: "high"},
-	"qa":            {Model: "sonnet", Effort: "high"},
+	"th-orchestrator":       {Model: "sonnet", Effort: "high"},
+	"architect":             {Model: "sonnet", Effort: "high"},
+	"agent-builder":         {Model: "sonnet", Effort: "high"},
+	"security":              {Model: "sonnet", Effort: "high"},
+	"reviewer":              {Model: "sonnet", Effort: "high"},
+	"reviewer-consolidator": {Model: "sonnet", Effort: "high"},
+	"qa":                    {Model: "sonnet", Effort: "high"},
 
 	// Advisory, executor, downstream generators — effort: medium
 	"plan-reviewer":      {Model: "sonnet", Effort: "medium"},
