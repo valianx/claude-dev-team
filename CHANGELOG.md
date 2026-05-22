@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `cmd/install/main.go` `installAgents` now recurses into agent subdirectories, installing `agents/_shared/` to `~/.claude/agents/_shared/` alongside the flat agent files.
 - `tests/test_agent_structure.py` Suite 27: structural checks for the shared gh-fallback snippet (file existence, required sections, detection probe, tier documentation, `blocked-manual-push`, assets.go embed directive).
 
+### Changed
+
+- Installer `requireCLI("gh", …)` downgraded to `warnCLI("gh", …)`: missing `gh` now prints a one-line recommendation and continues rather than hard-exiting. Skills `/issue`, `/deliver`, and `/review-pr` fall back to manual paths when `gh` is unavailable. New `warnCLI` function added to `cmd/install/util.go`.
+
 ## [2.9.4] - 2026-05-22
 
 ### Fixed
