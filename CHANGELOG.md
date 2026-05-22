@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-05-22
+
 ### Added
 
 - **Curl one-liner install (bash / PowerShell / cmd.exe)** matching the Claude Code quickstart pattern. Bootstrap scripts published to `https://valianx.github.io/team-harness/install.{sh,ps1,cmd}` via a new `.github/workflows/pages.yml` workflow triggered on release. New `bin/install.cmd` for legacy Windows cmd.exe hosts.
