@@ -68,7 +68,17 @@ func promptMemoryMCPURL() MemoryMCPChoice {
 			if choice == "y" {
 				return MemoryMCPChoice{URL: existingURL, BearerToken: existingBearer, Preserved: true}
 			}
-			fmt.Println("  Changing Memory MCP URL — falling through to env var / prompt.")
+			fmt.Println("  Changing Memory MCP URL — going to interactive prompt.")
+			// Operator explicitly chose Change. Skip the env var check so the prompt
+			// always fires interactively — they want to replace the value with what
+			// they paste, not silently inherit MEMORY_MCP_URL.
+			input := openInteractiveInput()
+			if input == nil {
+				fmt.Fprintln(os.Stderr, "Error: Change selected but no interactive input source is available.")
+				os.Exit(1)
+			}
+			defer input.Close()
+			return promptURLInteractive(bufio.NewScanner(input))
 		}
 		if isLegacyStdioMemoryEntry(existingMemory) {
 			fmt.Println("  Legacy stdio mcpServers.memory entry detected (v1 shape pointing at")
