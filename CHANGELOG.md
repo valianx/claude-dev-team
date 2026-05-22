@@ -36,6 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `agents/init.md` Phase 4.5 `--scaffold-review-policy` behaviour. `skills/init.md` parses and propagates both scaffold flags.
 - `agents/reviewer-consolidator.md` (new): merges 2-3 focused review drafts into one unified PR review. De-dup, contradiction surfacing, strict verdict, Spanish output per §7.3.
 - `agents/README.md` roster and low-cost matrix updated to 18 agents. `cmd/install/modes.go` and tests updated.
+- `skills/review-pr.md` gains `--multi` / `--reviewers <focuses>` flags; auto-suggest (>1500 lines OR >8 files → one info line, no cost warning); parallel focused reviewer dispatch; consolidation step; re-review continuity; Step 15.1 full focus-draft cleanup. No cost-warning UI per operator override Q-18.
+- `agents/ref-direct-modes.md` Review Mode gains `Mode: review-consolidate` routing and Step 2d (Consolidation).
 
 ## [2.9.4] - 2026-05-22
 

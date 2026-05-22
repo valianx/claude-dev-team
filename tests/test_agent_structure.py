@@ -3164,6 +3164,34 @@ check(
     "skills/init.md does not propagate the --scaffold-review-policy flag",
 )
 
+# (23) skills/review-pr.md has --multi / --reviewers flag parsing (added in PR-12).
+# _rvpr was already read above (PR-10 checks).
+check(
+    "skills/review-pr.md has '--multi' flag parsing",
+    "--multi" in _rvpr,
+    "skills/review-pr.md must parse the --multi flag for multi-reviewer mode",
+)
+check(
+    "skills/review-pr.md has '--reviewers' flag parsing",
+    "--reviewers" in _rvpr,
+    "skills/review-pr.md must parse the --reviewers flag for selective focuses",
+)
+check(
+    "skills/review-pr.md has auto-suggest threshold constants",
+    "AUTO_MULTI_LINES_THRESHOLD" in _rvpr and "AUTO_MULTI_FILES_THRESHOLD" in _rvpr,
+    "skills/review-pr.md must declare the auto-suggest threshold constants",
+)
+check(
+    "skills/review-pr.md has re-review continuity detection",
+    "Hallazgos por enfoque" in _rvpr,
+    "skills/review-pr.md must detect prior multi-reviewer reviews for re-review continuity",
+)
+check(
+    "skills/review-pr.md Step 15.1 cleans up focus draft files",
+    "pr-review-draft-security" in _rvpr and "pr-review-draft-architecture" in _rvpr,
+    "skills/review-pr.md Step 15.1 cleanup must include focus-specific draft files",
+)
+
 # ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------

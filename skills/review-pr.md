@@ -2,6 +2,24 @@ Analyze the input: $ARGUMENTS
 
 ---
 
+## Flag parsing (run before all modes)
+
+Before routing to a mode, parse optional flags from `$ARGUMENTS`:
+
+- `--multi` → set `multi_reviewer=true`, `focuses=["security","architecture","style"]`.
+- `--reviewers <focus1[,focus2,...]>` → set `multi_reviewer=true`, `focuses` to the comma-separated list (e.g., `security,architecture` → `["security","architecture"]`).
+
+Remove parsed flags from the PR number/URL before processing. Remaining input is the PR number or URL.
+
+**Constants (tunable here):**
+```
+AUTO_MULTI_LINES_THRESHOLD = 1500
+AUTO_MULTI_FILES_THRESHOLD = 8
+DEFAULT_FOCUSES = ["security", "architecture", "style"]
+```
+
+---
+
 ## Mode 1 — PR number or URL provided
 
 ### Phase 1 — Gather (all Bash happens here, in the main context)
@@ -30,6 +48,26 @@ Analyze the input: $ARGUMENTS
    git diff --name-only origin/{baseRefName}...origin/{headRefName}
    ```
 
+### Step 1.4 — Auto-suggest multi-reviewer for large PRs (no cost warning per operator policy)
+
+After step 6, compute diff size:
+
+```bash
+diff_lines=$((additions + deletions))
+diff_files=$(git diff --name-only origin/{baseRefName}...origin/{headRefName} | wc -l)
+```
+
+If `multi_reviewer=false` AND (`diff_lines > AUTO_MULTI_LINES_THRESHOLD` OR `diff_files > AUTO_MULTI_FILES_THRESHOLD`):
+
+Emit ONE line of info to the operator (no prompt, no cost warning, no confirmation required):
+```
+Large PR detected ({diff_lines} lines, {diff_files} files). Running multi-reviewer (security + architecture + style).
+```
+
+Then set `multi_reviewer=true`, `focuses=DEFAULT_FOCUSES` and continue.
+
+If `multi_reviewer=true` and `--reviewers` specified only ONE focus, bypass the consolidator: rename the single focus draft to the canonical path and skip the consolidator step.
+
 ### Step 1.5 — Load review policy (1 Read call, optional)
 
 ```bash
@@ -48,6 +86,36 @@ Scaffold with: /init --scaffold-review-policy
 ```
 
 ### Phase 2 — Review (zero Bash, delegated to th-orchestrator)
+
+**Multi-reviewer path (when `multi_reviewer=true`):**
+
+7a. For each focus in `focuses`, dispatch the th-orchestrator with:
+   ```
+   Direct Mode Task:
+   - Mode: review
+   - Focus: {focus}
+   - Multi-Reviewer: true
+   - Draft Output: .claude/pr-review-draft-{focus}.md
+   - Inline Output: .claude/pr-review-inline-{focus}.json
+   - {... same PR fields as single-reviewer ...}
+   ```
+   Dispatches run **in parallel** (same pattern as Phase 3 tester+qa+security parallel). Wait for all to complete.
+
+7b. After all focused reviewers complete, dispatch the th-orchestrator in consolidation mode:
+   ```
+   Direct Mode Task:
+   - Mode: review-consolidate
+   - Focuses: [{focus1}, {focus2}, ...]
+   - PR: #{number}
+   - Title: {title}
+   - Author: {author}
+   - URL: {url}
+   ```
+   The th-orchestrator invokes the `reviewer-consolidator` agent which reads the focus drafts and writes `.claude/pr-review-draft.md` and `.claude/pr-review-inline.json`.
+
+7c. After consolidation, proceed to Phase 3 using the canonical paths `.claude/pr-review-draft.md` and `.claude/pr-review-inline.json`. The consolidator's event becomes the initial event for the publish prompt.
+
+**Single-reviewer path (when `multi_reviewer=false`):**
 
 7. Pass ALL gathered data to the `th-orchestrator` agent:
    ```
@@ -95,6 +163,8 @@ Scaffold with: /init --scaffold-review-policy
     Replace `{current_user}` with the output of `gh api user --jq '.login'`. When `has_gh=false`: use the curl fallback to fetch the reviews list. If unavailable, default to treating as "no prior review" (worst case is a duplicate review, recoverable via dismiss).
 
     - **If NO prior review exists** from the same author → proceed to step 13 (normal fresh review flow).
+
+    - **Re-review continuity detection:** if a prior review exists, inspect its body for the `## Hallazgos por enfoque` section header. If found, the prior review was a multi-reviewer run. Auto-apply `multi_reviewer=true` for this re-review (preserves focus coverage). Emit one line: "Prior review was multi-reviewer — applying --multi for continuity."
 
     - **If a prior review exists**, present this menu to the user:
       ```
@@ -203,7 +273,12 @@ Scaffold with: /init --scaffold-review-policy
 
 15. **Cleanup, prune context, and STOP.**
 
-    **15.1 — File cleanup.** Delete `.claude/pr-review-draft.md` and `.claude/pr-review-inline.json` (if it exists) after successful publishing.
+    **15.1 — File cleanup.** Delete all review draft files after successful publishing:
+    - `.claude/pr-review-draft.md`
+    - `.claude/pr-review-inline.json`
+    - `.claude/pr-review-payload.json`
+    - `.claude/pr-review-draft-security.md`, `.claude/pr-review-draft-architecture.md`, `.claude/pr-review-draft-style.md` (focus drafts, if they exist)
+    - `.claude/pr-review-inline-security.json`, `.claude/pr-review-inline-architecture.json`, `.claude/pr-review-inline-style.json` (focus inline JSONs, if they exist)
 
     **15.2 — Context prune reminder (MANDATORY).** Each `/review-pr` invocation accumulates 5-30K tokens in the main context (PR metadata, full diff, file lists from `gh` and `git` outputs in Phase 1, plus the th-orchestrator's status block, plus Phase 3 publish outputs). Subagents die between PRs but the **main context does not** — successive reviews in the same session compound linearly.
 
@@ -246,5 +321,7 @@ Ask the user: "Provide a PR number or URL to review. Example: `#45`, `45`, or `h
 - ALL Bash commands run in this skill (main context) — the th-orchestrator and reviewer do ZERO Bash
 - The user approves the review before publishing (Phase 3)
 - **ONE review per author per PR.** A fresh review is created only when no prior review exists (step 13) or after an explicit dismiss (step 12c). NEVER publish a second review without dismissing first. After-the-fact additions use PUT body (step 12a) or reply to thread (step 12b) — these do NOT create new reviews.
-- **Atomic submission for fresh reviews.** The `gh api POST .../reviews` call (step 13) includes body + event + comments[] in a single call. NEVER split into `gh pr review` + separate `gh api pulls/:n/comments`.
+- **Atomic submission for fresh reviews.** The `gh api POST .../reviews` call (step 13) includes body + event + comments[] in a single call. NEVER split into `gh pr review` + separate `gh api pulls/:n/comments`. This atomicity constraint applies to both the `gh` and curl paths.
 - **GitHub API model:** A submitted review is an immutable container for inline comments. You cannot add inline comments to an existing review. To add context: PUT body, reply to thread, or dismiss+re-review.
+- **Multi-reviewer:** `--multi` / `--reviewers <focuses>` dispatches N focused reviewers in parallel, then the `reviewer-consolidator` merges the results. Auto-triggers when diff exceeds `AUTO_MULTI_LINES_THRESHOLD` or `AUTO_MULTI_FILES_THRESHOLD`. **No cost-warning UI** — per operator policy, multi-reviewer runs silently with one info line.
+- **Re-review continuity:** when a prior review's body contains `## Hallazgos por enfoque`, `--multi` is automatically applied to preserve focus coverage on re-review.
