@@ -64,6 +64,32 @@ func printSummary(claudeJSONBackup string, mem MemoryMCPChoice, context7Preserve
 	fmt.Printf("  2. To enable notification hooks, open hooks/config.json in this repo,\n")
 	fmt.Printf("     copy the \"%s\" section, and merge it into\n", osLabel)
 	fmt.Printf("     ~/.claude/settings.json under the \"hooks\" key.\n")
+
+	agentCount, skillCount := countInstalledAgentsAndSkills()
+	fmt.Println()
+	fmt.Printf("Installation complete. %d agents, %d skills installed.\n", agentCount, skillCount)
+	fmt.Println("Restart Claude Code to load them.")
+}
+
+// countInstalledAgentsAndSkills counts the number of agent files (installed
+// under an "agents" path segment) and skill files (installed under a "commands"
+// path segment) across all outcome buckets. A file is counted only once
+// regardless of which bucket it landed in.
+func countInstalledAgentsAndSkills() (agents, skills int) {
+	all := make([]string, 0, len(stats.Installed)+len(stats.Updated)+len(stats.Unchanged))
+	all = append(all, stats.Installed...)
+	all = append(all, stats.Updated...)
+	all = append(all, stats.Unchanged...)
+	for _, p := range all {
+		fp := filepath.ToSlash(p)
+		switch {
+		case strings.Contains(fp, "/agents/"):
+			agents++
+		case strings.Contains(fp, "/commands/"):
+			skills++
+		}
+	}
+	return agents, skills
 }
 
 // readSourceFrontmatter reads the model: and effort: values from the source
