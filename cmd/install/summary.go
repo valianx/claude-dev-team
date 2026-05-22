@@ -1,9 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
+	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 )
 
 // printSummary prints the post-install report to stdout.
@@ -28,8 +31,11 @@ func printSummary(claudeJSONBackup string, mem MemoryMCPChoice, context7Preserve
 
 	if len(stats.Conflicts) > 0 {
 		fmt.Println()
-		fmt.Println("Conflicts (locally modified — left untouched):")
-		fmt.Println("  Delete the file manually and re-run to replace with the repo version.")
+		fmt.Println("Conflicts (on-disk differs from what this install mode would produce):")
+		fmt.Println("  This happens when either:")
+		fmt.Println("    (a) you modified the file manually — keep your edits, or")
+		fmt.Println("    (b) you switched INSTALL_MODE since the last install — delete and re-run.")
+		fmt.Println("  To overwrite all conflicts: re-run the installer with --force.")
 		for _, c := range stats.Conflicts {
 			fmt.Printf("  - %s\n", c)
 		}
@@ -60,28 +66,43 @@ func printSummary(claudeJSONBackup string, mem MemoryMCPChoice, context7Preserve
 	fmt.Printf("     ~/.claude/settings.json under the \"hooks\" key.\n")
 }
 
-// standardMatrix is the canonical standard-mode model+effort per agent, read
-// from agents/README.md §Roster. Used only for computing the per-agent diff
-// line in the summary — no file IO at install time. Kept in sync with the
-// agents/*.md source frontmatter by the test suite (modes_test.go).
-var standardMatrix = map[string][2]string{
-	"orchestrator":       {"opus", "high"},
-	"architect":          {"opus", "max"},
-	"agent-builder":      {"opus", "max"},
-	"security":           {"opus", "max"},
-	"reviewer":           {"opus", "max"},
-	"qa":                 {"opus", "high"},
-	"gcp-cost-analyzer":  {"opus", "high"},
-	"init":               {"opus", "medium"},
-	"implementer":        {"sonnet", "high"},
-	"plan-reviewer":      {"sonnet", "medium"},
-	"tester":             {"sonnet", "medium"},
-	"acceptance-checker": {"sonnet", "medium"},
-	"diagrammer":         {"sonnet", "medium"},
-	"likec4-diagrammer":  {"sonnet", "medium"},
-	"d2-diagrammer":      {"sonnet", "medium"},
-	"translator":         {"sonnet", "medium"},
-	"delivery":           {"sonnet", "medium"},
+// readSourceFrontmatter reads the model: and effort: values from the source
+// frontmatter of an agent .md file. It uses the same line-by-line parse as
+// the transformer, so it is always in sync with what the installer reads.
+// Returns ("", "") if the file cannot be opened or has no parseable values.
+func readSourceFrontmatter(agentName string) (model, effort string) {
+	path := filepath.Join(repoRoot, "agents", agentName+".md")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", ""
+	}
+	// Accept both LF and CRLF openers, consistent with transformAgentFile.
+	hasCRLF := bytes.HasPrefix(data, []byte("---\r\n"))
+	hasLF := bytes.HasPrefix(data, []byte("---\n"))
+	if !hasCRLF && !hasLF {
+		return "", ""
+	}
+	preambleLen := 4
+	if hasCRLF {
+		preambleLen = 5
+	}
+	fmEnd := findFrontmatterEnd(data, preambleLen)
+	if fmEnd < 0 {
+		return "", ""
+	}
+	// Walk frontmatter lines looking for model: and effort:.
+	lines := bytes.Split(data[preambleLen:fmEnd], []byte("\n"))
+	for _, raw := range lines {
+		line := strings.TrimRight(string(raw), "\r")
+		key := strings.TrimLeft(line, " \t")
+		if isExactKey(key, "model:") && model == "" {
+			model = strings.TrimSpace(key[len("model:"):])
+		}
+		if isExactKey(key, "effort:") && effort == "" {
+			effort = strings.TrimSpace(key[len("effort:"):])
+		}
+	}
+	return model, effort
 }
 
 // agentPrintOrder gives a stable output order for the per-agent diff lines.
@@ -93,7 +114,9 @@ var agentPrintOrder = []string{
 }
 
 // printModeSummary prints the install-mode line and (for low-cost) a one-line
-// per-agent diff for traceability (AC-8).
+// per-agent diff for traceability (AC-8). Standard-mode values are read from
+// the source agents/*.md frontmatter at runtime so the diff cannot drift from
+// the actual files.
 func printModeSummary(mode InstallMode) {
 	fmt.Println()
 	if mode == ModeStandard {
@@ -109,24 +132,24 @@ func printModeSummary(mode InstallMode) {
 		if !ok {
 			continue
 		}
-		std, stdOK := standardMatrix[name]
-		if !stdOK {
+		stdModel, stdEffort := readSourceFrontmatter(name)
+		if stdModel == "" && stdEffort == "" {
+			// Source file unreadable — skip rather than printing misleading diff.
 			continue
 		}
-		// Only print lines where something actually changed.
-		modelChanged := std[0] != override.Model
-		effortChanged := std[1] != override.Effort
+		modelChanged := stdModel != override.Model
+		effortChanged := stdEffort != override.Effort
 		if !modelChanged && !effortChanged {
 			fmt.Printf("  %-20s (unchanged)\n", name)
 			continue
 		}
-		modelPart := fmt.Sprintf("model: %s", std[0])
+		modelPart := fmt.Sprintf("model: %s", stdModel)
 		if modelChanged {
-			modelPart = fmt.Sprintf("model: %s → %s", std[0], override.Model)
+			modelPart = fmt.Sprintf("model: %s → %s", stdModel, override.Model)
 		}
-		effortPart := fmt.Sprintf("effort: %s", std[1])
+		effortPart := fmt.Sprintf("effort: %s", stdEffort)
 		if effortChanged {
-			effortPart = fmt.Sprintf("effort: %s → %s", std[1], override.Effort)
+			effortPart = fmt.Sprintf("effort: %s → %s", stdEffort, override.Effort)
 		}
 		fmt.Printf("  %-20s %s | %s\n", name, modelPart, effortPart)
 	}
