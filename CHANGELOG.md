@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Installer UAC elevation triggered by filename heuristic** (`bin/install.ps1`): v2.9.3 still hit `The requested operation requires elevation` because Windows applies an "installer detection" heuristic to executables whose filename contains `install`, `setup`, `update`, or `patch` — and silently forces UAC even when launched via `CreateProcess` with `UseShellExecute=$false`. The downloaded `.exe` is now saved as `th-bootstrap.exe` (neutral name) to bypass the heuristic, plus `Unblock-File` strips the Mark-of-the-Web Zone Identifier as a belt-and-suspenders measure. Proper long-term fix is to embed an `asInvoker` execution-level manifest in the Go binary (via `goversioninfo` / `.syso`) — deferred to a future PR.
+
 ## [2.9.3] - 2026-05-22
 
 ### Fixed
