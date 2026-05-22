@@ -251,18 +251,20 @@ The three things a developer already knows how to ask for — a work plan, an im
 
 ### 7.3 Language — English-only repo content
 
-Every committed artefact is in English: `README.md`, all files under `docs/`, `agents/*.md`, `skills/*.md`, `CLAUDE.md`, `cmd/install/*.go` strings, `bin/install.{sh,ps1,cmd}` echoes, `hooks/*.sh` echoes, `.github/workflows/*.yml`, `CHANGELOG.md`, commit messages, PR titles and bodies, session-doc TEMPLATES (the structural headers — operator-supplied content within session-docs is pass-through per §7.4).
+Every committed artefact is in English: `README.md`, all files under `docs/`, `agents/*.md`, `skills/*.md`, `CLAUDE.md`, `cmd/install/*.go` strings, `bin/install.{sh,ps1,cmd}` echoes, `hooks/*.sh` echoes, `.github/workflows/*.yml`, `CHANGELOG.md`, commit messages, PR titles and bodies.
 
 **Why:** team-harness is open-source and targets an international developer audience. Mixed-language repos are jarring, harder to grep, and force readers through a translation step. Live chat is ephemeral; repo content is the durable artefact that outlives any conversation.
 
-**Documented exceptions** (one only):
+**Session-docs are NOT committed artefacts.** `session-docs/` is gitignored (see `.gitignore` line 2) — it is local working memory on each operator's machine, not published. The English-only rule does NOT cover session-doc PROSE content. Agent-composed prose inside session-doc bodies (analyses, summaries, decisions, hot context insights, verdict rationales) follows the **operator's chat language**. Structural elements that must remain machine-readable across operators stay English regardless: section headers (`## TL;DR`, `## Current State`, `## Agent Results`), field names (`status:`, `phase:`, `verdict:`), status-block keys, closed-set enum values (`success`, `pass`, `fail`, `APPROVE`), filenames (`01-architecture.md`), `dispatch_handoff` JSON keys. The boundary is **structure = English, body prose = operator language**.
 
-- **`agents/security.md` report-body template, `04-security.md` report bodies, `agents/reviewer.md` review-body templates, `04-internal-review.md` / `05-internal-review.md` reviewer outputs.** The two agents are spec'd to produce Spanish-language reports per their existing contracts. The Spanish output is **only the body of those session-doc reports** (and the GitHub PR-review comment posted by `reviewer` in fresh mode). The agent's system prompt itself, the agent's status-block fields, and any framework-level field remain English.
+**Documented exceptions** (committed artefacts where Spanish is allowed):
+
+- **`agents/security.md` report-body template, `04-security.md` report bodies, `agents/reviewer.md` review-body templates, `04-internal-review.md` / `05-internal-review.md` reviewer outputs.** The two agents are spec'd to produce Spanish-language reports per their existing contracts. The Spanish output is **only the body of those session-doc reports** (and the GitHub PR-review comment posted by `reviewer` in fresh mode). The agent's system prompt itself, the agent's status-block fields, and any framework-level field remain English. Note: under the session-docs rule above, the report body would already follow operator language; the security/reviewer contracts are the legacy expression of that rule applied selectively to committed PR comments as well.
 - **`agents/orchestrator.md` Step 6 intent-detection routing table.** The table lists patterns in both English and Spanish so the operator can chat in either language and the orchestrator routes correctly. This is the explicit bridge between any-language chat and English-only repo content. The patterns themselves are not operator-facing text — they are intent classifiers.
 
 **`agents/translator.md` example glossary tables** are domain illustrations (Spanish source → English target translation examples), not operator copy. They illustrate what the translator does, not how team-harness speaks to the operator. They are out of scope for this guide.
 
-**Live chat is NOT a committed artefact.** The English-only rule does NOT apply to chat replies — the operator may chat in any language and Claude replies in the operator's language. The rule scopes English to the durable surface only.
+**Live chat is NOT a committed artefact.** The English-only rule does NOT apply to chat replies — the operator may chat in any language and Claude replies in the operator's language. The rule scopes English to the durable repo surface only.
 
 ### 7.4 Operator-supplied content boundary
 
@@ -270,15 +272,23 @@ The agent never composes Spanish (post-audit, with the §7.3 exceptions). The op
 
 | What | Who composes it | Language |
 |---|---|---|
-| `summary:` field of a status block | Agent | English |
+| `summary:` field of a status block | Agent | English (machine-parseable surface) |
 | `status:` / `verdict:` / `event:` literal values (`success`, `pass`, `APPROVE`) | Agent (closed-set values) | English (literal tokens) |
 | `output:` path containing feature-name segment | Operator-supplied feature name passed through | Whatever the operator chose |
 | Session-doc filename (e.g. `01-architecture.md`) | Agent (structural) | English |
+| Session-doc section headers (`## TL;DR`, `## Current State`, `## Agent Results`, `## Handoff`) | Agent (structural) | English |
+| Session-doc table column headers, field labels (`Status:`, `Phase:`, `Last:`, `Next:`) | Agent (structural) | English |
+| `dispatch_handoff` JSON keys (`schema_version`, `next_dispatch`, `phase`, `autonomy`) | Agent (machine-parseable surface) | English |
 | Feature name (e.g. `exportación-de-facturas`) | Operator-supplied | Whatever the operator chose |
 | `00-task-intake.md` Original Description block | Operator-quoted | Whatever the operator said |
-| All other prose inside session-doc bodies | Agent | English (with §7.3 exceptions) |
+| Prose body content inside session-doc sections (analyses, rationales, summaries, insights, narrative verdicts) | Agent | **Operator's chat language** (session-docs are gitignored — see §7.3) |
+| Prose body content in committed agent reports — `04-security.md`, `04-internal-review.md`, `05-internal-review.md` | Agent | Spanish (per §7.3 documented exception) |
+| Status-block `summary:` of every agent (including security, reviewer) | Agent | English (machine-parseable, always) |
+| Prose anywhere else (committed) | Agent | English (per §7.3) |
 
-**Rule of thumb:** "Did the agent compose this string, or pass through user input?" The agent's compositions are English. User input is preserved verbatim.
+**Rule of thumb (two-axis):**
+- **What is it?** Structural (headers, keys, filenames, closed-set enum values) → English always, regardless of where it lives. Prose → depends on where it lives.
+- **Where does it live?** Gitignored session-docs → operator's chat language. Committed repo file → English (with the documented §7.3 exceptions).
 
 ### 7.5 Orchestrator as the canonical entry point
 
