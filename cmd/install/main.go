@@ -42,6 +42,8 @@ func main() {
 	parseFlags()
 	resolveRepoPaths()
 
+	printWelcomeBanner()
+
 	// Force UTF-8 on Windows by ensuring output isn't transcoded.
 	// (Go's stdout is already binary; this note is for awareness only.)
 
@@ -94,6 +96,7 @@ func main() {
 	saveManifest()
 
 	printSummary(backupPath, memChoice, context7Preserved, installMode)
+	pressEnterToExit()
 }
 
 func parseFlags() {
