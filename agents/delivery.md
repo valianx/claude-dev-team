@@ -302,6 +302,28 @@ If the feature was non-trivial (had >2 AC or documented significant decisions), 
 - Format: `- {Short description}`
 - Do NOT modify entries outside `[Unreleased]`
 
+**Routing rules (mandatory):**
+
+| Task payload `type:` | Target subsection | Rationale |
+|---|---|---|
+| `feature`, `enhancement` | `### Added` | new functionality |
+| `refactor` | `### Changed` | behaviour preserved; structure changed |
+| **`fix`** | **`### Fixed`** | bug fix |
+| **`hotfix`** | **`### Fixed`** | urgent bug fix |
+| `fix` or `hotfix` AND the bug itself is a security defect (auth bypass, injection, XSS, broken access control, etc.) | **`### Security`** | Keep-a-Changelog convention for security fixes |
+| (any) AND security agent reported Critical/High that were resolved as part of this change | `### Security` | security-relevant changes get their own surface |
+
+**For `type: fix` and `type: hotfix`** the entry format is: `- {past-tense bug description}. Fixes #{issue-number-if-any}.`
+
+Example:
+```markdown
+## [Unreleased]
+
+### Fixed
+
+- Date-range picker now correctly excludes the `to` boundary instead of including it (`[from, to)` semantics). Fixes #287.
+```
+
 ### Step 8 — Update OpenAPI (backend only, if applicable)
 
 If the feature adds or modifies HTTP endpoints:
@@ -515,14 +537,42 @@ gh pr list --head {branch-name} --base main --state all --json number,url,title,
 
 The PR body MUST include every section listed below, in this order. Sections marked **mandatory** appear on every PR; sections marked **conditional** appear only when applicable. The goal is that the human reviewer arrives, reads top-to-bottom, and knows what to focus on without needing to context-switch.
 
+**PR title format (mandatory routing by task payload `type:`):**
+
+| `type:` | Title format | Example |
+|---|---|---|
+| `feature`, `enhancement` | `feat({area}): {imperative summary}` | `feat(reports): add GET /reports/daily` |
+| `refactor` | `refactor({area}): {imperative summary}` | `refactor(auth): extract token verification` |
+| **`fix`** | **`fix({area}): {imperative summary}`** | `fix(date-range): exclude to-boundary in picker` |
+| **`hotfix`** | **`fix({area}): {imperative summary} (hotfix)`** | `fix(auth): bypass on empty token (hotfix)` |
+
+The `{area}` is the kebab-case module/service name (e.g., `auth`, `date-range`, `payment-webhook`). The title length cap is 72 characters. The `(hotfix)` suffix signals urgency to the reviewer.
+
 ```
 gh pr create --base main \
-  --title "{type}({feature_name}): {short summary}" \
+  --title "{type-prefix}({area}): {short summary}{hotfix-suffix-if-applicable}" \
   --assignee @me \
   --label "{label1},{label2}" \
   --project "{project-number}" \
   --body "$(cat <<'EOF'
-Closes #{number}
+{Closes #{number} OR Fixes #{number}}
+
+(`Fixes #` for `type: fix` / `type: hotfix` — triggers GitHub auto-close on merge; `Closes #` for everything else.)
+
+## Bug Report (conditional — mandatory for type: fix and type: hotfix; omit entirely otherwise)
+
+**Reported behaviour:** {1-2 sentences from 00-task-intake.md § Bug Report → Reported behaviour}
+
+**Expected behaviour:** {1-2 sentences from 00-task-intake.md § Bug Report → Expected behaviour}
+
+**Reproduction steps:**
+1. {step from 00-task-intake.md}
+2. {step}
+3. ...
+
+**Root cause:** {1-2 sentences from 01-root-cause.md § Failure Mechanism; omit for type: hotfix where there is no 01-root-cause.md — use the implementer's diagnosis from 02-implementation.md instead}
+
+**Regression test:** `{regression_test_path from 00-state.md}` — captures the bug, passes after the fix.
 
 ## Main change (mandatory)
 {1-2 sentences in the user's voice — what does this PR DO from the user's perspective? Not "implements JWT", but "users now stay logged in for 30 days with rotating refresh tokens".}
@@ -558,6 +608,9 @@ Suggested reading order, optimised for the reviewer's mental model:
 - [x] Type check: {command} → PASS
 - [x] Tests: {command} → PASS ({N} passed)
 - [x] Build: {command} → PASS  (or "n/a" if no build step)
+
+## Follow-ups (spotted during this fix — not addressed here) (conditional — present only if `02-implementation.md` has a `## Follow-ups Spotted` section; omit otherwise)
+{paste the contents of `## Follow-ups Spotted` from `02-implementation.md`, one bullet per follow-up with file:line + description}
 
 ## Pre-PR Review (conditional — present only if Phase 4.5 ran)
 {paste the summary block from session-docs/{feature-name}/04-internal-review.md, or omit this section entirely if 04-internal-review.md does not exist}

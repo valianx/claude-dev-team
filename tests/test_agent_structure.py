@@ -1176,7 +1176,9 @@ for ref in sorted(plausible_agent_refs):
 # 5. Phase numbers mentioned in th-orchestrator.md are in the canonical set.
 #    Canonical phases (per the Pipeline Flow ASCII art and Stage table):
 CANONICAL_PHASES = {
-    "0a", "0b", "1", "1.5", "1.6", "2", "2.5", "3", "3.5", "3.6", "4", "4.5", "5", "6",
+    "0a", "0b", "1", "1.5", "1.6", "2.0", "2", "2.5", "3", "3.5", "3.6", "4", "4.5", "5", "6",
+    # 2.0 is the Bug-fix Pipeline regression-test phase (type: fix | hotfix only),
+    # inserted between STAGE-GATE-1 and Phase 2. See ref-special-flows.md § Bug-fix Flow.
 }
 # Extract `Phase X` mentions, case-insensitive.
 phase_mentions = set(re.findall(r"Phase\s+([0-9]+(?:\.[0-9]+)?[a-z]?)", orchestrator_md_v19))
@@ -2295,6 +2297,583 @@ check(
     "voice: agents/reviewer.md review body template still contains Spanish section headers",
     "Revision de Codigo" in _reviewer_md or "Problemas Criticos" in _reviewer_md,
     "Spanish section headers (Revision de Codigo/Problemas Criticos) missing from reviewer.md — exception may have been removed",
+)
+
+# ---------------------------------------------------------------------------
+# Suite 26 — Bug-fix Pipeline (type: fix and type: hotfix)
+# ---------------------------------------------------------------------------
+print()
+print("=== Suite 26: Bug-fix Pipeline (v2.9.0) ===")
+
+# Reload files for this suite (may have been updated since prior reads).
+_orch_bf = read(AGENTS_DIR / "th-orchestrator.md")
+_architect_bf = read(AGENTS_DIR / "architect.md")
+_tester_bf = read(AGENTS_DIR / "tester.md")
+_implementer_bf = read(AGENTS_DIR / "implementer.md")
+_delivery_bf = read(AGENTS_DIR / "delivery.md")
+_plan_reviewer_bf = read(AGENTS_DIR / "plan-reviewer.md")
+_qa_bf = read(AGENTS_DIR / "qa.md")
+_ref_flows_bf = read(AGENTS_DIR / "ref-special-flows.md")
+
+# (1) th-orchestrator: Phase 2.0 numbering present
+check(
+    "th-orchestrator.md declares Phase 2.0 — Regression Test Authoring",
+    "## Phase 2.0 — Regression Test Authoring" in _orch_bf,
+    "Phase 2.0 section header missing from th-orchestrator.md",
+)
+check(
+    "th-orchestrator.md Phase 2.0 is mandatory and never skipped",
+    "Phase 2.0" in _orch_bf and ("MANDATORY" in _orch_bf or "Never skipped" in _orch_bf or "mandatory" in _orch_bf.lower()),
+    "Phase 2.0 mandatory-ness not documented",
+)
+check(
+    "th-orchestrator.md Phase 2.0 dispatches tester in pre-fix-regression mode",
+    "mode: pre-fix-regression" in _orch_bf or "pre-fix-regression" in _orch_bf,
+    "tester dispatch with mode: pre-fix-regression not declared in Phase 2.0",
+)
+
+# (2) th-orchestrator: 00-state.md schema includes type and regression_test fields + phase 2.0
+check(
+    "th-orchestrator.md 00-state.md schema includes type field with fix and hotfix values",
+    "type:" in _orch_bf and "fix" in _orch_bf and "hotfix" in _orch_bf,
+    "type field with fix/hotfix not documented in 00-state.md schema",
+)
+check(
+    "th-orchestrator.md 00-state.md schema includes phase: 2.0",
+    "2.0" in _orch_bf and ("phase: {0a|0b|1|1.5|1.6|2.0|2|" in _orch_bf or "|2.0|" in _orch_bf),
+    "phase: 2.0 not in 00-state.md schema enum",
+)
+check(
+    "th-orchestrator.md 00-state.md schema includes regression_test_path field",
+    "regression_test_path" in _orch_bf,
+    "regression_test_path field missing from 00-state.md schema",
+)
+check(
+    "th-orchestrator.md 00-state.md schema includes regression_test_status field",
+    "regression_test_status" in _orch_bf,
+    "regression_test_status field missing from 00-state.md schema",
+)
+
+# (3) th-orchestrator: security-sensitive forced to true for type: fix | hotfix
+check(
+    "th-orchestrator.md Step 7 forces security-sensitive: true for type: fix or hotfix",
+    "type is `fix` or `hotfix`" in _orch_bf or "`fix` or `hotfix`" in _orch_bf or
+    "Task type is `fix` or `hotfix`" in _orch_bf,
+    "security-sensitive: true force for fix/hotfix not declared in Step 7",
+)
+check(
+    "th-orchestrator.md Step 7 documents defense-in-depth rationale for bug-fix security",
+    "defense-in-depth" in _orch_bf or "defense in depth" in _orch_bf,
+    "defense-in-depth rationale missing for forcing security on bug-fix",
+)
+
+# (4) th-orchestrator: Phase 3 verify documents security runs always for type: fix | hotfix
+check(
+    "th-orchestrator.md Phase 3 verify states security runs always for type: fix | hotfix",
+    "security` runs **always**" in _orch_bf or "security runs always" in _orch_bf.lower() or
+    ("`type: fix`" in _orch_bf and "always" in _orch_bf and "security" in _orch_bf),
+    "Phase 3 does not document security-runs-always for bug-fix",
+)
+
+# (5) th-orchestrator: routing to root-cause mode for architect when type: fix
+check(
+    "th-orchestrator.md Phase 1 routes to architect mode: root-cause for type: fix",
+    "mode: root-cause" in _orch_bf or "`root-cause`" in _orch_bf,
+    "architect mode: root-cause routing not documented in Phase 1",
+)
+check(
+    "th-orchestrator.md Phase 1 skipped for type: hotfix",
+    "Phase 1" in _orch_bf and "hotfix" in _orch_bf and "skipped" in _orch_bf.lower(),
+    "Phase 1 skip rule for hotfix not documented",
+)
+
+# (6) th-orchestrator: type_reclassify handling
+check(
+    "th-orchestrator.md documents type_reclassify protocol (architect-recommends-operator-decides)",
+    "type_reclassify" in _orch_bf and "operator" in _orch_bf.lower(),
+    "type_reclassify protocol not documented",
+)
+
+# (7) th-orchestrator: Special Flows table mentions Bug-fix
+check(
+    "th-orchestrator.md Special Flows table mentions Bug-fix flow with 01-root-cause.md",
+    "Bug-fix" in _orch_bf and "01-root-cause.md" in _orch_bf,
+    "Bug-fix flow not documented in Special Flows table",
+)
+
+# (8) th-orchestrator: 00-pipeline-summary.md row mappings for bug-fix
+check(
+    "th-orchestrator.md documents 00-pipeline-summary.md row mappings for bug-fix",
+    "Bug-fix flow row mappings" in _orch_bf or
+    ("Phase 1" in _orch_bf and "01-root-cause.md" in _orch_bf and "hotfix" in _orch_bf and "Phase 2.0" in _orch_bf),
+    "Pipeline summary row mappings for bug-fix not documented",
+)
+
+# (9) architect.md: Root-Cause Analysis mode section
+check(
+    "architect.md has Root-Cause Analysis Mode section",
+    "### Root-Cause Analysis Mode" in _architect_bf or "## Root-Cause Analysis Mode" in _architect_bf,
+    "Root-Cause Analysis Mode section missing from architect.md",
+)
+check(
+    "architect.md Root-Cause mode outputs 01-root-cause.md",
+    "01-root-cause.md" in _architect_bf,
+    "01-root-cause.md output not declared in architect.md",
+)
+check(
+    "architect.md Root-Cause mode declares 1-page size cap",
+    "01-root-cause.md" in _architect_bf and ("1 page" in _architect_bf.lower() or "≤80 lines" in _architect_bf),
+    "1-page size cap not declared for 01-root-cause.md",
+)
+check(
+    "architect.md Root-Cause mode has ## Regression Test Approach mandatory section",
+    "## Regression Test Approach" in _architect_bf,
+    "## Regression Test Approach section not declared in 01-root-cause.md template",
+)
+check(
+    "architect.md Root-Cause mode documents type_reclassify protocol",
+    "type_reclassify" in _architect_bf,
+    "type_reclassify protocol not documented in architect Root-Cause mode",
+)
+check(
+    "architect.md Return Protocol declares type_reclassify field",
+    "type_reclassify: false | true" in _architect_bf or "type_reclassify:" in _architect_bf.split("## Return Protocol", 1)[1] if "## Return Protocol" in _architect_bf else False,
+    "type_reclassify field not declared in architect Return Protocol",
+)
+
+# (10) tester.md: Pre-Fix Regression Test mode
+check(
+    "tester.md has Pre-Fix Regression Test Mode section",
+    "## Pre-Fix Regression Test Mode" in _tester_bf,
+    "Pre-Fix Regression Test Mode section missing from tester.md",
+)
+check(
+    "tester.md Pre-Fix Regression Test mode outputs 02-regression-test.md",
+    "02-regression-test.md" in _tester_bf,
+    "02-regression-test.md not declared in tester.md Pre-Fix Regression Test mode",
+)
+check(
+    "tester.md Pre-Fix mode dispatched with mode: pre-fix-regression",
+    "pre-fix-regression" in _tester_bf,
+    "mode: pre-fix-regression not declared in tester.md",
+)
+check(
+    "tester.md Return Protocol declares regression_test_path",
+    "regression_test_path" in _tester_bf.split("## Return Protocol", 1)[1] if "## Return Protocol" in _tester_bf else False,
+    "regression_test_path not declared in tester Return Protocol",
+)
+check(
+    "tester.md Return Protocol declares regression_test_status",
+    "regression_test_status" in _tester_bf.split("## Return Protocol", 1)[1] if "## Return Protocol" in _tester_bf else False,
+    "regression_test_status not declared in tester Return Protocol",
+)
+check(
+    "tester.md Pre-Fix mode rejects manual-repro-script fallback (operator override)",
+    "manual-repro-script" in _tester_bf and ("rejected" in _tester_bf.lower() or "no exceptions" in _tester_bf.lower() or "no fallback" in _tester_bf.lower()),
+    "manual-repro-script fallback rejection not documented in tester.md",
+)
+
+# (11) implementer.md: Scope discipline section for type: fix | hotfix
+check(
+    "implementer.md has Scope discipline section for type: fix and type: hotfix",
+    "## Scope discipline for `type: fix` and `type: hotfix`" in _implementer_bf or
+    "Scope discipline for type: fix and type: hotfix" in _implementer_bf or
+    "Scope discipline for `type: fix`" in _implementer_bf,
+    "Scope discipline section for bug-fix mode missing from implementer.md",
+)
+check(
+    "implementer.md Scope discipline lists forbidden changes (renaming, reformatting, refactoring)",
+    "Renaming" in _implementer_bf and "Reformatting" in _implementer_bf and "Refactoring" in _implementer_bf,
+    "Forbidden change classes not enumerated in implementer Scope discipline",
+)
+check(
+    "implementer.md Scope discipline documents Follow-ups Spotted convention",
+    "Follow-ups Spotted" in _implementer_bf,
+    "Follow-ups Spotted section not documented in implementer.md",
+)
+check(
+    "implementer.md Scope discipline documents [SCOPE-DRIFT] annotation pattern",
+    "[SCOPE-DRIFT" in _implementer_bf,
+    "[SCOPE-DRIFT] annotation pattern not documented in implementer Scope discipline",
+)
+check(
+    "implementer.md Return Protocol declares regression_test_passes",
+    "regression_test_passes" in _implementer_bf,
+    "regression_test_passes not declared in implementer Return Protocol",
+)
+check(
+    "implementer.md Return Protocol declares follow_ups_spotted",
+    "follow_ups_spotted" in _implementer_bf,
+    "follow_ups_spotted not declared in implementer Return Protocol",
+)
+
+# (12) delivery.md: CHANGELOG ### Fixed routing for type: fix | hotfix
+check(
+    "delivery.md documents CHANGELOG ### Fixed routing for type: fix | hotfix",
+    "### Fixed" in _delivery_bf and "`fix`" in _delivery_bf and "`hotfix`" in _delivery_bf,
+    "CHANGELOG routing for bug-fix not documented in delivery.md",
+)
+# (13) delivery.md: PR title format fix(area):
+check(
+    "delivery.md documents PR title format fix(area): for type: fix",
+    "fix({area})" in _delivery_bf,
+    "fix(area): PR title format not documented in delivery.md",
+)
+check(
+    "delivery.md documents (hotfix) suffix for PR title when type: hotfix",
+    "(hotfix)" in _delivery_bf,
+    "(hotfix) suffix not documented in delivery.md PR title routing",
+)
+# (14) delivery.md: Bug Report section in PR body for type: fix | hotfix
+check(
+    "delivery.md PR body template has Bug Report section for type: fix | hotfix",
+    "## Bug Report" in _delivery_bf and "mandatory for type: fix" in _delivery_bf,
+    "Bug Report section not in delivery.md PR body template",
+)
+check(
+    "delivery.md PR body uses Fixes #N keyword for type: fix | hotfix",
+    "Fixes #" in _delivery_bf,
+    "Fixes # keyword not declared for bug-fix PR body",
+)
+
+# (15) plan-reviewer.md: Rules 7 and 8 declared
+check(
+    "plan-reviewer.md declares Rule 7 — Regression Test Approach",
+    "### Rule 7 — Regression Test Approach" in _plan_reviewer_bf,
+    "Rule 7 section missing from plan-reviewer.md",
+)
+check(
+    "plan-reviewer.md declares Rule 8 — Regression test cross-reference",
+    "### Rule 8 — Regression test cross-reference" in _plan_reviewer_bf,
+    "Rule 8 section missing from plan-reviewer.md",
+)
+check(
+    "plan-reviewer.md Rules 7 and 8 are gated on type: fix | hotfix",
+    "type: fix" in _plan_reviewer_bf and "type: hotfix" in _plan_reviewer_bf and "no-op" in _plan_reviewer_bf,
+    "type gating for Rules 7/8 not documented in plan-reviewer.md",
+)
+check(
+    "plan-reviewer.md Verdict Calibration mentions Rule 7 and Rule 8",
+    "rule 7" in _plan_reviewer_bf.lower() and "rule 8" in _plan_reviewer_bf.lower(),
+    "Rules 7/8 not in Verdict Calibration table",
+)
+check(
+    "plan-reviewer.md Return Protocol declares rule-7 and rule-8 findings counts",
+    "rule-7:" in _plan_reviewer_bf and "rule-8:" in _plan_reviewer_bf,
+    "rule-7 / rule-8 not in plan-reviewer Return Protocol",
+)
+check(
+    "plan-reviewer.md Rule 7 rejects manual-repro-script value",
+    "manual-repro-script" in _plan_reviewer_bf and ("rejected" in _plan_reviewer_bf.lower() or "operator override" in _plan_reviewer_bf.lower()),
+    "manual-repro-script rejection not documented in Rule 7",
+)
+check(
+    "plan-reviewer.md reads 01-root-cause.md instead of 01-architecture.md for type: fix",
+    "01-root-cause.md" in _plan_reviewer_bf,
+    "01-root-cause.md routing not documented in plan-reviewer.md",
+)
+
+# (16) qa.md: validate mode bug-fix contract
+check(
+    "qa.md Validate mode documents bug-fix contract (AC-1 reproduction-no-longer-bug, AC-2 regression-test-exists)",
+    "AC-1" in _qa_bf and "AC-2" in _qa_bf and "regression test" in _qa_bf.lower(),
+    "qa Validate mode bug-fix contract not documented",
+)
+check(
+    "qa.md Return Protocol declares regression_test_referenced field",
+    "regression_test_referenced" in _qa_bf,
+    "regression_test_referenced not in qa Return Protocol",
+)
+check(
+    "qa.md Return Protocol declares reproduction_steps_validated field",
+    "reproduction_steps_validated" in _qa_bf,
+    "reproduction_steps_validated not in qa Return Protocol",
+)
+
+# (17) ref-special-flows.md: Bug-fix Flow section + Hotfix sub-flow
+check(
+    "ref-special-flows.md has Bug-fix Flow section (replaces old Hotfix Flow stub)",
+    "## Bug-fix Flow" in _ref_flows_bf,
+    "Bug-fix Flow section missing from ref-special-flows.md",
+)
+check(
+    "ref-special-flows.md has Hotfix sub-flow section",
+    "## Hotfix sub-flow" in _ref_flows_bf,
+    "Hotfix sub-flow section missing from ref-special-flows.md",
+)
+check(
+    "ref-special-flows.md Bug-fix Flow declares full session-docs artifact set",
+    "01-root-cause.md" in _ref_flows_bf and "02-regression-test.md" in _ref_flows_bf and
+    "02-task-list.md" in _ref_flows_bf and "04-security.md" in _ref_flows_bf,
+    "Full session-docs artifact set not declared in Bug-fix Flow",
+)
+check(
+    "ref-special-flows.md Bug-fix Flow declares security agent runs ALWAYS for bugs",
+    "Bug-fix Flow" in _ref_flows_bf and "always" in _ref_flows_bf and "security" in _ref_flows_bf.lower(),
+    "security-always-for-bugs rule not in ref-special-flows.md",
+)
+check(
+    "ref-special-flows.md Bug-fix Flow declares regression test is mandatory always (no fallback)",
+    "mandatory always" in _ref_flows_bf or "no fallback" in _ref_flows_bf.lower() or
+    ("Regression Test" in _ref_flows_bf and "rejected" in _ref_flows_bf.lower()),
+    "regression-test-mandatory-always rule not documented in Bug-fix Flow",
+)
+check(
+    "ref-special-flows.md Hotfix sub-flow still includes Phase 2.0 (regression test mandatory)",
+    "Hotfix sub-flow" in _ref_flows_bf and "Phase 2.0" in _ref_flows_bf and "mandatory" in _ref_flows_bf.lower(),
+    "Phase 2.0 not declared mandatory for hotfix",
+)
+check(
+    "ref-special-flows.md documents architect re-classification (operator-decides)",
+    "type_reclassify" in _ref_flows_bf or "re-classification" in _ref_flows_bf.lower() or "reclassif" in _ref_flows_bf.lower(),
+    "architect re-classification protocol not in ref-special-flows.md",
+)
+check(
+    "ref-special-flows.md notes /hotfix slash command deferred to v2",
+    "/hotfix" in _ref_flows_bf and ("v2" in _ref_flows_bf.lower() or "deferred" in _ref_flows_bf.lower()),
+    "/hotfix v2 deferral not documented",
+)
+
+# ---------------------------------------------------------------------------
+# Suite 26b — Bug-fix Tier System (v2.9.0 extension)
+# ---------------------------------------------------------------------------
+print()
+print("=== Suite 26b: Bug-fix Tier System (4 tiers) ===")
+
+# (T1) th-orchestrator: tier classification subsection in Step 7
+check(
+    "th-orchestrator.md Step 7 declares bug_tier classification (Tier 1-4)",
+    "Bug tier" in _orch_bf and "bug_tier" in _orch_bf and "1` | `2` | `3` | `4`" in _orch_bf,
+    "bug_tier classification subsection not declared in Step 7",
+)
+check(
+    "th-orchestrator.md documents Signal 1 (keywords) for tier classification",
+    "Signal 1" in _orch_bf and "Keywords" in _orch_bf and "auth" in _orch_bf and "injection" in _orch_bf and "typo" in _orch_bf,
+    "Signal 1 (keywords) not documented for tier classification",
+)
+check(
+    "th-orchestrator.md documents Signal 2 (file-path patterns) for tier classification",
+    "Signal 2" in _orch_bf and "File-path patterns" in _orch_bf and "auth/**" in _orch_bf and "middleware/**" in _orch_bf,
+    "Signal 2 (file-path patterns) not documented for tier classification",
+)
+check(
+    "th-orchestrator.md documents Signal 3 (operator override) for tier classification",
+    "Signal 3" in _orch_bf and "[TIER:" in _orch_bf and "[regression-test: required]" in _orch_bf and "[security: required]" in _orch_bf,
+    "Signal 3 (operator override) not documented for tier classification",
+)
+check(
+    "th-orchestrator.md documents auto-escalation rules (high-tier signal wins)",
+    "Auto-escalation" in _orch_bf and ("Path priority" in _orch_bf or "sobrescribes" in _orch_bf or "high-tier signal" in _orch_bf.lower()),
+    "Auto-escalation rules not documented",
+)
+check(
+    "th-orchestrator.md documents architect tier_promote protocol",
+    "tier_promote" in _orch_bf and "tier_promote_rationale" in _orch_bf,
+    "tier_promote protocol not documented in th-orchestrator.md",
+)
+check(
+    "th-orchestrator.md default-to-Tier-3 rule documented (conservative)",
+    "Default: Tier 3" in _orch_bf or "default to Tier 3" in _orch_bf.lower() or "default tier 3" in _orch_bf.lower(),
+    "Default-Tier-3 conservative rule not documented",
+)
+check(
+    "th-orchestrator.md 00-state.md schema includes bug_tier field",
+    "bug_tier:" in _orch_bf and "{1 | 2 | 3 | 4 | null}" in _orch_bf,
+    "bug_tier field missing from 00-state.md schema",
+)
+check(
+    "th-orchestrator.md 00-state.md schema includes bug_tier_source field",
+    "bug_tier_source" in _orch_bf,
+    "bug_tier_source field missing from 00-state.md schema",
+)
+
+# (T2) th-orchestrator: Phase 1 dispatch table modulated by bug_tier
+check(
+    "th-orchestrator.md Phase 1 dispatch table modulated by bug_tier (Tier 1 skipped, Tier 2 light, Tier 3-4 full)",
+    "light-root-cause" in _orch_bf and "full-root-cause" in _orch_bf and "skipped" in _orch_bf.lower(),
+    "Phase 1 dispatch by bug_tier not documented",
+)
+check(
+    "th-orchestrator.md Phase 1 dispatch declares Tier 4 mandatory ## Prior Art",
+    "Prior Art" in _orch_bf and "mcp__memory__search_nodes" in _orch_bf,
+    "Tier 4 mandatory ## Prior Art (memory query) not declared in Phase 1 dispatch",
+)
+
+# (T3) th-orchestrator: Phase 2.0 conditional skip for Tier 1 no-behavior-change
+check(
+    "th-orchestrator.md Phase 2.0 documents Tier 1 conditional skip (no-behavior-change)",
+    "Phase 2.0" in _orch_bf and "no-behavior-change" in _orch_bf and ("Skip Phase 2.0" in _orch_bf or "Conditional skip" in _orch_bf),
+    "Phase 2.0 Tier 1 conditional skip not documented",
+)
+check(
+    "th-orchestrator.md Phase 2.0 declares pre_fix_test_required parameter for tester dispatch",
+    "pre_fix_test_required" in _orch_bf,
+    "pre_fix_test_required parameter not declared in Phase 2.0 dispatch",
+)
+check(
+    "th-orchestrator.md Phase 2.0 conditional-skip enumerates allowed Tier 1 paths",
+    "*.md" in _orch_bf and "LICENSE" in _orch_bf and "CHANGELOG*" in _orch_bf and "non-functional string" in _orch_bf,
+    "Tier 1 allowed-path patterns not enumerated in Phase 2.0 conditional skip",
+)
+check(
+    "th-orchestrator.md Phase 2.0 declares UI strings are Tier 2 minimum",
+    "UI strings" in _orch_bf and "Tier 2 minimum" in _orch_bf,
+    "UI-strings-are-Tier-2 rule not declared",
+)
+
+# (T4) th-orchestrator: Phase 3 parallel-dispatch tier-gated
+check(
+    "th-orchestrator.md Phase 3 declares tier-gated parallel dispatch table",
+    "Tier-gated dispatch" in _orch_bf or ("Phase 3" in _orch_bf and "bug_tier" in _orch_bf and "skipped" in _orch_bf),
+    "Phase 3 tier-gated dispatch table not declared",
+)
+check(
+    "th-orchestrator.md Phase 3 Tier 1 dispatches tester only (no qa Bug-fix contract, no security)",
+    "Tier 1" in _orch_bf and "suite no-regress" in _orch_bf,
+    "Phase 3 Tier 1 reduced dispatch not documented",
+)
+check(
+    "th-orchestrator.md Phase 3 Tier 2 dispatches tester + qa (no security)",
+    "Tier 2" in _orch_bf and "tester + qa" in _orch_bf,
+    "Phase 3 Tier 2 reduced dispatch not documented",
+)
+check(
+    "th-orchestrator.md Phase 3 Tier 4 dispatches security with extended analysis",
+    "extended analysis" in _orch_bf,
+    "Phase 3 Tier 4 extended security analysis not documented",
+)
+
+# (T5) architect.md: mode: light-root-cause | full-root-cause
+check(
+    "architect.md Root-Cause mode declares light-root-cause sub-mode",
+    "light-root-cause" in _architect_bf,
+    "mode: light-root-cause not declared in architect.md",
+)
+check(
+    "architect.md Root-Cause mode declares full-root-cause sub-mode",
+    "full-root-cause" in _architect_bf,
+    "mode: full-root-cause not declared in architect.md",
+)
+check(
+    "architect.md light-root-cause is gated to bug_tier: 2",
+    "light-root-cause" in _architect_bf and "bug_tier: 2" in _architect_bf,
+    "light-root-cause-to-bug_tier-2 binding not documented",
+)
+check(
+    "architect.md full-root-cause covers bug_tier: 3 and 4",
+    "full-root-cause" in _architect_bf and "bug_tier: 3" in _architect_bf and "bug_tier: 4" in _architect_bf,
+    "full-root-cause-to-bug_tier-3/4 binding not documented",
+)
+check(
+    "architect.md declares ## Prior Art mandatory for bug_tier: 4",
+    "## Prior Art" in _architect_bf and "mandatory" in _architect_bf.lower() and "bug_tier: 4" in _architect_bf,
+    "## Prior Art mandatory-for-Tier-4 not declared",
+)
+check(
+    "architect.md declares mcp__memory__search_nodes for Tier 4 prior-art query",
+    "mcp__memory__search_nodes" in _architect_bf and "Tier 4" in _architect_bf,
+    "Tier 4 memory query not declared",
+)
+check(
+    "architect.md Return Protocol declares tier_promote field",
+    "tier_promote:" in _architect_bf.split("## Return Protocol", 1)[1] if "## Return Protocol" in _architect_bf else False,
+    "tier_promote field not declared in architect Return Protocol",
+)
+check(
+    "architect.md Return Protocol declares tier_promote_rationale field",
+    "tier_promote_rationale" in _architect_bf,
+    "tier_promote_rationale field not declared in architect Return Protocol",
+)
+check(
+    "architect.md Return Protocol declares sub_mode field",
+    "sub_mode:" in _architect_bf,
+    "sub_mode field not declared in architect Return Protocol",
+)
+
+# (T6) tester.md: pre_fix_test_required parameter + pre_fix_test_status field
+check(
+    "tester.md Pre-Fix Regression Test mode accepts pre_fix_test_required parameter",
+    "pre_fix_test_required" in _tester_bf,
+    "pre_fix_test_required parameter not documented in tester.md",
+)
+check(
+    "tester.md declares Tier 1 conditional skip semantics for Phase 2.0",
+    "Tier 1" in _tester_bf and ("no-behavior-change" in _tester_bf or "skipped" in _tester_bf.lower()),
+    "Tier 1 conditional-skip semantics not documented in tester.md",
+)
+check(
+    "tester.md Return Protocol declares pre_fix_test_status field",
+    "pre_fix_test_status" in _tester_bf,
+    "pre_fix_test_status field not declared in tester Return Protocol",
+)
+check(
+    "tester.md regression_test_status accepts 'skipped' value (Tier 1)",
+    "regression_test_status" in _tester_bf and "skipped" in _tester_bf,
+    "regression_test_status: skipped value not documented in tester.md",
+)
+
+# (T7) qa.md: Tier 1 simplified validation
+check(
+    "qa.md Validate mode documents Tier 1 simplified validation contract",
+    "Tier 1" in _qa_bf and ("simplified" in _qa_bf.lower() or "implicit" in _qa_bf.lower() or "diff matches" in _qa_bf.lower()),
+    "qa.md Tier 1 simplified validation not documented",
+)
+check(
+    "qa.md Return Protocol allows regression_test_referenced: null for Tier 1 skipped",
+    "regression_test_referenced" in _qa_bf and "null" in _qa_bf and "bug_tier: 1" in _qa_bf,
+    "regression_test_referenced: null for Tier 1 not documented",
+)
+
+# (T8) ref-special-flows.md: Tier System subsection
+check(
+    "ref-special-flows.md has Tier System subsection inside Bug-fix Flow",
+    "Tier System" in _ref_flows_bf and "## Bug-fix Flow" in _ref_flows_bf,
+    "Tier System subsection missing from ref-special-flows.md Bug-fix Flow",
+)
+check(
+    "ref-special-flows.md Tier System declares 4 tiers with names",
+    "Tier 1" in _ref_flows_bf and "Tier 2" in _ref_flows_bf and "Tier 3" in _ref_flows_bf and "Tier 4" in _ref_flows_bf and "Docs/Trivial" in _ref_flows_bf and "Critical/Security" in _ref_flows_bf,
+    "4-tier table with names not declared in ref-special-flows.md",
+)
+check(
+    "ref-special-flows.md Tier System documents Tier 1 conditional regression-test skip",
+    "Tier 1 regression-test conditional skip" in _ref_flows_bf or ("Tier 1" in _ref_flows_bf and "conditional skip" in _ref_flows_bf.lower() and "no behavior change" in _ref_flows_bf.lower()),
+    "Tier 1 conditional regression-test skip not documented in ref-special-flows.md",
+)
+check(
+    "ref-special-flows.md Tier System documents Signal 1 (keywords)",
+    "Signal 1" in _ref_flows_bf and "Keywords in the bug report" in _ref_flows_bf and "auth" in _ref_flows_bf and "typo" in _ref_flows_bf,
+    "Signal 1 (keywords) not documented in Tier System",
+)
+check(
+    "ref-special-flows.md Tier System documents Signal 2 (file-path patterns)",
+    "Signal 2" in _ref_flows_bf and "File-path patterns" in _ref_flows_bf and "auth/**" in _ref_flows_bf,
+    "Signal 2 (file-path patterns) not documented in Tier System",
+)
+check(
+    "ref-special-flows.md Tier System documents Signal 3 (operator override)",
+    "Signal 3" in _ref_flows_bf and "[TIER:" in _ref_flows_bf,
+    "Signal 3 (operator override) not documented in Tier System",
+)
+check(
+    "ref-special-flows.md Tier System documents auto-escalation rules (high-tier wins)",
+    "Auto-escalation" in _ref_flows_bf or "auto-escalation" in _ref_flows_bf,
+    "Auto-escalation rules not documented in Tier System",
+)
+check(
+    "ref-special-flows.md Tier System declares default Tier 3 when in doubt",
+    "Default: Tier 3" in _ref_flows_bf or "default to Tier 3" in _ref_flows_bf.lower(),
+    "Default-to-Tier-3 conservative rule not documented in Tier System",
+)
+check(
+    "ref-special-flows.md Tier System enumerates security-sensitive paths (auth/**, middleware/**, api/**, db/**, security/**, crypto/**, session/**)",
+    all(p in _ref_flows_bf for p in ["auth/**", "middleware/**", "api/**", "db/**", "security/**", "crypto/**", "session/**"]),
+    "Security-sensitive path enumeration incomplete in Tier System",
+)
+check(
+    "ref-special-flows.md Tier System has worked examples (Tier 1, Tier 2, Tier 3-with-security-escalation)",
+    "Worked examples" in _ref_flows_bf or ("Example A" in _ref_flows_bf and "Example B" in _ref_flows_bf and "Example C" in _ref_flows_bf),
+    "Tier System worked examples missing from ref-special-flows.md",
 )
 
 # ---------------------------------------------------------------------------

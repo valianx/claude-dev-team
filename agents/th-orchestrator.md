@@ -232,7 +232,8 @@ After EVERY phase transition, update `session-docs/{feature-name}/00-state.md`. 
 
 ## Current State
 - pipeline_version: 2
-- phase: {0a|0b|1|1.5|1.6|2|2.5|3|3.5|3.6|4|4.5|5|6}
+- type: {feature|fix|refactor|hotfix|enhancement|research|spike}
+- phase: {0a|0b|1|1.5|1.6|2.0|2|2.5|3|3.5|3.6|4|4.5|5|6}
 - stage: {1|2|3}
 - status: {in_progress|waiting|iterating|paused|paused_for_amend|complete|blocked|blocked-no-dispatch}
 - iteration: {N}/3
@@ -244,6 +245,10 @@ After EVERY phase transition, update `session-docs/{feature-name}/00-state.md`. 
 - prs_completed: {[PR-1, ...] | []}          # cumulative across rounds
 - last_completed: {phase-name}
 - next_action: {what to do next}
+- regression_test_path: {path | null}        # set at Phase 2.0 (type: fix | hotfix); null otherwise
+- regression_test_status: {failing | passing | skipped | null}  # failing before Phase 2; passing after Phase 3; skipped for Tier 1 no-behavior-change
+- bug_tier: {1 | 2 | 3 | 4 | null}           # set at Phase 0a Step 7 for type: fix | hotfix; null otherwise
+- bug_tier_source: {auto | operator | architect-promote | null}  # how the tier was set; null for non-bug runs
 
 ## Agent Results
 | Agent | Phase | Status | Summary |
@@ -446,6 +451,22 @@ Every task runs the COMPLETE pipeline: Specify → Design → Plan Ratification 
 
 7. **Classify:**
    - **Type:** `feature` | `fix` | `refactor` | `hotfix` | `enhancement` | `research` | `spike`
+
+     **Signal lists (used to disambiguate the operator's intent):**
+
+     - **`fix`:** request describes broken/incorrect behaviour; keywords: `bug`, `solucionar`, `arreglar`, `corregir`, `fixear`, `debuguear`, `regresión`, `error en`, `no funciona`, `está rompiendo`, GitHub label `bug`.
+     - **`hotfix`:** all signals of `fix` PLUS urgency markers (`hotfix`, `urgente`, `crítico`, `production down`, `usuarios afectados`) AND scope ≤2 files (inferred from Phase 0b Step 1 codebase investigation) AND single causal site described by operator.
+     - **`feature`:** request adds new functionality, no broken-behaviour signals; GitHub label `feature` or `enhancement`.
+     - **`refactor`:** request explicitly says `refactor`, `clean up`, `reorganize`; no functional change expected.
+     - **`enhancement`:** request improves existing functionality without changing the contract.
+     - **`research` / `spike`:** explicit research / PoC request (routes via direct mode).
+
+     **Disambiguation:** the request may match multiple intent rows. Precedence: explicit type word > intent keywords > GitHub label. `hotfix` wins over `fix`; `fix` wins over `feature`; `refactor` does not override `fix` (a refactor that also fixes a bug is a bug fix with refactor scope-discipline forbidden).
+
+     **Operator override:** the operator can force a classification by saying so directly. E.g., `@th-orchestrator this is a hotfix:` forces `type: hotfix` regardless of auto-detection. Record the override in `00-state.md` Hot Context.
+
+     **Architect re-classification (operator-in-loop):** during Phase 1, if the architect determines a reported "bug" is actually a feature gap, the architect emits `type_reclassify: true` + 1-line rationale in its status block. The th-orchestrator surfaces both the rationale and the AC list to the operator for the decision. The architect does NOT auto-route.
+
    - **Complexity:** `standard` (full pipeline) | `complex` (extended review) — **never classify as `simple`**, all development runs the full pipeline
    - **Security-sensitive:** `true` | `false` — set to `true` if ANY of these apply:
      - Task touches authentication, authorization, or session management
@@ -456,6 +477,50 @@ Every task runs the COMPLETE pipeline: Specify → Design → Plan Ratification 
      - Task is classified as `complex`
      - User explicitly requests security review
      - GitHub issue has a `security` label
+     - **Task type is `fix` or `hotfix`** — security agent runs ALWAYS for bugs (operator override; defense-in-depth: many bugs have non-obvious security implications, and fixes can introduce new vulnerabilities). For `type: fix` / `type: hotfix`, `security-sensitive` is **forced to `true`** regardless of the other criteria above. This is a hard requirement of the Bug-fix Flow — see `ref-special-flows.md` § Bug-fix Flow. **Tier modulation:** for `type: fix` / `type: hotfix`, the `security-sensitive: true` default is preserved for Tier 3+ and derived from the tier (see Tier classification below). Tier 1 (docs/trivial) and Tier 2 (light) skip the security agent because the impacted scope is non-functional or non-production code; if a Tier 1 / Tier 2 fix touches a security-sensitive path, the path signal auto-promotes the tier to 3+. The "always on for bugs" rule survives semantically: security runs for every Tier 3+ bug, and the tier system is what determines whether the bug is Tier 3+.
+
+   - **Bug tier (only when `type: fix` or `type: hotfix`):** `1` | `2` | `3` | `4`. The tier determines how much of the Bug-fix Pipeline runs against a given fix — trivial bugs skip ceremony, critical bugs add prior-art research and extended security analysis. Combine three signals; high-tier signals win, default to Tier 3 when ambiguous, operator declarations override auto-classification.
+
+     **Signal 1 — Keywords in the bug report** (operator's plain-text request plus any linked issue body):
+     - **High-tier triggers (escalate to Tier 4, case-insensitive whole-word match):** `auth`, `injection`, `xss`, `csrf`, `secret`, `token`, `permission`, `bypass`, `vulnerability`, `cve`, `leak`, `exposed`, `unauthorized`.
+     - **Low-tier hints (Tier 1 candidate):** `typo`, `trivial`, `fix rápido`, `quick fix`, `cosmetic`, `documentation`, `comment fix`, `whitespace`.
+
+     **Signal 2 — File-path patterns** (use Phase 0b Step 1 codebase investigation results if the operator mentioned files; otherwise re-evaluate after Phase 1 once the architect identifies the scope):
+     - **Tier 1 paths:** `*.md`, `LICENSE`, `CHANGELOG*`, `docs/**/*`, code-comments-only changes.
+     - **Tier 2 paths:** `.github/**`, `scripts/**`, `*.config.*`, `*.toml`, root-level `package.json` when changes are non-dep, `tests/**`, `__tests__/**`, `*.test.*`, `*.spec.*`, `mocks/**`, `fixtures/**`.
+     - **Tier 3 paths (default for production code):** `src/**`, `lib/**`, `app/**`, `cmd/**` (when no security signals are present).
+     - **Security-sensitive paths (force `security-sensitive: true` and minimum Tier 3):** `auth/**`, `middleware/**`, `api/**`, `db/**`, `security/**`, `crypto/**`, `session/**`, `**/middleware/**`, any path with `auth` or `permission` in the name. A Tier 2 candidate touching a sensitive path is promoted to Tier 3.
+     - **Tier 4 paths:** same as Tier 3 sensitive paths COMBINED with a Signal 1 high-tier keyword match.
+
+     **Signal 3 — Operator override** (literal markers in the operator's request):
+     - `[TIER: 1|2|3|4]` — forces the declared tier, overrides auto-classification.
+     - `[regression-test: required]` — forces Tier 2 minimum on a Tier 1 candidate (the regression-test skip conditional in Phase 2.0 no longer applies).
+     - `[security: required]` — forces Tier 3 minimum (the security agent runs at Phase 3 regardless of path signals).
+
+     **Auto-escalation rules:**
+     - **High-tier signal sobrescribes lower-tier classification.** Path priority > keyword priority > size hints. Example: path `auth/handlers.ts` + report "typo in error message" → Tier 3, not Tier 1. The sensitive path wins.
+     - **Architect can re-tier in Phase 1.** If during root-cause analysis the architect discovers the scope extends beyond the initial guess, the architect emits `tier_promote: <new_tier>` with `tier_promote_rationale: <1-line>` in its status block. The th-orchestrator surfaces both to the operator for confirmation before continuing to the next phase. Operator-in-loop, same protocol as `type_reclassify`.
+     - **Default: Tier 3 when in doubt.** Conservative. Ambiguous signals or unclassifiable paths default to Tier 3.
+
+     **Tier table (effect on the pipeline):**
+
+     | Tier | Name | Phase 1 (root-cause) | Phase 2.0 (pre-fix regression test) | Phase 3 agents | Estimated agent runs |
+     |---|---|---|---|---|---|
+     | **1** | Docs/Trivial | **Skip** — no `01-root-cause.md` | **Conditional skip** — only when no behavior change (see below) | tester (suite no-regress) only | ~3 |
+     | **2** | Light fix | `mode: light-root-cause` — inline 1-paragraph `01-root-cause.md` (no extended sections) | Mandatory | tester + qa | ~5 |
+     | **3** | Standard fix | `mode: full-root-cause` — current PR #50 default | Mandatory | tester + qa + security | ~7 |
+     | **4** | Critical/Security | `mode: full-root-cause` + mandatory memory prior-art query (`mcp__memory__search_nodes`) | Mandatory | tester + qa + security (extended analysis) | ~9 |
+
+     **Tier 1 conditional regression-test skip — ALL conditions must hold:**
+     - Tier is `1` (auto-classified or operator-declared).
+     - All touched paths match `*.md`, `LICENSE`, `CHANGELOG*`, code comments, or non-functional string literals (informational error messages, log messages with no runtime branching on the content). **UI strings are Tier 2 minimum** — pragmatic, not permissive.
+     - No `*.test.*`, `*.spec.*`, or `tests/` paths touched.
+     - Operator did not declare `[regression-test: required]`.
+
+     If any condition fails, the Tier 1 candidate is auto-promoted to Tier 2 (Phase 2.0 mandatory) or the regression-test skip is denied (still Tier 1, but Phase 2.0 runs).
+
+     **Output:** record `bug_tier: 1 | 2 | 3 | 4` in `00-state.md` `## Current State`. Surface the tier to the operator in the classification announcement (Step 12): `Tier {N} — {name}. {brief rationale: path X matched signal Y; keyword Z escalated}`. Operator-declared tiers are flagged in the announcement: `Tier {N} — operator-declared via [TIER: N]`.
+
 8. **Bootstrap check** (development tasks only — skip for `research`, `plan`, and `spike`):
    - Verify these prerequisites exist: `CLAUDE.md`, `CHANGELOG.md`, `.gitignore` with `/session-docs` entry
    - If ANY is missing → invoke `init` agent via Task tool before continuing
@@ -593,20 +658,55 @@ If any check fails (except ambiguities), fix it in-place. This is automatic — 
 
 **Agent:** `architect`
 
-**When to run:** All development tasks. Never skip.
+**When to run:** All development tasks. Never skip — except for `type: hotfix` where Phase 1 is skipped entirely (the th-orchestrator emits a one-sentence prose plan inline at STAGE-GATE-1; see `ref-special-flows.md` § Hotfix sub-flow).
 
-**Invoke via Task tool** with context:
+**Mode selection by `type`:**
+
+| `type` | `bug_tier` | Architect mode | Output |
+|---|---|---|---|
+| `feature`, `refactor`, `enhancement` | n/a | `design` (default) | `01-architecture.md` + `02-task-list.md` |
+| `fix` | `1` | **skipped entirely** — no architect dispatch, no `01-root-cause.md`. The th-orchestrator emits a one-sentence prose plan at STAGE-GATE-1 (same surface as `type: hotfix`). | `02-task-list.md` only |
+| `fix` | `2` | `root-cause` with `mode: light-root-cause` (Bug-fix Flow — light) | `01-root-cause.md` (inline 1-paragraph, no extended sections) + `02-task-list.md` |
+| `fix` | `3` (default) | `root-cause` with `mode: full-root-cause` (Bug-fix Flow — standard, current PR #50 default) | `01-root-cause.md` (1 pg max) + `02-task-list.md` |
+| `fix` | `4` | `root-cause` with `mode: full-root-cause` + mandatory `## Prior Art` section (`mcp__memory__search_nodes` results) | `01-root-cause.md` (1 pg max, includes `## Prior Art`) + `02-task-list.md` |
+| `hotfix` | any | **skipped** | th-orchestrator emits one-sentence prose plan at STAGE-GATE-1 |
+| `research`, `spike` | n/a | already routed via direct mode | n/a |
+
+**Tier 1 fix flow (no architect).** When `type: fix` AND `bug_tier: 1`, the th-orchestrator does NOT dispatch the architect. Phase 1 is skipped (same surface as `type: hotfix`). The th-orchestrator writes `02-task-list.md` directly with the minimum 4-line task list (reproduce, regression test or skip per Phase 2.0 conditional, fix, verify) and emits a one-sentence prose plan at STAGE-GATE-1 in place of the `## TL;DR` / `## Decisions for human review` copy from `01-root-cause.md`. The Phase 1.6 plan-reviewer still runs against the minimal task list (Rules 1, 2, 6 apply; Rules 7, 8 are conditional on whether Phase 2.0 will run — see Phase 2.0).
+
+**Invoke via Task tool** with context (Tier 2-4 only):
 - Task description and scope from `00-task-intake.md`
 - Feature name for session-docs
 - Any relevant file paths or code references
 - Reference to `00-knowledge-context.md` (if it exists — agent reads it directly for past insights)
+- **`mode: root-cause`** when `type: fix` (instructs architect to write `01-root-cause.md` instead of `01-architecture.md`)
+- **`mode: light-root-cause`** when `bug_tier: 2` (inline 1-paragraph, no extended sections — see `agents/architect.md` § Root-Cause Analysis Mode for the abbreviated template)
+- **`mode: full-root-cause`** when `bug_tier: 3` or `bug_tier: 4` (current PR #50 default)
+- **`bug_tier: {N}`** — passed verbatim from `00-state.md` so the architect knows the depth contract
+- **For `bug_tier: 4`:** "Mandatory `## Prior Art` section in `01-root-cause.md`. Invoke `mcp__memory__search_nodes` with 1-3 semantic queries derived from the bug's failure mode (e.g., `"auth bypass middleware"`, `"token leak logger"`). List relevant prior `process-insight` nodes with one-line summaries. If no relevant prior art is found, write `## Prior Art\nNo prior art found in the knowledge graph for this failure mode.` — the empty section is still mandatory because its presence signals the agent looked. Skip rule: never. Tier 4 always queries memory."
 - **Spec feedback instruction:** "If you discover a technical constraint that invalidates or modifies an AC, annotate `00-task-intake.md` with `[CONSTRAINT-DISCOVERED: description]` next to the affected AC. Continue working — the th-orchestrator will reconcile before verification."
+- **For `type: fix`:** "If you determine the reported bug is actually a missing feature (the system never promised the behaviour the user expected), set `type_reclassify: true` in your status block with a one-line rationale. Do NOT auto-route; the th-orchestrator surfaces the recommendation to the operator for the decision."
+- **For `type: fix` (any tier 2-4):** "If during root-cause analysis you discover the scope is wider than the initial tier classification suggests (e.g., the bug touches a security-sensitive path or a Tier 4 keyword surfaces in the failure mechanism), set `tier_promote: <new_tier>` and `tier_promote_rationale: <1-line>` in your status block. Do NOT auto-route; the th-orchestrator surfaces the recommendation to the operator for the decision before continuing."
 
-**Gate (status-block):** The architect returns a compact status block. If `status: success` → update `00-state.md`, add architect result to Agent Results table, extract any hot context insights from summary, proceed to Phase 1.5. If `status: failed` or `status: blocked` → read `01-architecture.md` to understand the issue and decide how to proceed.
+**Tier-promote handling (`type: fix` only).** If the architect's status block contains `tier_promote: <new_tier>`, the th-orchestrator:
+1. Halts the bug-fix pipeline (no Phase 1.5, no Phase 1.6, no STAGE-GATE-1) before continuing to the next phase.
+2. Reads the architect's 1-line rationale from `tier_promote_rationale`.
+3. Surfaces both the rationale AND the current AC list to the operator with three options: (a) accept the promotion (update `bug_tier` in `00-state.md` to the new tier, re-dispatch Phase 1 with the new `mode:` and the upgraded prior-art requirement if Tier 4); (b) reject the promotion and keep the original tier (override the architect; record the override in Hot Context); (c) close the task entirely.
+4. Waits for the operator's decision. Records the decision and the source (`bug_tier_source: architect-promote` on accept) in `00-state.md` Hot Context.
+5. Same operator-in-loop protocol as `type_reclassify`. Does NOT auto-route.
 
-**Do NOT read `01-architecture.md` or `02-task-list.md` on happy path.** Trust the status block for success cases. The implementer will read both directly.
+**Gate (status-block):** The architect returns a compact status block. If `status: success` → update `00-state.md`, add architect result to Agent Results table, extract any hot context insights from summary, proceed to Phase 1.5. If `status: failed` or `status: blocked` → read `01-architecture.md` (or `01-root-cause.md` for `type: fix`) to understand the issue and decide how to proceed.
 
-**Dual output (Stage 1 contract).** In Design Mode, the architect produces TWO files: `01-architecture.md` (design proposal with Work Plan) AND `02-task-list.md` (list of PRs with per-PR acceptance criteria in Given/When/Then format). Both files are required for STAGE-GATE-1. The architect's prompt and `agents/architect.md` document this contract. If the status block reports only `01-architecture.md`, request the architect to produce `02-task-list.md` before advancing — Phase 1.6 (Plan Review) requires both files.
+**Type-reclassify handling (`type: fix` only).** If the architect's status block contains `type_reclassify: true` (the bug is actually a feature gap), the th-orchestrator:
+1. Halts the bug-fix pipeline (no Phase 1.5, no Phase 1.6, no STAGE-GATE-1).
+2. Reads the architect's 1-line rationale from the status block.
+3. Reads `00-task-intake.md` AC list.
+4. Surfaces both the rationale AND the AC list to the operator with three options: (a) re-route to feature flow (Phase 1 re-runs in design mode, `01-architecture.md` is produced, plan-review re-fires); (b) reject the reclassification and keep as bug-fix (override the architect; the architect runs again with explicit instruction "treat as bug, do not reclassify"); (c) close the task entirely.
+5. Waits for the operator's decision. Records the decision in `00-state.md` Hot Context. Does NOT auto-route.
+
+**Do NOT read `01-architecture.md`, `01-root-cause.md`, or `02-task-list.md` on happy path.** Trust the status block for success cases. The implementer will read both directly.
+
+**Dual output (Stage 1 contract).** In Design Mode, the architect produces TWO files: `01-architecture.md` (design proposal with Work Plan) AND `02-task-list.md` (list of PRs with per-PR acceptance criteria in Given/When/Then format). In Root-Cause mode (`type: fix`), the architect produces `01-root-cause.md` AND `02-task-list.md` (typically 1 PR). Both files are required for STAGE-GATE-1. The architect's prompt and `agents/architect.md` document this contract. If the status block reports only one of the two files, request the architect to produce the missing file before advancing — Phase 1.6 (Plan Review) requires both files.
 
 **Work Plan:** The architect's `01-architecture.md` includes a structured **Work Plan** section with ordered implementation steps, files to modify, actions, and dependencies. Every file in this Work Plan must appear in the `Files:` field of some PR in `02-task-list.md` — the plan-reviewer (Phase 1.6, Rule 4) cross-checks this.
 
@@ -674,9 +774,10 @@ Routing to architect to revise Work Plan
 
 **Invoke via Task tool** with context:
 - Feature name for session-docs.
-- Pointers to `00-task-intake.md`, `01-architecture.md`, `02-task-list.md`.
+- Pointers to `00-task-intake.md`, `01-architecture.md` (or `01-root-cause.md` for `type: fix`), `02-task-list.md`.
+- `type` field from `00-state.md` (so the plan-reviewer can gate Rules 7 + 8 on `type: fix | hotfix`).
 - Mode: default (the plan-reviewer has one mode).
-- Instruction: "Audit the Stage 1 artifacts against the five plan-shape rules. Read the three files above; do NOT read code, do NOT read other session-docs. Write your report to `01-plan-review.md` (overwrite, never append). Return verdict pass/concerns/fail in the status block."
+- Instruction: "Audit the Stage 1 artifacts against the plan-shape rules. Read the three files above; do NOT read code, do NOT read other session-docs. Apply Rules 1-6 always. Apply Rules 7 + 8 only when `type: fix` or `type: hotfix`. Write your report to `01-plan-review.md` (overwrite, never append). Return verdict pass/concerns/fail in the status block."
 
 ### Phase 1.6 is inviolable
 
@@ -831,6 +932,69 @@ fi
 
 **Rewrite TL;DR when STAGE-GATE-1 is released** (row 7 of §5.2): On `approve`: `Now`: "Phase 2 starting for PR-1 in Round 1." `Last`: "STAGE-GATE-1 released with approve (interactive)." `Next`: "Phase 2 implementer, then Phase 3 verify." On `approve autonomous`: `Last`: "STAGE-GATE-1 released with approve autonomous — STAGE-GATE-2 will be skipped." On `reject`/`edit`: update `Now` and `Next` to reflect the routing back to architect.
 
+**For `type: fix` and `type: hotfix`:** the next phase after STAGE-GATE-1 release is **Phase 2.0 — Regression Test Authoring** (see below), not Phase 2 directly. The implementer is dispatched only after the failing regression test exists.
+
+---
+
+## Phase 2.0 — Regression Test Authoring (bug-fix flow only, tier-gated)
+
+**Agent:** `tester` (mode: `pre-fix-regression`)
+
+**When to run:** `type: fix` or `type: hotfix`. **Default: mandatory.** Conditional skip only for `bug_tier: 1` with no behavior change — see the conditional-skip table below.
+
+**Why this phase slots between STAGE-GATE-1 and Phase 2.** The human at STAGE-GATE-1 approves the approach (root-cause + regression-test plan). After approval, the tester writes the failing test. The implementer is dispatched at Phase 2 with a test that is already failing. Authoring the test before approval would waste work if the human rejects; authoring after implementation would be after-the-fact rationalisation, not test-driven bug fixing.
+
+**Operator override (no fallback):** the architect's design doc proposed a manual-repro-script fallback for race/timing/environment-dependent bugs. The fallback is **rejected**. There is no exit hatch. If the tester cannot author a regression test, the pipeline blocks with `status: blocked` and surfaces to the operator.
+
+**Tier-gated decision table (run before dispatching tester):**
+
+| `bug_tier` | Touched paths | Operator declared `[regression-test: required]`? | `pre_fix_test_required` | Action |
+|---|---|---|---|---|
+| `1` | All match `*.md` / `LICENSE` / `CHANGELOG*` / `docs/**/*` / comments / non-functional strings AND no `*.test.*` / `*.spec.*` / `tests/` touched | No | `false` | **Skip Phase 2.0.** Record `regression_test_status: skipped` in `00-state.md`. Note the skip rationale in Hot Context: `Phase 2.0 skipped — Tier 1 no-behavior-change (paths: {list})`. Proceed to Phase 2. No `02-regression-test.md` is produced; the `<TBD-Phase-2.0>` placeholder in `02-task-list.md` is mutated to `<skipped — Tier 1 no-behavior-change>` instead of a test path. |
+| `1` | Any path fails the Tier 1 condition (UI string, dev-tooling, test file, etc.) OR operator declared `[regression-test: required]` | (any) | `true` | **Auto-promote to Tier 2** or keep at Tier 1 with mandatory Phase 2.0 (operator's choice; default: auto-promote). Run Phase 2.0 normally. |
+| `2` / `3` / `4` | n/a | n/a | `true` | Run Phase 2.0 normally. |
+
+**Skip semantics for Tier 1 no-behavior-change:**
+- The skip is conditional on the precise definition above. UI strings, log messages with runtime branching, dev-tooling config changes, test-fixture changes — none of these qualify; they all force Phase 2.0 to run or auto-promote to Tier 2.
+- When skipped, the th-orchestrator does NOT dispatch the tester. There is no `02-regression-test.md`. The tester runs only at Phase 3 (post-fix verify) with reduced scope (suite no-regress check; see Phase 3 below).
+- The skip is recorded in the JSONL trace: append `phase.skipped` event with `phase: "2.0-regression-test", reason: "tier-1-no-behavior-change", touched_paths: [...]`.
+
+**Invoke via Task tool** with context (only when `pre_fix_test_required: true`):
+- Feature name for session-docs
+- Pointer to `00-task-intake.md` (reproduction steps + expected behaviour + AC)
+- Pointer to `01-root-cause.md` (Regression Test Approach section — for `type: fix` Tier 2-4)
+- For `type: hotfix` or `bug_tier: 1` with operator-declared `[regression-test: required]` (no `01-root-cause.md`): pointer to the th-orchestrator's one-sentence prose plan in the STAGE-GATE-1 record
+- `mode: pre-fix-regression`
+- `bug_tier: {N}` — passed verbatim
+- `pre_fix_test_required: true` — signals the tester to author the failing test
+- Instruction: "Write a failing test that captures the bug described in `00-task-intake.md` reproduction steps. The test MUST fail against the current codebase (verify by running the suite once after authoring). Do NOT modify any source code — test files only. Output the test path in your status block; write your summary to `02-regression-test.md`."
+
+**Gate (status-block):** the tester returns a status block with `regression_test_path`, `regression_test_status` (`failing`), `tests_failing_as_expected`, `tests_added`, `suite_still_passing`. Read both:
+
+| `status` | `tests_failing_as_expected` vs `tests_added` | Action |
+|---|---|---|
+| `success` | equal AND `suite_still_passing: true` | Proceed to Phase 2. Mutate `<TBD-Phase-2.0>` placeholder in `02-task-list.md` to `regression_test_path`. Update `00-state.md` `regression_test_path` and `regression_test_status: failing`. |
+| `success` | unequal OR `suite_still_passing: false` | Route back to tester. Treat as iteration of Phase 2.0 (counts toward max-3). |
+| `failed` with reason `bug-not-reproducible` | n/a | Route back to architect — root-cause is wrong or incomplete. Re-run Phase 1, then Phase 2.0. Counts toward Phase 1.6 iteration budget. |
+| `blocked` | n/a | Cannot author a test. Pipeline blocks with `status: blocked`. Surface to operator. **No fallback** — operator override mandates regression test always. |
+
+**JSONL trace:** append `phase.start` and `phase.end` events with `phase: "2.0-regression-test"` and the tester's tools fields. The `00-pipeline-summary.md` renderer aggregates these into the Phase Timeline.
+
+**Mirror into `02-task-list.md`:** after Phase 2.0 closes with `status: success`, the th-orchestrator mutates the `<TBD-Phase-2.0>` placeholder in the AC block to the actual `regression_test_path`. This is one of the two allowed mutations on `02-task-list.md` post-STAGE-GATE-1 (the other being `Status:` field and AC checkbox flips). Re-running plan-reviewer Rule 8 is NOT required after the mutation — the placeholder was already compliant.
+
+**Report to user:**
+```
+Regression test authored for {feature-name}
+  tester (mode: pre-fix-regression) | Output: 02-regression-test.md
+  Test: {regression_test_path}
+  Status: failing as expected ({tests_failing_as_expected}/{tests_added})
+Next: implementation
+```
+
+**Rewrite TL;DR when Phase 2.0 starts** (between rows 7 and 8 of §5.2): `Now`: "Phase 2.0 regression test authoring (tester pre-fix mode)." `Last`: "STAGE-GATE-1 released with approve." `Next`: "Phase 2 implementer."
+
+**Rewrite TL;DR when Phase 2.0 ends** (between rows 7 and 8 of §5.2): `Now`: "Phase 2 implementer starting." `Last`: "Phase 2.0 regression test written at {regression_test_path}, failing as expected." `Next`: "Phase 3 verify (parallel tester+qa+security)." `Open issues`: "none".
+
 ---
 
 ## Phase 2 — Implementation
@@ -966,10 +1130,23 @@ If no annotations were found, log a single `phase.end` with `extra.trivial: 0, .
 
 **Agents:** `tester` + `qa` (validate mode) + `security` (conditional) — **launched in parallel**
 
+**For `type: fix` and `type: hotfix`:** the Phase 3 parallel-dispatch is tier-gated. The "security runs always for bugs" rule from PR #50 is preserved for Tier 3+ — the tier system is what determines whether the bug is Tier 3+. Tier 1 and Tier 2 fixes skip the security agent because the impacted scope is non-functional or non-production code; any fix touching a security-sensitive path auto-promotes to Tier 3 at classification time, so a Tier 1/2 run cannot accidentally bypass security on sensitive paths.
+
+**Tier-gated dispatch table (`type: fix` / `type: hotfix`):**
+
+| `bug_tier` | tester | qa | security | Notes |
+|---|---|---|---|---|
+| `1` | suite no-regress only (no specific assertion against a missing regression test when Phase 2.0 was skipped) | reduced — verify diff matches `00-task-intake.md` intent only (AC list is implicit "the cited issue is fixed") | **skipped** | ~3 agent runs. `regression_test_referenced: null` in qa status block when Phase 2.0 was skipped. |
+| `2` | default verify (post-fix regression test must pass) | validate mode (default bug-fix contract) | **skipped** | ~5 agent runs. |
+| `3` (default) | default verify | validate mode (default bug-fix contract) | pipeline mode | ~7 agent runs. Current PR #50 baseline. |
+| `4` | default verify | validate mode (default bug-fix contract) | pipeline mode + **extended analysis** (cross-references prior-art from `01-root-cause.md ## Prior Art`; analyses adjacent-code attack surface beyond the diff) | ~9 agent runs. |
+
+**Feature flow (`type: feature` / `refactor` / `enhancement`):** unchanged from existing behaviour — tester + qa always; security only when `security-sensitive: true` per Phase 0a Step 7 classification.
+
 Launch agents simultaneously using Task tool calls in the same message:
-- **tester**: feature name, list of files created/modified (from implementer's status block summary), **acceptance criteria from `00-task-intake.md`** (the tester must map each AC to at least one test), reference to `00-knowledge-context.md` if it exists
-- **qa** (validate mode): feature name, summary of what was implemented (from implementer's status block summary)
-- **security** (pipeline mode, **only if `security-sensitive: true`**): feature name, list of files created/modified, summary of what was implemented, reference to `00-knowledge-context.md` if it exists. Instruct: "This is pipeline mode — focus on the changed files and their security implications."
+- **tester**: feature name, list of files created/modified (from implementer's status block summary), **acceptance criteria from `00-task-intake.md`** (the tester must map each AC to at least one test), reference to `00-knowledge-context.md` if it exists. For `type: fix` / `type: hotfix` (Tier 2-4): also pass `regression_test_path` from `00-state.md` and instruct: "Confirm the regression test from `02-regression-test.md` (at `regression_test_path`) now passes, and the full suite has no regressions. Update `regression_test_status` to `passing` in your tester status block (post-fix verify mode)." For `type: fix` Tier 1 with Phase 2.0 skipped (`regression_test_status: skipped` in `00-state.md`): instruct: "No pre-fix regression test exists (Tier 1 no-behavior-change skip). Run the full suite and confirm no regressions; do NOT assert against a specific test name. Set `regression_test_status: skipped` in your status block."
+- **qa** (validate mode): feature name, summary of what was implemented (from implementer's status block summary). For `type: fix` / `type: hotfix` (Tier 2-4): also instruct: "Validate AC-1 (reproduction-no-longer-bug) by reading reproduction steps from `00-task-intake.md` and verifying observed behaviour matches expected. Validate AC-2 (regression-test-exists) by cross-checking `02-regression-test.md` against the current suite. Set `regression_test_referenced: true|false` and `reproduction_steps_validated: true|false` in your status block." For `type: fix` Tier 1: instruct: "Reduced validation. Verify the diff matches the intent stated in `00-task-intake.md`. AC list is implicit — the cited issue is fixed. Set `regression_test_referenced: null` (Phase 2.0 was skipped) and `reproduction_steps_validated: true|false` in your status block."
+- **security** (pipeline mode, only when the dispatch table above says so): feature name, list of files created/modified, summary of what was implemented, reference to `00-knowledge-context.md` if it exists. Instruct: "This is pipeline mode — focus on the changed files and their security implications." For `bug_tier: 4`: additionally instruct: "Extended analysis. Read `01-root-cause.md ## Prior Art` and cross-reference any prior `process-insight` nodes describing similar failure modes. Analyse the adjacent code paths beyond the diff (one hop out in the call graph) for related vulnerability classes. Surface findings on adjacent code as `## Adjacent Surface Findings` in `04-security.md` separate from the diff findings."
 
 **Gate (status-block):** All agents return compact status blocks. Read all:
 - If all `status: success` → update `00-state.md`, proceed to Phase 4
@@ -1896,7 +2073,7 @@ Every line is a JSON object with these fields:
 | `ts` | yes | ISO-8601 timestamp with timezone (e.g. `2026-05-01T14:00:00-03:00`). |
 | `event` | yes | One of: `pipeline.start`, `pipeline.end`, `phase.start`, `phase.end`, `gate.pass`, `gate.fail`, `iteration.start`, `policy.deny`, `dispatch.blocked`, `stage.gate`, `stage.gate.release`, `stage.gate.skipped`, `stage.notify`, `stage.notify.skipped`. |
 | `feature` | yes | Feature name (kebab-case, matches the session-docs folder). |
-| `phase` | conditional | Phase identifier (e.g. `0a-intake`, `1-design`, `2-implement`, `3-verify`, `1.5-ratify-plan`, `1.6-plan-review`, `3.5-acceptance-gate`, `3.6-acceptance-check`, `4-delivery`, `5-github`, `6-knowledge-save`). Required for `phase.*` and `gate.*` events. |
+| `phase` | conditional | Phase identifier (e.g. `0a-intake`, `1-design`, `1-root-cause`, `2-implement`, `2.0-regression-test`, `3-verify`, `1.5-ratify-plan`, `1.6-plan-review`, `3.5-acceptance-gate`, `3.6-acceptance-check`, `4-delivery`, `5-github`, `6-knowledge-save`). Required for `phase.*` and `gate.*` events. |
 | `stage` | conditional | Stage number (`1` / `2` / `3`). Required for `stage.gate*` events. |
 | `agent` | conditional | Agent name. Required for `phase.*` events. |
 | `status` | conditional | `success` / `failed` / `blocked` / `skipped`. Required for `phase.end`. |
@@ -2046,6 +2223,18 @@ All numbers come from `00-execution-events.jsonl` — never re-invent them by wa
 - AC pass/total → from the latest `gate.pass`/`gate.fail` at `3.5-acceptance-gate` (read its `summary` and the `pipeline.end.extra`).
 - Tool counts → aggregate of `tools` sub-objects on `phase.end` events.
 - Files / lines changed → from `git diff main...HEAD --stat` at delivery time; "—" before Phase 4.
+
+### Bug-fix flow row mappings (type: fix | hotfix)
+
+The Phase Timeline renderer adapts to the `type` field in `00-state.md`:
+
+- For `type: fix`: Phase 1 row displays the architect's root-cause-analysis output (`01-root-cause.md`), not `01-architecture.md`.
+- For `type: hotfix`: Phase 1 row is rendered as `Phase 1 — skipped (hotfix)` (single-line entry).
+- For both: a new `Phase 2.0 — Regression Test` row slots between STAGE-GATE-1 and Phase 2.
+- Phase 1.5 row is skipped when ratify-plan was skipped (existing behaviour — bug fixes usually have ≤3 AC).
+- Phase 1.6 row is skipped for `type: hotfix`.
+- Phase 3 row shows `tester + qa + security` for `type: fix` / `type: hotfix` (security runs always).
+- Phase 3.6 and Phase 4.5 rows respect existing skip gates.
 
 ### Failure modes — never block the pipeline on summary errors
 
@@ -2433,8 +2622,9 @@ All special flows are detailed in `ref-special-flows.md`. Read it on-demand when
 
 | Flow | Trigger | Key Difference from Full Pipeline |
 |------|---------|----------------------------------|
-| Hotfix | `type: hotfix` | Design can be shorter, otherwise full pipeline |
-| Security-sensitive | `security-sensitive: true` | Phase 3 adds `security` agent in parallel |
+| Bug-fix | `type: fix` | architect produces `01-root-cause.md` (1pg) instead of `01-architecture.md`; Phase 2.0 inserts a mandatory regression test before Phase 2; `security` runs always (forced `security-sensitive: true`); delivery routes CHANGELOG to `### Fixed` and PR title to `fix(area):`; implementer scope-discipline contract bars tangential refactors |
+| Hotfix | `type: hotfix` | Same as Bug-fix; Phase 1 (root-cause analysis) skipped — th-orchestrator emits a one-sentence prose plan at STAGE-GATE-1 instead. Phase 2.0 still mandatory. PR title appends `(hotfix)` suffix |
+| Security-sensitive | `security-sensitive: true` | Phase 3 adds `security` agent in parallel (already forced `true` for `type: fix` / `type: hotfix`) |
 | Database changes | DB migration involved | Design must include migration strategy + rollback |
 | Research | `type: research` | Architect only (research mode) → skip Phases 2-5 |
 | Spike | `type: spike` | Implementer only (no design, no tests) → ask user: formalize/discard/investigate |
