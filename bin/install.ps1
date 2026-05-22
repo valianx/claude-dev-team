@@ -38,16 +38,23 @@ try {
     }
 
     Write-Host "Launching installer..."
-    # -NoNewWindow forces inheritance of the parent PowerShell console.
-    # Without it, running via `irm ... | iex` causes Windows to allocate a new
-    # cmd console for the spawned .exe — that window closes on exit, hiding all
-    # output. -Wait keeps the bootstrap alive until the child exits; -PassThru
-    # returns the process object so we can forward the exit code.
+    # Use .NET ProcessStartInfo directly with UseShellExecute=$false to avoid
+    # Start-Process's ShellExecuteEx path, which triggers UAC mediation
+    # ("requires elevation") when the working directory is protected (e.g.,
+    # C:\Windows\System32) or the executable carries Mark-of-the-Web from the
+    # download. With UseShellExecute=$false and no stream redirection, the
+    # child inherits the parent PowerShell console — same window, all output
+    # visible. Cross-compatible with PowerShell 5.1 and 7.x.
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName = $InstallerPath
+    $psi.UseShellExecute = $false
+    $psi.CreateNoWindow = $false
     if ($args.Count -gt 0) {
-        $proc = Start-Process -FilePath $InstallerPath -ArgumentList $args -NoNewWindow -Wait -PassThru
-    } else {
-        $proc = Start-Process -FilePath $InstallerPath -NoNewWindow -Wait -PassThru
+        $psi.Arguments = ($args -join ' ')
     }
+
+    $proc = [System.Diagnostics.Process]::Start($psi)
+    $proc.WaitForExit()
     exit $proc.ExitCode
 } finally {
     Remove-Item -Recurse -Force $TmpDir -ErrorAction SilentlyContinue
