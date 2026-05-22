@@ -297,7 +297,7 @@ Before opening a PR that adds or modifies operator-facing copy, walk through thi
 - [ ] All committed copy is in English. Exception: `agents/security.md` and `agents/reviewer.md` report-body templates and their `04-security.md` / `04-internal-review.md` / `05-internal-review.md` outputs; `agents/orchestrator.md` Step 6 routing table.
 - [ ] If the change documents how to invoke the system, the example uses `@orchestrator <natural-language>` as the primary path; slash commands are positioned as optional shortcuts.
 
-`tests/test_agent_structure.py` Suite 23 enforces a mechanical subset of these rules at CI time. The checklist above covers the human-judgement cases the test suite cannot catch (e.g., tone of a multi-sentence error message).
+`tests/test_agent_structure.py` Suite 25 enforces a mechanical subset of these rules at CI time. The checklist above covers the human-judgement cases the test suite cannot catch (e.g., tone of a multi-sentence error message).
 
 ---
 
