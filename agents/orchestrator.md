@@ -406,12 +406,12 @@ Every task runs the COMPLETE pipeline: Specify → Design → Plan Ratification 
      `Routing to {mode} mode (≡ /{skill}).`
 
    - **Write modes** (modify code/config) → **confirm before proceeding.** One concise prompt:
-     `Detecto que quieres {description} (≡ /{skill}). Esto va a modificar código. ¿Procedo?`
+     `Routing to {description} mode (≡ /{skill}). This will modify code. Proceed? [Y/n]:`
      Wait for user response. If the mode has submodes (e.g., translate: full/glossary-only/translate-only), default to the most complete and mention alternatives in one line.
 
    - **Full pipeline** → **auto-route.** This is the default development flow, no confirmation needed. Proceed to step 7 (Classify).
 
-   - **Unclear** → **ask a clarifying question.** Do NOT guess. Example: "¿Quieres que traduzca la app (modo translate) o que implemente una feature de traducción (pipeline completo)?"
+   - **Unclear** → **ask a clarifying question.** Do NOT guess. Example: "Is the goal to translate the app (translate mode) or to implement a translation feature (full pipeline)?"
 
    **Rules:**
    - Always default to the most complete submode when a direct mode has options.
@@ -587,10 +587,10 @@ If any check fails (except ambiguities), fix it in-place. This is automatic — 
 
 **Report to user:**
 ```
-✓ Phase 1/7 — Design — completed
-  Agent: architect | Output: 01-architecture.md (design proposal) + 02-task-list.md ({N} PRs, {M} ACs)
+Design complete
+  architect produced the design proposal and the per-PR task list ({N} PRs, {M} ACs total)
   {summary from status block}
-→ Next: Phase 1.5 — Plan Ratification
+Next: ratify the plan (qa checks every AC has a Work Plan step)
 ```
 
 **Rewrite TL;DR** (row 3 of §5.2): `Now`: "Phase 1.5 plan-ratification running (qa checking AC coverage)." `Last`: "Phase 1 architect proposed {N} PRs across {M} services with {K} AC." `Next`: "Phase 1.6 plan-reviewer, then STAGE-GATE-1." `Open issues`: any `[CONSTRAINT-DISCOVERED]` annotations.
@@ -623,16 +623,16 @@ If any check fails (except ambiguities), fix it in-place. This is automatic — 
 
 **Report to user:**
 ```
-✓ Phase 1.5/7 — Plan Ratification — verdict: pass
-  Agent: qa (ratify-plan) | every AC covered by Work Plan
-→ Next: Phase 2 — Implementation
+Plan ratification — verdict: pass
+  qa (ratify-plan): every AC covered by Work Plan
+Next: implementation
 ```
 
 Or:
 ```
-✗ Phase 1.5/7 — Plan Ratification — verdict: fail
+Plan ratification — verdict: fail
   Uncovered AC: AC-3, AC-7
-⟳ Routing to architect to revise Work Plan
+Routing to architect to revise Work Plan
 ```
 
 **Rewrite TL;DR** (row 4 of §5.2): On `pass`: advance `Now` and `Next` to Phase 1.6. `Now`: "Phase 1.6 plan-reviewer running." `Next`: "STAGE-GATE-1 for human approval." On `fail`: `Now`: "Architect revising Work Plan to cover AC {list}." `Open issues`: uncovered AC identifiers.
@@ -699,17 +699,17 @@ The orchestrator can run as a nested subagent (e.g., when invoked via the `/reco
 
 **Report to user (intermediate, before STAGE-GATE-1):**
 ```
-✓ Phase 1.6/7 — Plan Review — verdict: {pass|concerns|fail}
-  Agent: plan-reviewer | Output: 01-plan-review.md
+Plan review — verdict: {pass|concerns|fail}
+  plan-reviewer | Output: 01-plan-review.md
   Findings: rule-1: {N}, rule-2: {N}, rule-3: {N}, rule-4: {N}, rule-5: {N}
-→ Next: STAGE-GATE-1 (human approval required)
+Next: STAGE-GATE-1 (human approval required)
 ```
 
 If `verdict: fail` and routing to architect:
 ```
-✗ Phase 1.6/7 — Plan Review — verdict: fail
+Plan review — verdict: fail
   Blocking rules: {rule-1 | rule-2} — {short reason per affected PR}
-⟳ Routing to architect to revise plan (iteration {N}/3)
+Routing to architect to revise plan (iteration {N}/3)
 ```
 
 **Emit Stage 1 toast (per `## Stage-end notification protocol`).** After writing the `gate.pass`/`gate.fail` event for Phase 1.6, emit the Stage 1 toast before the STAGE-GATE-1 STOP block. Status: `complete` on `pass` or `concerns`; `FAILED` on iteration-budget exhaustion. Use the idempotency check (grep `stage.notify` with `stage:1` in JSONL) before calling the wrapper.
@@ -862,10 +862,10 @@ If build/lint fails, the implementer fixes it before finishing (internal loop).
 
 **Report to user:**
 ```
-✓ Phase 2/7 — Implementation — completed
-  Agent: implementer | Output: 02-implementation.md
+Implementation complete for PR-{i}
+  implementer | Output: 02-implementation.md
   {summary from status block}
-→ Next: Phase 3 — Verify (tester + qa in parallel)
+Next: verify (tester + qa in parallel)
 ```
 
 **CRITICAL: Immediately proceed to Phase 3. Do NOT stop here, do NOT ask the user, do NOT report "done". Implementation without verification is incomplete.**
@@ -954,10 +954,10 @@ Launch agents simultaneously using Task tool calls in the same message:
 
 **Report to user:**
 ```
-✓ Phase 3/7 — Verify — completed (or ITERATING)
+Verify complete (or ITERATING)
   tester: {status} | qa: {status} | security: {status or "skipped"}
   {summary from each status block}
-→ Next: Phase 4 — Delivery (or: Iterating — implementer fixing N issues)
+Next: delivery (or: iterating — implementer fixing N issues)
 ```
 
 **Rewrite TL;DR** (row 11 of §5.2): On all success: `Now`: "Phase 3.5 acceptance-gate running for PR-{i}." `Last`: "PR-{i} Phase 3 verify done — tester pass, qa pass, security {clean|N findings}." `Next`: "Phase 3.5 acceptance-gate." On any iteration: `Now`: "Phase 3 iterating for PR-{i} (iter N/3) — {root cause}." `Open issues`: failing AC identifiers and file:line hints.
@@ -1027,15 +1027,15 @@ When the test-ratchet step matters (subsequent iterations), append a `gate.fail`
 
 **Report to user:**
 ```
-✓ Phase 3.5/7 — Acceptance Gate — PASS ({N}/{N} AC verified)
-  → Next: Phase 4 — Delivery
+Acceptance gate PASS ({N}/{N} AC verified)
+  Next: delivery
 ```
 
 Or, if the gate fails:
 ```
-✗ Phase 3.5/7 — Acceptance Gate — FAIL
+Acceptance gate FAIL
   Failing AC: {list with reason}
-⟳ Iterating ({N}/3): routing to implementer
+Iterating ({N}/3): routing to implementer
 ```
 
 This phase costs almost no tokens — it parses 2-3 small tables. The cost-vs-confidence tradeoff is heavily on the side of correctness.
@@ -1065,10 +1065,10 @@ This follows Anthropic's cost-effectiveness rule: *"The evaluator is not a fixed
 
 When skipped, the report to user includes the reason:
 ```
-↷ Phase 3.6/7 — Acceptance Check — SKIPPED (complexity: standard, 2 files, 0 iterations)
+Acceptance check — SKIPPED (complexity: standard, 2 files, 0 iterations)
   Acceptance-checker is gated by complexity to avoid overhead on simple changes.
   Use `--audit` on the next run if you want a full audit anyway.
-→ Next: Phase 4 — Delivery
+Next: delivery
 ```
 
 When the previous gate (Phase 3 verify) shows that any iteration happened, **always run Phase 3.6** even on standard complexity — drift accumulates with iterations.
@@ -1094,10 +1094,10 @@ When the previous gate (Phase 3 verify) shows that any iteration happened, **alw
 
 **Report to user:**
 ```
-✓ Phase 3.6/7 — Acceptance Check — verdict: {pass|concerns|fail}
-  Agent: acceptance-checker | Output: 06-acceptance-check.md
+Acceptance check — verdict: {pass|concerns|fail}
+  acceptance-checker | Output: 06-acceptance-check.md
   {summary from status block}
-→ Next: {Phase 4 — Delivery | iterate | escalate}
+Next: {delivery | iterate | escalate}
 ```
 
 If verdict is `concerns`, list each concern as one line in the report so the user sees them before delivery proceeds.
@@ -1195,7 +1195,7 @@ fi
 
 **If `skip-delivery: true` was passed in the task payload → SKIP this entire phase and Phases 5-6.** Update `00-state.md` with `status: verified` (not `complete`) and report:
 ```
-✓ Phase 3/3 — Verify — completed (batch mode: delivery deferred to parent)
+Verify complete (batch mode: delivery deferred to parent)
   Pipeline stopped before delivery (--skip-delivery). Parent will consolidate.
 ```
 Then return your status block and exit.
@@ -1213,10 +1213,10 @@ This phase does NOT iterate — if it fails (e.g., push rejected), report to the
 
 **Report to user:**
 ```
-✓ Phase 4/7 — Delivery — completed
-  Agent: delivery | Branch: {branch} | Version: {version}
+Delivery complete
+  delivery | Branch: {branch} | Version: {version}
   {summary from status block}
-→ Next: Phase 4.5 — Internal Review (or Phase 5 if skipped)
+Next: internal review (or Phase 5 if skipped)
 ```
 
 **Rewrite TL;DR** (row 17 of §5.2): `Now`: "Phase 4.5 internal-review running (or skipped)." `Last`: "Phase 4 delivery done — branch {branch}, version {old → new}." `Next`: "STAGE-GATE-3 (mandatory human approve before push)." `Open issues`: "none" (or delivery errors if any).
@@ -1258,14 +1258,14 @@ When skipped, log `phase.end` to `00-execution-events.jsonl` with `phase: "4.5-i
 **Report to user:**
 
 ```
-✓ Phase 4.5/7 — Internal Review — {N} criticals, {M} suggestions, {K} nitpicks
-  Agent: reviewer (mode: internal) | Output: 04-internal-review.md
+Internal review complete — {N} criticals, {M} suggestions, {K} nitpicks
+  reviewer (mode: internal) | Output: 04-internal-review.md
   Summary: {one-paragraph summary from status block, verbatim}
   {if criticals_count > 0:}
   Top issues to look at:
   1. {top_issues[0].path:line} — {top_issues[0].body}
   2. ...
-→ Next: Phase 5 — GitHub Update
+Next: GitHub update
 ```
 
 The orchestrator passes `04-internal-review.md` content to `delivery` for optional inclusion in the PR description (under a "Pre-PR Review" section in the body) — `delivery` already has the PR open at this point and can update the body via `gh pr edit`.
@@ -1543,11 +1543,11 @@ normally.
 
 **Report to user:**
 ```
-✓ Phase 6/7 — Knowledge Save — completed
+Knowledge save complete
   Entities saved: {count} | Updated: {count}
   {brief list of what was saved, or "No new knowledge to save"}
   Process: {iterations} iterations — {1-line friction summary or "clean pass"}
-→ Pipeline complete. (See handoff prompt above before next feature.)
+Pipeline complete. (See handoff prompt above before next feature.)
 ```
 
 **Rewrite TL;DR** (row 22 of §5.2 — final): `Now`: "Pipeline complete." `Last`: "Phase 6 KG-save done ({N} entities) + process reflection appended." `Next`: "none — ready for handoff." `Open issues`: "none" (or any KG-save warnings).
