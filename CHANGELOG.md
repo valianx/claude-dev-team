@@ -15,6 +15,10 @@ shipped. A follow-up CHANGELOG hygiene PR will split them into the correct
 curl-installer feature work, matching Keep-a-Changelog's "one subheading per
 section per version" expectation. -->
 
+### Added
+
+- New `/th-update` skill: re-runs the installer to pull the latest agents/skills/hooks; reminds operator to restart Claude Code.
+
 ### Changed
 
 - Aligned operator-facing surfaces (agents, skills, installer, docs) to the voice and language guide (formal-neutral voice, dev-natural vocabulary, English-only with documented security/reviewer exception). Codified the guide as `## 7. Voice and Language Guide` in CLAUDE.md. Added test Suite 25 to enforce the rules at CI time.
