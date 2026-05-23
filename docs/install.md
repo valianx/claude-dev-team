@@ -53,15 +53,15 @@ curl -fsSL https://valianx.github.io/team-harness/install.sh | bash
 
 ---
 
-## Reset existing config
+## Reset MCP config
 
-Pass `--force` to reset existing `mcpServers` entries:
+Pass `--force` to reset existing `mcpServers` entries in `~/.claude.json` (bypass the Keep/Change preservation menu):
 
 ```bash
 curl -fsSL https://valianx.github.io/team-harness/install.sh | bash -s -- --force
 ```
 
-The installer is idempotent. Unchanged files are skipped; conflicting files (yours differ from the repo) are reported, never silently overwritten.
+The installer always overwrites agents, skills, and hooks in `~/.claude/`. Customizations made directly to those files will be replaced on every install. To customize, fork the repo and re-deploy. Operator-specific identity (`mcpServers.memory` URL, context7 API key) keeps its existing Keep/Change preservation logic.
 
 ---
 
@@ -112,7 +112,7 @@ The canonical entry point after install is the `th-orchestrator` agent. Type `@t
 
 ## Updating
 
-Re-run the one-liner. The installer detects existing files; unchanged files are skipped, conflicts are reported.
+Re-run the one-liner. Unchanged files are skipped; files that differ from the embedded release bytes are overwritten.
 
 ```bash
 curl -fsSL https://valianx.github.io/team-harness/install.sh | bash

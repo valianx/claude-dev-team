@@ -126,8 +126,7 @@ All commands run from the repo root.
 | Force-reset MCP config in ~/.claude.json | Append `--force` after the pipe (bash): `bash /dev/stdin --force` |
 | Build / test installer from source (contributors) | `go run ./cmd/install` (embed picks up local working-tree bytes) |
 | Build installer binary from source (requires Go 1.23+) | `go build ./cmd/install` |
-| View which files the installer would touch | Run the installer — it reports installed / unchanged / conflicts; never overwrites |
-| Resolve a conflict | Delete the conflicting file in `~/.claude/...` and re-run the installer |
+| View which files the installer would touch | Run the installer — it reports installed / updated / unchanged |
 | Enable notification hooks | Open `hooks/config.json`, copy the section for your OS, merge it into `~/.claude/settings.json` under `"hooks"` |
 | Validate agents/skills health | `/lint` inside Claude Code |
 | Run the free verification suite (policy-block + structure + YAML frontmatter) | `bash tests/run-all.sh` |
@@ -147,7 +146,7 @@ All commands run from the repo root.
 - **th-orchestrator is the hub.** Skills never invoke agents directly — they build a task payload and route to `th-orchestrator`. Exceptions: standalone utilities (`/lint`, `/status`, `/memory`, `/tmux`, `/th-update`).
 - **Session-docs as the shared board.** Agents communicate through files in `session-docs/{feature-name}/`, never through return values. `session-docs/` is always git-ignored.
 - **Status-block return protocol.** Agents finish with a compact status block; the th-orchestrator gates on the block without re-reading full session-docs on happy paths.
-- **Installer is idempotent and non-destructive.** Conflicts (existing file with different hash) are reported, never overwritten. User must delete manually to force a re-install. `~/.claude.json` is backed up before every merge.
+- **Installer always overwrites embedded files.** Agents, skills, and hooks are canonical bytes from the repo; direct edits to `~/.claude/agents/*.md` (or skills/hooks) are not a supported customization path and are replaced on every install. Unchanged files (hash-match) are skipped. `~/.claude.json` is backed up before every merge. Operator-specific identity (`mcpServers.memory` URL/bearer, context7 API key) uses a Keep/Change preservation menu and is never silently clobbered.
 - **Cross-platform first.** All scripts and agents must work on Windows, macOS, and Linux. Avoid Unix-only tools or shell-specific syntax in agent prompts.
 - **KG content is technical-only.** The knowledge graph must never store personal data, user profiles, preferences, tokens, or stakeholder names. See `docs/kg-content-policy.md`.
 - **KG passive capture on delivery.** The `delivery` agent persists one `process-insight` node per successfully-completed task (Step 11.5 of its workflow). The insight is synthesised from session-docs + the CHANGELOG entry and describes what was learned that future tasks can reuse — not what changed (that's the CHANGELOG). The call is best-effort: if the Memory MCP server is unreachable or the task has no reusable learning, the step logs and skips. This builds team knowledge automatically without operator curation.
@@ -343,7 +342,7 @@ The repo has a verification suite at `tests/` that covers what is testable witho
 This repo ships assets to other developers, so the contribution flow matters more than code-level conventions.
 
 - **Develop in `agents/`, `skills/`, `hooks/` directly.** Do not edit `~/.claude/` by hand for changes you intend to share — they'll get overwritten or drift.
-- **Propagate via installer.** After editing, run `./bin/install.sh` locally to sync into your own `~/.claude/`. The installer refuses to overwrite conflicts, so delete the target file if it already exists with a different hash.
+- **Propagate via installer.** After editing, run `./bin/install.sh` locally to sync into your own `~/.claude/`. The installer always overwrites files that differ from the embedded bytes, so your local changes are applied immediately.
 - **Complex skills** live in `skills/{name}/` with a `SKILL.md` plus any `references/`. The installer recursively copies the whole subfolder to `~/.claude/skills/{name}/`.
 - **Never commit personal data.** Hooks must be generic (no tokens, no private endpoints).
 

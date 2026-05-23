@@ -25,21 +25,8 @@ func printSummary(claudeJSONBackup string, mem MemoryMCPChoice, context7Preserve
 	fmt.Printf("  installed: %d\n", len(stats.Installed))
 	fmt.Printf("  updated:   %d\n", len(stats.Updated))
 	fmt.Printf("  unchanged: %d\n", len(stats.Unchanged))
-	fmt.Printf("  conflicts: %d\n", len(stats.Conflicts))
 
 	printModeSummary(mode)
-
-	if len(stats.Conflicts) > 0 {
-		fmt.Println()
-		fmt.Println("Conflicts (on-disk differs from what this install mode would produce):")
-		fmt.Println("  This happens when either:")
-		fmt.Println("    (a) you modified the file manually — keep your edits, or")
-		fmt.Println("    (b) you switched INSTALL_MODE since the last install — delete and re-run.")
-		fmt.Println("  To overwrite all conflicts: re-run the installer with --force.")
-		for _, c := range stats.Conflicts {
-			fmt.Printf("  - %s\n", c)
-		}
-	}
 
 	fmt.Println()
 	fmt.Println("MCP servers in ~/.claude.json:")

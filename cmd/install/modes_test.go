@@ -268,8 +268,8 @@ func TestAgentNameFromPath(t *testing.T) {
 
 // ---------------------------------------------------------------------------
 // Suite F — AC-5 integration: same-mode re-install → unchanged;
-//           cross-mode re-install without --force → conflict;
-//           cross-mode re-install with --force → overwrite.
+//           cross-mode re-install → overwrite (unconditional);
+//           --force flag → no-op for file installation (accepted, no behavior change).
 // ---------------------------------------------------------------------------
 
 // TestAC5_SameModeReinstall_ReportsUnchanged verifies that a same-mode re-install
@@ -287,29 +287,27 @@ func TestAC5_SameModeReinstall_ReportsUnchanged(t *testing.T) {
 	stats.Installed = nil
 	stats.Unchanged = nil
 	stats.Updated = nil
-	stats.Conflicts = nil
 	copyAgentFile(srcPath, destPath, ModeLowCost)
 
 	if len(stats.Installed) != 1 {
-		t.Fatalf("expected 1 installed file, got installed=%v conflicts=%v unchanged=%v", stats.Installed, stats.Conflicts, stats.Unchanged)
+		t.Fatalf("expected 1 installed file, got installed=%v unchanged=%v", stats.Installed, stats.Unchanged)
 	}
 
 	// Re-install with the same mode — must report unchanged.
 	stats.Installed = nil
 	stats.Unchanged = nil
 	stats.Updated = nil
-	stats.Conflicts = nil
 	copyAgentFile(srcPath, destPath, ModeLowCost)
 
 	if len(stats.Unchanged) != 1 {
-		t.Errorf("same-mode re-install must report unchanged; got installed=%v unchanged=%v conflicts=%v",
-			stats.Installed, stats.Unchanged, stats.Conflicts)
+		t.Errorf("same-mode re-install must report unchanged; got installed=%v unchanged=%v updated=%v",
+			stats.Installed, stats.Unchanged, stats.Updated)
 	}
 }
 
-// TestAC5_CrossModeReinstall_NoForce_ReportsConflict verifies that switching from
-// low-cost to standard without --force reports a conflict and leaves the file intact.
-func TestAC5_CrossModeReinstall_NoForce_ReportsConflict(t *testing.T) {
+// TestAC5_CrossModeReinstall_OverwritesOnDiskDiffers verifies that switching from
+// low-cost to standard overwrites the file unconditionally (no conflict gating).
+func TestAC5_CrossModeReinstall_OverwritesOnDiskDiffers(t *testing.T) {
 	_, cleanup := testEnv(t)
 	defer cleanup()
 
@@ -320,32 +318,36 @@ func TestAC5_CrossModeReinstall_NoForce_ReportsConflict(t *testing.T) {
 	stats.Installed = nil
 	stats.Unchanged = nil
 	stats.Updated = nil
-	stats.Conflicts = nil
 	copyAgentFile(srcPath, destPath, ModeLowCost)
 
 	if len(stats.Installed) != 1 {
 		t.Fatal("expected initial install")
 	}
 
-	// Re-install in standard mode without --force: on-disk hash is the low-cost
-	// transformed hash; the standard transformed hash is the source hash (no
-	// transform); they differ → conflict.
+	// Re-install in standard mode: on-disk hash is the low-cost transformed hash;
+	// the standard transformed hash is the source hash (no transform); they differ.
+	// The installer must overwrite unconditionally — no conflict gate.
 	forceFlag = false
 	stats.Installed = nil
 	stats.Unchanged = nil
 	stats.Updated = nil
-	stats.Conflicts = nil
 	copyAgentFile(srcPath, destPath, ModeStandard)
 
-	if len(stats.Conflicts) != 1 {
-		t.Errorf("cross-mode re-install without --force must report conflict; got installed=%v unchanged=%v updated=%v conflicts=%v",
-			stats.Installed, stats.Unchanged, stats.Updated, stats.Conflicts)
+	if len(stats.Updated) != 1 {
+		t.Errorf("cross-mode re-install must overwrite and report updated; got installed=%v unchanged=%v updated=%v",
+			stats.Installed, stats.Unchanged, stats.Updated)
+	}
+
+	// On-disk content must now be standard (original frontmatter — no sonnet rewrite).
+	content, _ := os.ReadFile(destPath)
+	if strings.Contains(string(content), "model: sonnet") {
+		t.Errorf("after standard re-install, disk must not have model: sonnet (low-cost bytes); got:\n%s", content)
 	}
 }
 
-// TestAC5_CrossModeReinstall_WithForce_Overwrites verifies that --force causes
-// the cross-mode re-install to overwrite the file with the new mode's content.
-func TestAC5_CrossModeReinstall_WithForce_Overwrites(t *testing.T) {
+// TestAC5_CrossModeReinstall_ForceFlagIsNoOp verifies that --force is accepted
+// but does not change behavior — the installer always overwrites regardless.
+func TestAC5_CrossModeReinstall_ForceFlagIsNoOp(t *testing.T) {
 	_, cleanup := testEnv(t)
 	defer cleanup()
 
@@ -356,7 +358,6 @@ func TestAC5_CrossModeReinstall_WithForce_Overwrites(t *testing.T) {
 	stats.Installed = nil
 	stats.Unchanged = nil
 	stats.Updated = nil
-	stats.Conflicts = nil
 	copyAgentFile(srcPath, destPath, ModeLowCost)
 
 	if len(stats.Installed) != 1 {
@@ -369,23 +370,23 @@ func TestAC5_CrossModeReinstall_WithForce_Overwrites(t *testing.T) {
 		t.Fatalf("low-cost install must produce sonnet on disk; got:\n%s", lowCostContent)
 	}
 
-	// Re-install in standard mode WITH --force.
+	// Re-install in standard mode with --force (which is now a no-op for file installs).
+	// The installer overwrites unconditionally whether --force is set or not.
 	forceFlag = true
 	stats.Installed = nil
 	stats.Unchanged = nil
 	stats.Updated = nil
-	stats.Conflicts = nil
 	copyAgentFile(srcPath, destPath, ModeStandard)
 
 	if len(stats.Updated) != 1 {
-		t.Errorf("cross-mode with --force must report updated (not installed); got installed=%v updated=%v conflicts=%v",
-			stats.Installed, stats.Updated, stats.Conflicts)
+		t.Errorf("cross-mode re-install must report updated; got installed=%v updated=%v unchanged=%v",
+			stats.Installed, stats.Updated, stats.Unchanged)
 	}
 
 	// On-disk content must now be standard (original frontmatter from the embedded file).
 	standardContent, _ := os.ReadFile(destPath)
 	if strings.Contains(string(standardContent), "model: sonnet") {
-		t.Errorf("after --force standard re-install, disk must not have model: sonnet (low-cost); got:\n%s", standardContent)
+		t.Errorf("after standard re-install, disk must not have model: sonnet (low-cost); got:\n%s", standardContent)
 	}
 }
 
