@@ -118,12 +118,13 @@ The Tier System modulates the Bug-fix Pipeline depth so trivial fixes skip cerem
 
 #### Tier table
 
-| Tier | Name | Phase 1 (root-cause) | Phase 2.0 (pre-fix regression test) | Phase 3 agents | Estimated agent runs |
-|---|---|---|---|---|---|
-| **1** | Docs/Trivial | **Skip** — no `01-root-cause.md`. th-orchestrator emits one-sentence prose plan at STAGE-GATE-1 (same surface as `type: hotfix`). | **Conditional skip** — only when there is no behavior change (see condition below). | tester (suite no-regress) only | ~3 |
-| **2** | Light fix | Inline `01-root-cause.md` — 1 paragraph for `## Mechanism` + 1 paragraph for `## Scope of Fix`, no extended sections. Architect dispatched with `mode: light-root-cause`. | Mandatory | tester + qa | ~5 |
-| **3** | Standard fix | Full `01-root-cause.md` (current PR #50 default). Architect dispatched with `mode: full-root-cause`. `## Prior Art` section optional. | Mandatory | tester + qa + security | ~7 |
-| **4** | Critical/Security | Full `01-root-cause.md` + **mandatory `## Prior Art` section** (architect invokes `mcp__memory__search_nodes`). Architect dispatched with `mode: full-root-cause`. | Mandatory | tester + qa + security (**extended analysis** — adjacent-code surface + prior-art cross-reference) | ~9 |
+| Tier | Name | Phase 1 (root-cause) | Phase 2.0 (pre-fix regression test) | Phase 3 agents | Session-docs | Estimated agent runs |
+|---|---|---|---|---|---|---|
+| **0** | Trivial/Cosmetic | **Skip** | **Skip** | tester only (suite no-regress; no full audit) | **NONE** — no session-docs created | ~1 |
+| **1** | Docs/Trivial | **Skip** — no `01-root-cause.md`. th-orchestrator emits one-sentence prose plan at STAGE-GATE-1 (same surface as `type: hotfix`). | **Conditional skip** — only when there is no behavior change (see condition below). | tester (suite no-regress) only | Yes — `00-state.md`, `00-task-intake.md` | ~3 |
+| **2** | Light fix | Inline `01-root-cause.md` — 1 paragraph for `## Mechanism` + 1 paragraph for `## Scope of Fix`, no extended sections. Architect dispatched with `mode: light-root-cause`. | Mandatory | tester + qa | Yes — full | ~5 |
+| **3** | Standard fix | Full `01-root-cause.md` (current PR #50 default). Architect dispatched with `mode: full-root-cause`. `## Prior Art` section optional. | Mandatory | tester + qa + security | Yes — full | ~7 |
+| **4** | Critical/Security | Full `01-root-cause.md` + **mandatory `## Prior Art` section** (architect invokes `mcp__memory__search_nodes`). Architect dispatched with `mode: full-root-cause`. | Mandatory | tester + qa + security (**extended analysis** — adjacent-code surface + prior-art cross-reference) | Yes — full + prior-art | ~9 |
 
 #### Tier 1 regression-test conditional skip
 
@@ -151,17 +152,47 @@ The th-orchestrator combines three signals at Phase 0a Step 7.
 - **Tier 4 paths:** same as Tier 3 sensitive paths COMBINED with a Signal 1 high-tier keyword match.
 
 **Signal 3 — Operator override** (literal markers in the operator's request):
-- `[TIER: 1|2|3|4]` — forces the declared tier, overrides auto-classification.
+- `[TIER: 0|1|2|3|4]` — forces the declared tier, overrides auto-classification. For `[TIER: 0]`, the orchestrator validates the diff qualifies; auto-promotion applies if rules are violated.
 - `[regression-test: required]` — forces Tier 2 minimum on a Tier 1 candidate.
 - `[security: required]` — forces Tier 3 minimum.
+
+#### Tier 0 auto-detection rules
+
+Auto-classify as Tier 0 ONLY when ALL of the following hold:
+- Single file touched in the proposed diff.
+- ≤5 lines changed total (insertions + deletions).
+- Path matches one of: `*.md` (docs), code-file comments only (diff shows only `//` or `#` or `<!-- -->` changes), CHANGELOG entries, whitespace-only changes.
+- No `*.test.*`, `*.spec.*`, or `tests/` paths touched.
+- Path does NOT match `cmd/install/main.go`, `agents/*.md`, or `skills/*.md` — these have system-level impact and are Tier 1 minimum.
+
+**Tier 0 operator cannot force for system-level files.** Even with `[TIER: 0]`, changes touching `agents/*.md`, `skills/*.md`, or `cmd/install/*.go` always promote to Tier 1 minimum.
+
+**Tier 0 auto-promotion:** if any rule is violated (e.g., diff grows from 3 lines to 8 lines during implementation), the orchestrator detects and promotes with `tier_promote: 1` and a rationale. No ceremony floor bypassed retroactively.
 
 #### Auto-escalation rules
 
 - **High-tier signal sobrescribes lower-tier classification.** Path priority > keyword priority > size hints. Example: path `auth/handlers.ts` + report "typo in error message" → Tier 3, not Tier 1. The sensitive path wins.
+- **Tier 0 promotes before Tier 1 rules apply.** Tier 0 is checked first; if it does not qualify, classification falls through to Tier 1 signals normally.
 - **Architect can re-tier in Phase 1.** If during root-cause analysis the architect discovers the scope is wider than the initial classification suggests, the architect emits `tier_promote: <new_tier>` with `tier_promote_rationale: <1-line>` in its status block. The th-orchestrator surfaces both to the operator for confirmation before continuing. Operator-in-loop, same protocol as `type_reclassify`.
 - **Default: Tier 3 when in doubt.** Conservative. Ambiguous signals or unclassifiable paths default to Tier 3.
 
 #### Worked examples
+
+**Example Tier 0 — typo in CHANGELOG, no session-docs:**
+- Operator request: "fix typo in CHANGELOG.md: 'reseved' should be 'reserved'"
+- Signal 1: `typo` (low-tier hint).
+- Signal 2: `CHANGELOG.md` — single file, ≤5 lines, docs-only, no system-level path.
+- Signal 3: none.
+- Classification: `bug_tier: 0` (auto). All Tier 0 conditions satisfied.
+- Pipeline: no session-docs created. Implementer makes the fix. Tester runs suite no-regress. PR is opened. PR review is the only gate. ~1 agent run total.
+
+**Example Tier 0 — whitespace fix in README:**
+- Operator request: "trailing whitespace on line 42 of README.md"
+- Signal 1: `whitespace` (low-tier hint).
+- Signal 2: `README.md` — single file, ≤5 lines, docs-only, whitespace-only change.
+- Signal 3: none.
+- Classification: `bug_tier: 0` (auto). All Tier 0 conditions satisfied.
+- Pipeline: no session-docs, no STAGE-GATEs. Implementer makes the fix, runs tests, opens PR. ~1 agent run total.
 
 **Example A — Tier 1, regression-test skipped:**
 - Operator request: "fix typo in README.md: 'recieve' should be 'receive'"

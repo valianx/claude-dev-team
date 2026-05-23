@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Tier 0 — Trivial/Cosmetic** added to the bug-fix pipeline tier system. Skips session-docs creation entirely; only the implementer + tester suite-no-regress run. Auto-classifies when all of: single file, ≤5 lines, comments/whitespace/docs only, no test paths, no system-level files. Auto-promotes to Tier 1+ if any rule breaks. Closes the ceremony-floor observation from the v2.10.0 dogfood: Tier 1 still required session-docs creation for 1-line typo fixes, which felt over-engineered. Tier 0 is the genuinely-lite path.
+- `docs/decisions/gh-fallback-pattern.md`: permanent decision log capturing the 20 architect design questions (Q-1 through Q-20) for the gh-fallback graceful degradation pattern, with the operator decisions and rationale. The original architect design lives in gitignored `session-docs/`; this committed reference preserves the design intent for future contributors. Q-18 (cost-warning UI for multi-reviewer) is documented as the only operator override of architect defaults.
+
 ## [2.12.1] - 2026-05-23
 
 ### Changed
