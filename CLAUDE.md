@@ -39,7 +39,11 @@ team-harness/
 │   ├── *.md             Simple skills (one-file slash commands)
 │   ├── d2-diagram/      Complex skills (SKILL.md + references/)
 │   ├── excalidraw-diagram/
-│   └── likec4-diagram/
+│   ├── likec4-diagram/
+│   ├── obsidian-markdown/
+│   ├── obsidian-bases/
+│   ├── json-canvas/
+│   └── obsidian-cli/
 ├── hooks/               OS-native notification scripts + config template
 │   ├── notify-windows.sh
 │   ├── notify-mac.sh

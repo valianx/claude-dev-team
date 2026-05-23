@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Obsidian skills** (`skills/obsidian-markdown/`, `skills/obsidian-bases/`, `skills/json-canvas/`, `skills/obsidian-cli/`): four standalone complex skills for working with Obsidian vaults. `obsidian-markdown` covers Obsidian Flavored Markdown (wikilinks, embeds, callouts, frontmatter, tags). `obsidian-bases` covers `.base` files (database views, filters, formulas, summaries). `json-canvas` covers `.canvas` files (visual canvases, nodes, edges, groups). `obsidian-cli` covers CLI interaction with a running Obsidian instance. All skills use a per-machine vault configuration at `~/.claude/config/obsidian-vaults.json` — no hardcoded paths. Based on [kepano/obsidian-skills](https://github.com/kepano/obsidian-skills), adapted for the team-harness skill format.
+
 ## [2.15.1] - 2026-05-23
 
 ### Changed
