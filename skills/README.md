@@ -25,6 +25,7 @@ The top level also contains a one-file `<name>.md` sibling for each complex skil
 
 - **Routes to th-orchestrator** (default for pipeline work): `/issue`, `/plan`, `/design`, `/research`, `/spike`, `/test`, `/test-pipeline`, `/validate`, `/define-ac`, `/security`, `/audit`, `/review-pr`, `/deliver`, `/diagram`, `/likec4-diagram`, `/d2-diagram`, `/translate`, `/init`, `/recover`, `/eval`, `/gcp-costs`, `/cross-repo`.
 - **Standalone** (no th-orchestrator involvement): `/lint`, `/status`, `/memory`, `/tmux`, `/background`, `/th-update`.
+- **Standalone complex skills** (no slash-command entry point, triggered by description matching): `obsidian-markdown`, `obsidian-bases`, `json-canvas`, `obsidian-cli`.
 
 ## Adding a simple skill
 
