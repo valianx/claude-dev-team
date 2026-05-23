@@ -259,7 +259,7 @@ After EVERY phase transition, update `session-docs/{feature-name}/00-state.md`. 
 - next_action: {what to do next}
 - regression_test_path: {path | null}        # set at Phase 2.0 (type: fix | hotfix); null otherwise
 - regression_test_status: {failing | passing | skipped | null}  # failing before Phase 2; passing after Phase 3; skipped for Tier 1 no-behavior-change
-- bug_tier: {1 | 2 | 3 | 4 | null}           # set at Phase 0a Step 7 for type: fix | hotfix; null otherwise
+- bug_tier: {0 | 1 | 2 | 3 | 4 | null}        # set at Phase 0a Step 7 for type: fix | hotfix; null otherwise
 - bug_tier_source: {auto | operator | architect-promote | null}  # how the tier was set; null for non-bug runs
 
 ## Agent Results
@@ -492,7 +492,7 @@ Every task runs the COMPLETE pipeline: Specify → Design → Plan Ratification 
      - GitHub issue has a `security` label
      - **Task type is `fix` or `hotfix`** — security agent runs ALWAYS for bugs (operator override; defense-in-depth: many bugs have non-obvious security implications, and fixes can introduce new vulnerabilities). For `type: fix` / `type: hotfix`, `security-sensitive` is **forced to `true`** regardless of the other criteria above. This is a hard requirement of the Bug-fix Flow — see `ref-special-flows.md` § Bug-fix Flow. **Tier modulation:** for `type: fix` / `type: hotfix`, the `security-sensitive: true` default is preserved for Tier 3+ and derived from the tier (see Tier classification below). Tier 1 (docs/trivial) and Tier 2 (light) skip the security agent because the impacted scope is non-functional or non-production code; if a Tier 1 / Tier 2 fix touches a security-sensitive path, the path signal auto-promotes the tier to 3+. The "always on for bugs" rule survives semantically: security runs for every Tier 3+ bug, and the tier system is what determines whether the bug is Tier 3+.
 
-   - **Bug tier (only when `type: fix` or `type: hotfix`):** `1` | `2` | `3` | `4`. The tier determines how much of the Bug-fix Pipeline runs against a given fix — trivial bugs skip ceremony, critical bugs add prior-art research and extended security analysis. Combine three signals; high-tier signals win, default to Tier 3 when ambiguous, operator declarations override auto-classification.
+   - **Bug tier (only when `type: fix` or `type: hotfix`):** `0` | `1` | `2` | `3` | `4`. The tier determines how much of the Bug-fix Pipeline runs against a given fix — trivial bugs skip ceremony, critical bugs add prior-art research and extended security analysis. Combine three signals; high-tier signals win, default to Tier 3 when ambiguous, operator declarations override auto-classification.
 
      **Signal 1 — Keywords in the bug report** (operator's plain-text request plus any linked issue body):
      - **High-tier triggers (escalate to Tier 4, case-insensitive whole-word match):** `auth`, `injection`, `xss`, `csrf`, `secret`, `token`, `permission`, `bypass`, `vulnerability`, `cve`, `leak`, `exposed`, `unauthorized`.
@@ -517,12 +517,34 @@ Every task runs the COMPLETE pipeline: Specify → Design → Plan Ratification 
 
      **Tier table (effect on the pipeline):**
 
-     | Tier | Name | Phase 1 (root-cause) | Phase 2.0 (pre-fix regression test) | Phase 3 agents | Estimated agent runs |
-     |---|---|---|---|---|---|
-     | **1** | Docs/Trivial | **Skip** — no `01-root-cause.md` | **Conditional skip** — only when no behavior change (see below) | tester (suite no-regress) only | ~3 |
-     | **2** | Light fix | `mode: light-root-cause` — inline 1-paragraph `01-root-cause.md` (no extended sections) | Mandatory | tester + qa | ~5 |
-     | **3** | Standard fix | `mode: full-root-cause` — current PR #50 default | Mandatory | tester + qa + security | ~7 |
-     | **4** | Critical/Security | `mode: full-root-cause` + mandatory memory prior-art query (`mcp__memory__search_nodes`) | Mandatory | tester + qa + security (extended analysis) | ~9 |
+     | Tier | Name | Phase 1 (root-cause) | Phase 2.0 (pre-fix regression test) | Phase 3 agents | Session-docs | Estimated agent runs |
+     |---|---|---|---|---|---|---|
+     | **0** | Trivial/Cosmetic | **Skip** | **Skip** | tester only (suite no-regress; no full audit) | **NONE** — no session-docs created | ~1 |
+     | **1** | Docs/Trivial | **Skip** — no `01-root-cause.md` | **Conditional skip** — only when no behavior change (see below) | tester (suite no-regress) only | Yes — `00-state.md`, `00-task-intake.md` | ~3 |
+     | **2** | Light fix | `mode: light-root-cause` — inline 1-paragraph `01-root-cause.md` (no extended sections) | Mandatory | tester + qa | Yes — full | ~5 |
+     | **3** | Standard fix | `mode: full-root-cause` — current PR #50 default | Mandatory | tester + qa + security | Yes — full | ~7 |
+     | **4** | Critical/Security | `mode: full-root-cause` + mandatory memory prior-art query (`mcp__memory__search_nodes`) | Mandatory | tester + qa + security (extended analysis) | Yes — full + prior-art | ~9 |
+
+     **Tier 0 — Trivial/Cosmetic (auto-detection rules):**
+
+     Auto-classify as Tier 0 ONLY when ALL of the following hold:
+     - Single file touched in the proposed diff.
+     - ≤5 lines changed total (insertions + deletions).
+     - Path matches one of: `*.md` (docs), code-file comments only (diff shows only `//` or `#` or `<!-- -->` changes), CHANGELOG entries, whitespace-only changes.
+     - No `*.test.*`, `*.spec.*`, or `tests/` paths touched.
+     - Path does NOT match `cmd/install/main.go`, `agents/*.md`, or `skills/*.md` — these have system-level impact and are Tier 1 minimum.
+
+     **Tier 0 auto-promotion:** any signal that violates the rules above promotes to Tier 1+ automatically. Example: if the diff grows from 3 lines to 8 lines during implementation, promote with `tier_promote: 1` and a rationale.
+
+     **Tier 0 operator override:**
+     - `[TIER: 0]` declares explicit Tier 0. The orchestrator still validates the diff qualifies; auto-promotion applies if rules are violated.
+     - Operator cannot force Tier 0 for changes that touch `agents/*.md`, `skills/*.md`, or `cmd/install/*.go` — these always promote to Tier 1 minimum regardless of the declaration.
+
+     **Tier 0 pipeline behavior:**
+     - No session-docs are created. The implementer makes the fix, runs tests, and opens the PR. No `00-state.md`, no `00-task-intake.md`, no session-docs folder.
+     - No STAGE-GATEs. The PR review is the only gate.
+     - No plan-review, no acceptance-checker, no architect re-classify path. Implementer judgment is the only judgment.
+     - PR body has minimal AC: "This fixes X" with the change diff is the spec. No formal Given/When/Then.
 
      **Tier 1 conditional regression-test skip — ALL conditions must hold:**
      - Tier is `1` (auto-classified or operator-declared).
@@ -532,7 +554,7 @@ Every task runs the COMPLETE pipeline: Specify → Design → Plan Ratification 
 
      If any condition fails, the Tier 1 candidate is auto-promoted to Tier 2 (Phase 2.0 mandatory) or the regression-test skip is denied (still Tier 1, but Phase 2.0 runs).
 
-     **Output:** record `bug_tier: 1 | 2 | 3 | 4` in `00-state.md` `## Current State`. Surface the tier to the operator in the classification announcement (Step 12): `Tier {N} — {name}. {brief rationale: path X matched signal Y; keyword Z escalated}`. Operator-declared tiers are flagged in the announcement: `Tier {N} — operator-declared via [TIER: N]`.
+     **Output:** record `bug_tier: 0 | 1 | 2 | 3 | 4` in `00-state.md` `## Current State` (for Tier 1+; Tier 0 skips session-docs entirely). Surface the tier to the operator in the classification announcement (Step 12): `Tier {N} — {name}. {brief rationale: path X matched signal Y; keyword Z escalated}`. Operator-declared tiers are flagged in the announcement: `Tier {N} — operator-declared via [TIER: N]`.
 
 8. **Bootstrap check** (development tasks only — skip for `research`, `plan`, and `spike`):
    - Verify these prerequisites exist: `CLAUDE.md`, `CHANGELOG.md`, `.gitignore` with `/session-docs` entry
@@ -1149,6 +1171,7 @@ If no annotations were found, log a single `phase.end` with `extra.trivial: 0, .
 
 | `bug_tier` | tester | qa | security | Notes |
 |---|---|---|---|---|
+| `0` | suite no-regress only (no full audit; no session-docs to reference) | **skipped** | **skipped** | ~1 agent run. No session-docs created. PR review is the only gate. |
 | `1` | suite no-regress only (no specific assertion against a missing regression test when Phase 2.0 was skipped) | reduced — verify diff matches `00-task-intake.md` intent only (AC list is implicit "the cited issue is fixed") | **skipped** | ~3 agent runs. `regression_test_referenced: null` in qa status block when Phase 2.0 was skipped. |
 | `2` | default verify (post-fix regression test must pass) | validate mode (default bug-fix contract) | **skipped** | ~5 agent runs. |
 | `3` (default) | default verify | validate mode (default bug-fix contract) | pipeline mode | ~7 agent runs. Current PR #50 baseline. |

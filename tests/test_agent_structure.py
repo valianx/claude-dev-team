@@ -2704,7 +2704,7 @@ check(
 )
 check(
     "th-orchestrator.md 00-state.md schema includes bug_tier field",
-    "bug_tier:" in _orch_bf and "{1 | 2 | 3 | 4 | null}" in _orch_bf,
+    "bug_tier:" in _orch_bf and ("{0 | 1 | 2 | 3 | 4 | null}" in _orch_bf or "{1 | 2 | 3 | 4 | null}" in _orch_bf),
     "bug_tier field missing from 00-state.md schema",
 )
 check(
@@ -2900,6 +2900,38 @@ check(
     "ref-special-flows.md Tier System has worked examples (Tier 1, Tier 2, Tier 3-with-security-escalation)",
     "Worked examples" in _ref_flows_bf or ("Example A" in _ref_flows_bf and "Example B" in _ref_flows_bf and "Example C" in _ref_flows_bf),
     "Tier System worked examples missing from ref-special-flows.md",
+)
+
+# (T9) Tier 0 — Trivial/Cosmetic (v2.13.0 addition)
+check(
+    "th-orchestrator.md tier table declares Tier 0 (Trivial/Cosmetic)",
+    "Tier 0" in _orch_bf and "Trivial/Cosmetic" in _orch_bf,
+    "Tier 0 row missing from tier table in th-orchestrator.md",
+)
+check(
+    "th-orchestrator.md Tier 0 auto-detection rules present (single file, ≤5 lines, no test paths, no system files)",
+    "Tier 0" in _orch_bf and "single file" in _orch_bf.lower() and "5 lines" in _orch_bf,
+    "Tier 0 auto-detection rules not documented in th-orchestrator.md",
+)
+check(
+    "th-orchestrator.md Tier 0 auto-promotion rule documented",
+    "tier_promote: 1" in _orch_bf or ("Tier 0 auto-promotion" in _orch_bf or "auto-promotion" in _orch_bf.lower() and "Tier 0" in _orch_bf),
+    "Tier 0 auto-promotion rule not documented in th-orchestrator.md",
+)
+check(
+    "th-orchestrator.md Tier 0 no session-docs behavior documented",
+    "Tier 0" in _orch_bf and "no session-docs" in _orch_bf.lower(),
+    "Tier 0 no-session-docs behavior not documented in th-orchestrator.md",
+)
+check(
+    "th-orchestrator.md Tier 0 operator cannot force for system-level files",
+    "agents/*.md" in _orch_bf and "skills/*.md" in _orch_bf and ("Tier 1 minimum" in _orch_bf or "Tier 0" in _orch_bf),
+    "Tier 0 system-level file exclusion not documented in th-orchestrator.md",
+)
+check(
+    "ref-special-flows.md Tier System declares Tier 0 (Trivial/Cosmetic)",
+    "Tier 0" in _ref_flows_bf and "Trivial/Cosmetic" in _ref_flows_bf,
+    "Tier 0 row missing from ref-special-flows.md Tier System",
 )
 
 # ---------------------------------------------------------------------------
