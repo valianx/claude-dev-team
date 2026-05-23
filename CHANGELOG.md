@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.14.0] - 2026-05-22
+
+### Changed
+
+- **Installers always overwrite agents/skills/hooks** (`cmd/install/`): removed the conflict-detection logic that previously refused to overwrite files modified manually in `~/.claude/`. The `--force` flag becomes a no-op for file installation (preserved for backward compatibility with scripts and the `/th-update` skill). Rationale: agent/skill/hook bytes are canonical from the repo; direct edits to `~/.claude/agents/*.md` are not a supported customization path. Operators wanting custom behavior should fork the repo. This matches `/th-update`'s "sync to released bytes" semantic and eliminates the recurring `conflicts: N` friction from the `curl | bash` / `irm | iex` bootstrap one-liners. Operator-specific identity (Memory MCP URL/bearer, context7 API key) keeps its existing Keep/Change menu — only embedded-file overwrites are unconditional now.
+
 ## [2.13.1] - 2026-05-22
 
 ### Fixed

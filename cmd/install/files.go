@@ -26,7 +26,6 @@ var stats = struct {
 	Installed []string
 	Updated   []string
 	Unchanged []string
-	Conflicts []string
 }{}
 
 // shouldSkip returns true for names that must never be installed.
@@ -89,8 +88,8 @@ func writeBytesToDest(data []byte, dest string, executable bool) error {
 	return nil
 }
 
-// copyEmbeddedFile installs a single file from the embedded FS with idempotency
-// and conflict detection.
+// copyEmbeddedFile installs a single file from the embedded FS with idempotency.
+// Files that already exist are overwritten unconditionally when they differ.
 func copyEmbeddedFile(srcPath, dest string, executable bool) {
 	ensureDir(filepath.Dir(dest))
 
@@ -100,7 +99,6 @@ func copyEmbeddedFile(srcPath, dest string, executable bool) {
 		return
 	}
 	srcHash := hashBytes(srcData)
-	recordedHash := manifest.Files[dest].Hash
 
 	if _, statErr := os.Stat(dest); os.IsNotExist(statErr) {
 		if writeErr := writeBytesToDest(srcData, dest, executable); writeErr != nil {
@@ -124,29 +122,23 @@ func copyEmbeddedFile(srcPath, dest string, executable bool) {
 		return
 	}
 
-	// Destination differs from source.
-	if recordedHash != "" && recordedHash == destHash {
-		// We installed this before and the user hasn't touched it — safe update.
-		if writeErr := writeBytesToDest(srcData, dest, executable); writeErr != nil {
-			fmt.Fprintf(os.Stderr, "  [warn] cannot update %s: %v\n", dest, writeErr)
-			return
-		}
-		recordManifest(dest, srcHash)
-		stats.Updated = append(stats.Updated, dest)
+	// Destination differs from source — overwrite unconditionally.
+	// Embedded files are canonical bytes from the repo; direct edits to the
+	// destination are not a supported customization path.
+	if writeErr := writeBytesToDest(srcData, dest, executable); writeErr != nil {
+		fmt.Fprintf(os.Stderr, "  [warn] cannot update %s: %v\n", dest, writeErr)
 		return
 	}
-
-	// User-modified or never tracked — leave it alone.
-	stats.Conflicts = append(stats.Conflicts, dest)
+	recordManifest(dest, srcHash)
+	stats.Updated = append(stats.Updated, dest)
 }
 
 // copyAgentFile installs a single agent .md file from the embedded FS with
 // optional in-flight frontmatter transformation. The transformer rewrites
 // model: and effort: lines per the lowCostMatrix when mode is ModeLowCost; for
 // ModeStandard the bytes are passed through unchanged. The sha256 is computed
-// from the TRANSFORMED bytes — this is load-bearing for conflict detection:
-// a same-mode re-install will hash-match and report unchanged; a cross-mode
-// re-install will diverge and report conflict.
+// from the TRANSFORMED bytes — a same-mode re-install will hash-match and
+// report unchanged; a cross-mode re-install will diverge and overwrite.
 func copyAgentFile(srcPath, dest string, mode InstallMode) {
 	ensureDir(filepath.Dir(dest))
 
@@ -187,21 +179,15 @@ func copyAgentFile(srcPath, dest string, mode InstallMode) {
 		return
 	}
 
-	// Destination differs from what this mode would produce.
-	if forceFlag {
-		// --force overrides all conflict detection: overwrite unconditionally.
-		if writeErr := os.WriteFile(dest, transformed, 0o644); writeErr != nil {
-			fmt.Fprintf(os.Stderr, "  [warn] cannot update %s: %v\n", dest, writeErr)
-			return
-		}
-		recordManifest(dest, transformedHash)
-		stats.Updated = append(stats.Updated, dest)
+	// Destination differs from what this mode would produce — overwrite unconditionally.
+	// Embedded agent files are canonical bytes from the repo; direct edits to the
+	// destination are not a supported customization path.
+	if writeErr := os.WriteFile(dest, transformed, 0o644); writeErr != nil {
+		fmt.Fprintf(os.Stderr, "  [warn] cannot update %s: %v\n", dest, writeErr)
 		return
 	}
-
-	// Without --force: report conflict whenever the on-disk content would need
-	// to change. See the full rationale in the original copyAgentFile comment.
-	stats.Conflicts = append(stats.Conflicts, dest)
+	recordManifest(dest, transformedHash)
+	stats.Updated = append(stats.Updated, dest)
 }
 
 // hashBytes returns the sha256 hex of the given byte slice.

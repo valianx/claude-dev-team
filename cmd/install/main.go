@@ -7,7 +7,9 @@
 //
 // Flags:
 //
-//	--force   bypass preservation; overwrite existing mcpServer entries.
+//	--force   bypass preservation of existing mcpServer entries in ~/.claude.json.
+//	          Has no effect on file installation — agents/skills/hooks are always
+//	          overwritten unconditionally regardless of this flag.
 package main
 
 import (
@@ -22,9 +24,12 @@ import (
 // Note: the value is the BARE semver (no leading "v"). The "v" is added by
 // the printf in main(). The release workflow strips the leading "v" from
 // the git tag (e.g. v2.0.1 → 2.0.1) before injecting — see release.yml.
-var version = "2.13.1"
+var version = "2.14.0"
 
-// forceFlag is set by parseFlags and read throughout the package.
+// forceFlag is preserved as a no-op for backward compatibility. The installer
+// always overwrites embedded files; this flag once disabled the conflict gate,
+// but the gate itself has been removed. Scripts and skills that pass --force
+// keep working without modification.
 var forceFlag bool
 
 // claudeDir is ~/.claude
@@ -103,9 +108,8 @@ func parseFlags() {
 		}
 	}
 	os.Args = newArgs
-	if forceFlag {
-		fmt.Println("  --force: bypassing preservation; will overwrite existing entries.")
-	}
+	// --force is accepted but has no effect on file installation (always overwrites).
+	// It still bypasses preservation of existing mcpServer entries in ~/.claude.json.
 }
 
 // resolveClaudePaths sets claudeDir and claudeJSON from the user's home

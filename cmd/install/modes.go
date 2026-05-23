@@ -111,7 +111,7 @@ func transformAgentFile(srcBytes []byte, agentName string, mode InstallMode) []b
 	// lineEnding is the newline sequence detected from the first line.
 	// All output from rewriteFrontmatterLines will use this separator so that
 	// a CRLF-encoded file is never silently normalised to LF (which would
-	// mutate the bytes and trigger spurious conflict on re-install).
+	// mutate the bytes and trigger a spurious overwrite on same-mode re-install).
 	lineEnding := "\n"
 	if hasCRLF {
 		lineEnding = "\r\n"
