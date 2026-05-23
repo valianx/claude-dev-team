@@ -52,6 +52,12 @@ PRs run in parallel rounds computed from their `Depends on:` field (round 1 is e
 
 ---
 
+## Other pipelines
+
+For full reference coverage of every pipeline — including the refactor flow, database changes flow, test pipeline, research/spike, plan flow, acceptance gate semantics, gh-fallback degradation tiers, and multi-reviewer — see [`docs/pipelines.md`](./pipelines.md).
+
+---
+
 ## Bug-fix flow (type: fix and type: hotfix)
 
 When the th-orchestrator classifies a request as `type: fix` or `type: hotfix` (via signals like `bug`, `solucionar`, `arreglar`, `corregir`, `regresión`, urgency markers, or GitHub `bug` label), the pipeline runs the **Bug-fix Pipeline** — the same 3-stage shell as feature flow, with type-specific content shifts. Nothing is stripped from the session-docs backbone; every artifact a feature produces is also produced for a bug fix.
@@ -111,9 +117,9 @@ Each row is a real failure mode encountered and patched. See [`docs/knowledge.md
 
 ## What ships
 
-- **17 agents** (`th-orchestrator`, `architect`, `implementer`, `tester`, `qa`, `plan-reviewer`, `acceptance-checker`, `delivery`, `reviewer`, `security`, plus `diagrammer` / `likec4-diagrammer` / `d2-diagrammer`, `translator`, `gcp-cost-analyzer`, `init`, `agent-builder`). Full roster + model + effort matrix in [`agents/README.md`](../agents/README.md).
-- **29 skills** (slash commands). Most route into the th-orchestrator; five are standalone (`/lint`, `/status`, `/memory`, `/tmux`, `/th-update`). Common entries: `/design`, `/recover`, `/deliver`, `/review-pr`, `/issue`, `/background`.
-- **Hooks.** `hooks/policy-block.sh` is the `PreToolUse` gate (48 tested cases: destructive Bash, force-push, secret-file writes, etc.). Notification scripts per OS are optional opt-in.
+- **Agents.** `th-orchestrator`, `architect`, `implementer`, `tester`, `qa`, `plan-reviewer`, `acceptance-checker`, `delivery`, `reviewer`, `reviewer-consolidator`, `security`, `diagrammer`, `likec4-diagrammer`, `d2-diagrammer`, `translator`, `gcp-cost-analyzer`, `init`, `agent-builder`. Full roster + model + effort matrix in [`agents/README.md`](../agents/README.md).
+- **Skills** (slash commands). Most route into the th-orchestrator; standalone utilities include `/lint`, `/status`, `/memory`, `/tmux`, `/th-update`, and `/background`. Common routed entries: `/design`, `/recover`, `/deliver`, `/review-pr`, `/issue`. `/background` launches a background `claude -p` headless session for eligible long-running tasks — it does not route through the th-orchestrator.
+- **Hooks.** `hooks/policy-block.sh` is the `PreToolUse` policy gate — it intercepts every `Bash`, `Write`, `Edit`, and `NotebookEdit` tool call and denies destructive operations before they execute (48 tested cases: `rm -rf`, force-push, secret-file writes, SQL DROP/TRUNCATE, sensitive-path writes). Notification scripts per OS are optional opt-in. See [`hooks/README.md`](../hooks/README.md).
 - **External Memory MCP** server. Semantic memory across projects. The server (`context-harness-mcp` or any MCP-compatible service) lives outside this repo. Reference: [`docs/kg-content-policy.md`](./kg-content-policy.md).
 
 ---
