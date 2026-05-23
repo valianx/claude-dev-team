@@ -314,23 +314,30 @@ if bg_path.exists():
           "claude -p" in bg)
 
 # ---------------------------------------------------------------------------
-# Suite 11 — README and skills/README mention /background and PreToolUse
+# Suite 11 — Cross-references: docs/how-it-works.md and skills/README
+# ---------------------------------------------------------------------------
+# Assertion placement:
+#   - /background and PreToolUse policy gate → docs/how-it-works.md (detail lives there)
+#   - Skill count and agent count removed: brittle — exact counts fail on every release;
+#     the invariant that every shipped skill/agent exists is covered by Suite 1 / Suite 19.
+#   - Constraint Reconciliation / Internal Review / STAGE-GATE-N → docs/pipelines.md
+#     (pipeline detail belongs in the pipelines reference document, not the README landing page)
 # ---------------------------------------------------------------------------
 print()
 print("=== Suite 11: README cross-references ===")
 
 top_readme = read(REPO_ROOT / "README.md")
-check("README.md mentions /background",
-      "/background" in top_readme)
-check("README.md surfaces PreToolUse policy gate",
-      "PreToolUse" in top_readme or "policy gate" in top_readme.lower())
-check("README.md skill count is 29",
-      "29 skills" in top_readme,
-      "skill count not updated to 29")
-check("README.md pipeline diagram mentions Constraint Reconciliation",
-      "Constraint Reconciliation" in top_readme)
-check("README.md pipeline diagram mentions Internal Review",
-      "Internal Review" in top_readme)
+how_it_works = read(REPO_ROOT / "docs" / "how-it-works.md")
+pipelines_md = read(REPO_ROOT / "docs" / "pipelines.md")
+
+check("docs/how-it-works.md mentions /background",
+      "/background" in how_it_works)
+check("docs/how-it-works.md surfaces PreToolUse policy gate",
+      "PreToolUse" in how_it_works or "policy gate" in how_it_works.lower())
+check("docs/pipelines.md mentions Constraint Reconciliation",
+      "Constraint Reconciliation" in pipelines_md)
+check("docs/pipelines.md mentions Internal Review",
+      "Internal Review" in pipelines_md)
 
 skills_readme = read(SKILLS_DIR / "README.md")
 check("skills/README.md lists /background as standalone",
@@ -464,17 +471,18 @@ check("agents/README.md roster lists plan-reviewer with model sonnet",
       "plan-reviewer" in ag_readme and "sonnet" in ag_readme,
       "plan-reviewer model not declared as sonnet")
 
-# Top-level README must mention the 3-stage gates
-check("README.md mentions STAGE-GATE-1", "STAGE-GATE-1" in top_readme,
-      "STAGE-GATE-1 not surfaced in top-level README")
-check("README.md mentions STAGE-GATE-2", "STAGE-GATE-2" in top_readme,
-      "STAGE-GATE-2 not surfaced in top-level README")
-check("README.md mentions STAGE-GATE-3", "STAGE-GATE-3" in top_readme,
-      "STAGE-GATE-3 not surfaced in top-level README")
+# docs/pipelines.md must document the 3-stage gates
+# (Relocated from README: gate identifiers belong in the pipelines reference,
+# not the minimal landing page. Agent count removed: brittle, fails each release;
+# Suite 1 and Suite 19 cover the invariant that every shipped agent file exists.)
+check("docs/pipelines.md mentions STAGE-GATE-1", "STAGE-GATE-1" in pipelines_md,
+      "STAGE-GATE-1 not documented in docs/pipelines.md")
+check("docs/pipelines.md mentions STAGE-GATE-2", "STAGE-GATE-2" in pipelines_md,
+      "STAGE-GATE-2 not documented in docs/pipelines.md")
+check("docs/pipelines.md mentions STAGE-GATE-3", "STAGE-GATE-3" in pipelines_md,
+      "STAGE-GATE-3 not documented in docs/pipelines.md")
 check("README.md mentions plan-reviewer", "plan-reviewer" in top_readme,
       "plan-reviewer not surfaced in top-level README")
-check("README.md agent count is 17", "17 agents" in top_readme,
-      "agent count not updated to 17")
 
 # ---------------------------------------------------------------------------
 # Suite 13 — human-readable state (## TL;DR + /status timeline)
@@ -1450,6 +1458,8 @@ prompts_go = read(REPO_ROOT / "cmd" / "install" / "prompts.go")
 changelog_md = read(REPO_ROOT / "CHANGELOG.md")
 changelog_unreleased = changelog_md.split("## [Unreleased]", 1)[1].split("## [", 1)[0] if "## [Unreleased]" in changelog_md else ""
 
+install_md = read(REPO_ROOT / "docs" / "install.md")
+
 no_default_url_checks = [
     ("CLAUDE.md §1 does NOT name a specific host:port for the Memory MCP URL",
      "localhost:7654" not in claude_md),
@@ -1459,8 +1469,11 @@ no_default_url_checks = [
      "localhost:7654" not in readme_md),
     ("README.md does NOT promise a default with 'Press Enter to use the local Docker default'",
      "Press Enter to use the local Docker default" not in readme_md),
-    ("README.md states no default URL exists (positive statement)",
-     "no default URL" in readme_md or "No default URL" in readme_md),
+    # Relocated from README.md: the no-default-URL positive statement now lives in
+    # docs/install.md (where the MCP URL prompt and its rationale are documented).
+    # README.md is a minimal landing page; install detail belongs in docs/install.md.
+    ("docs/install.md states no default URL exists (positive statement)",
+     "no default URL" in install_md or "No default URL" in install_md),
     ("cmd/install/prompts.go doc comments do NOT name a specific host:port",
      "localhost:7654" not in prompts_go),
     ("cmd/install/prompts.go does NOT declare a defaultMemoryMCPURL const",
@@ -1878,19 +1891,21 @@ check(
     "CLAUDE.md must link to agents/README.md#low-cost-mode, not duplicate the matrix",
 )
 
-# (n) AC-9: README.md describes the two modes and references INSTALL_MODE.
-top_readme_lc = read(REPO_ROOT / "README.md")
+# (n) AC-9: docs/install.md describes the two modes and references INSTALL_MODE.
+# Relocated from README.md: install detail (env vars, modes, non-interactive setup)
+# belongs in docs/install.md. README.md is a minimal landing page that links to it.
+install_md_lc = read(REPO_ROOT / "docs" / "install.md")
 check(
-    "README.md references INSTALL_MODE env var (AC-9: two modes documented)",
-    "INSTALL_MODE" in top_readme_lc,
-    "README.md does not mention INSTALL_MODE — low-cost mode toggle undocumented",
+    "docs/install.md references INSTALL_MODE env var (AC-9: two modes documented)",
+    "INSTALL_MODE" in install_md_lc,
+    "docs/install.md does not mention INSTALL_MODE — low-cost mode toggle undocumented",
 )
 
-# (o) AC-9: README.md links to agents/README.md#low-cost-mode (no duplicate matrix).
+# (o) AC-9: docs/install.md links to agents/README.md#low-cost-mode (no duplicate matrix).
 check(
-    "README.md links to agents/README.md#low-cost-mode (AC-9: matrix in one place)",
-    "agents/README.md#low-cost-mode" in top_readme_lc,
-    "README.md must link to agents/README.md#low-cost-mode, not duplicate the matrix",
+    "docs/install.md links to agents/README.md#low-cost-mode (AC-9: matrix in one place)",
+    "agents/README.md#low-cost-mode" in install_md_lc,
+    "docs/install.md must link to agents/README.md#low-cost-mode, not duplicate the matrix",
 )
 
 # ---------------------------------------------------------------------------

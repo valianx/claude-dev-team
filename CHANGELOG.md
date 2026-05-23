@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.12.0] - 2026-05-22
+
+### Added
+
+- **`docs/pipelines.md`** (new): reference document covering all 8+ pipelines — feature pipeline (all phases, STAGE-GATE-1/2/3, Constraint Reconciliation, Internal Review), bug-fix pipeline (type: fix, 4-tier classification with keyword signals / path-pattern signals / operator overrides, auto-escalation, tier_promote), hotfix sub-flow, refactor flow, security-sensitive flow, database changes flow, test pipeline, research/spike flow, plan flow, acceptance gate (Phase 3.5) semantics, gh-fallback graceful degradation (Tier A/B/D), and multi-reviewer flow.
+
+### Changed
+
+- **`README.md` simplified to minimal landing page**: install one-liner (sh/ps1/cmd), quickstart `@th-orchestrator` examples, requirements summary, and a links table pointing to `docs/`. Detail-heavy sections (pipeline phases, agent lists, STAGE-GATE explanations, INSTALL_MODE matrix, skill counts) removed from README and now live in `docs/pipelines.md`, `docs/install.md`, `docs/how-it-works.md`, or `agents/README.md`.
+- **`docs/how-it-works.md` updated**: agents/skills list expanded to include `reviewer-consolidator`, `/background`, and the `PreToolUse` policy gate description. Cross-reference section added pointing to `docs/pipelines.md` for full pipeline detail.
+
+### Fixed
+
+- **12 README-drift test failures resolved** (`tests/test_agent_structure.py`):
+  - *Removed* (brittle assertions): skill count (29) and agent count (17) — exact counts fail on every release; the invariant that every shipped skill/agent exists is covered by Suite 1 and Suite 19.
+  - *Moved to `docs/how-it-works.md`*: `/background` mention; PreToolUse policy gate surface.
+  - *Moved to `docs/pipelines.md`*: Constraint Reconciliation; Internal Review; STAGE-GATE-1; STAGE-GATE-2; STAGE-GATE-3.
+  - *Moved to `docs/install.md`*: no-default-URL positive statement; INSTALL_MODE env var reference; `agents/README.md#low-cost-mode` link.
+
 ## [2.11.1] - 2026-05-23
 
 ### Changed

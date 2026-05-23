@@ -2,7 +2,7 @@
 
 > An agent harness for **Claude Code**. Turns the chat into a Spec-Driven Development pipeline with mandatory human gates and full state captured as files so any session can resume from where the last one left off.
 
-[![Version](https://img.shields.io/badge/version-2.3.0-blue.svg)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.12.0-blue.svg)](./CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 
 ---
@@ -27,27 +27,34 @@ irm https://valianx.github.io/team-harness/install.ps1 | iex
 curl -fsSL https://valianx.github.io/team-harness/install.cmd -o install.cmd && install.cmd
 ```
 
-The installer walks you through three prompts (Memory MCP URL, context7 API key, install mode) and writes agents + skills + hooks into `~/.claude/`. Restart Claude Code after install. Full options + env-var setup in [`docs/install.md`](./docs/install.md).
+The installer walks through three prompts (Memory MCP URL, context7 API key, install mode) and writes agents, skills, and hooks into `~/.claude/`. Restart Claude Code after install.
 
 ---
 
 ## Quick start
 
-After install, open Claude Code and **talk to the th-orchestrator** — it is the front door to the whole system. Ask it for the work plan first:
+After install, open Claude Code and talk to the th-orchestrator — it is the front door to the whole system. The `plan-reviewer` agent audits the architecture and task-list before each plan gate, emitting a pass/concerns/fail verdict.
 
 ```
 @th-orchestrator give me the work plan for this task: <description>
-```
-
-The th-orchestrator opens a pipeline: plan → human approval → implementation → verify → push approval → PR. At Phase 1.6, the `plan-reviewer` agent audits the architecture and task-list artifacts before the plan gate, emitting a pass/concerns/fail verdict. State lives in `session-docs/{feature}/`. Continue the same way through the lifecycle:
-
-```
 @th-orchestrator implement it
 @th-orchestrator open the PR
 @th-orchestrator recover <feature>
 ```
 
-> **The th-orchestrator is the canonical entry point.** Skills like `/design`, `/deliver`, `/recover` are optional shortcuts that route to the same agent under the hood. Either path works; pick the one that fits your workflow.
+> **The th-orchestrator is the canonical entry point.** Skills like `/design`, `/deliver`, `/recover` are optional shortcuts that route to the same agent under the hood.
+
+---
+
+## Requirements
+
+**Required:**
+- [Claude Code](https://docs.claude.com/en/docs/claude-code) — the runtime team-harness depends on
+- [context7](https://context7.com/) API key — for library docs retrieval
+- A reachable [Memory MCP](https://github.com/valianx/context-harness-mcp) URL — there is no default URL; the installer requires an explicit value
+
+**Recommended:**
+- [`gh`](https://cli.github.com/) CLI — for GitHub integration (`/issue`, `/deliver`, `/review-pr`). When absent, skills fall back to `curl` or operator-paste paths.
 
 ---
 
@@ -56,11 +63,11 @@ The th-orchestrator opens a pipeline: plan → human approval → implementation
 | | |
 |---|---|
 | [How it works](./docs/how-it-works.md) | Pipeline walkthrough, why a harness, what ships |
-| [Installation guide](./docs/install.md) | Modes, env vars, --force, from source, updating |
-| [Agents & low-cost matrix](./agents/README.md) | Full agent roster + model/effort matrix + low-cost mode |
+| [Pipelines reference](./docs/pipelines.md) | All 8+ pipelines, tier classification, phase tables, gate semantics |
+| [Installation guide](./docs/install.md) | Modes, env vars (`INSTALL_MODE`), `--force`, from source, updating |
+| [Agents reference](./agents/README.md) | Full agent roster, model/effort matrix, low-cost mode |
 | [Configuration reference](./CLAUDE.md) | Architectural conventions, working agreements, subagent routing |
-| [Contributing](./docs/contributing.md) | Working agreements, testing, release process |
-| [Knowledge graph policy](./docs/kg-content-policy.md) | What goes in the Memory MCP (and what doesn't) |
+| [Changelog](./CHANGELOG.md) | Release history |
 
 ---
 
