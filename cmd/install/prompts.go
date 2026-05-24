@@ -59,7 +59,7 @@ func promptMemoryMCPURL() MemoryMCPChoice {
 			// Common case where the previous install accepted a wrong default
 			// and the user wants to override on the next run.
 			fmt.Println()
-			fmt.Printf("  Existing Memory MCP URL: %s\n", existingURL)
+			fmt.Printf("  Existing Memory MCP URL: %s\n", colorValue(existingURL))
 			if existingBearer != "" {
 				fmt.Println("  Existing Memory MCP bearer: (preserved)")
 			}
@@ -96,7 +96,7 @@ func promptMemoryMCPURL() MemoryMCPChoice {
 			fmt.Fprintf(os.Stderr, "Error: MEMORY_MCP_URL=%q is invalid: %s\n", envURL, err)
 			os.Exit(1)
 		}
-		fmt.Printf("  Memory MCP URL: %s (loaded from MEMORY_MCP_URL env var)\n", envURL)
+		fmt.Printf("  Memory MCP URL: %s (loaded from MEMORY_MCP_URL env var)\n", colorValue(envURL))
 		return MemoryMCPChoice{URL: envURL, BearerToken: promptMemoryMCPBearer()}
 	}
 
@@ -127,9 +127,6 @@ func promptMemoryMCPURL() MemoryMCPChoice {
 //     the context-harness-mcp dashboard) — parsed directly to extract URL +
 //     Bearer in one paste; the bearer prompt is then skipped.
 func promptURLInteractive(scan *bufio.Scanner) MemoryMCPChoice {
-	fmt.Println()
-	fmt.Println("Memory MCP URL or paste-ready snippet")
-	fmt.Println("=====================================")
 	fmt.Println()
 	fmt.Println("Paste either:")
 	fmt.Println("  • the bare URL of your Knowledge Graph MCP, OR")

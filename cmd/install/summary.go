@@ -20,11 +20,10 @@ func printSummary(claudeJSONBackup string, mem MemoryMCPChoice, context7Preserve
 		osLabel = runtime.GOOS
 	}
 
-	fmt.Println()
-	fmt.Println("Summary:")
-	fmt.Printf("  installed: %d\n", len(stats.Installed))
-	fmt.Printf("  updated:   %d\n", len(stats.Updated))
-	fmt.Printf("  unchanged: %d\n", len(stats.Unchanged))
+	sectionHeader("Summary")
+	fmt.Printf("  installed: %s\n", colorValue(fmt.Sprintf("%d", len(stats.Installed))))
+	fmt.Printf("  updated:   %s\n", colorValue(fmt.Sprintf("%d", len(stats.Updated))))
+	fmt.Printf("  unchanged: %s\n", colorValue(fmt.Sprintf("%d", len(stats.Unchanged))))
 
 	printModeSummary(mode)
 
@@ -54,8 +53,11 @@ func printSummary(claudeJSONBackup string, mem MemoryMCPChoice, context7Preserve
 
 	agentCount, skillCount := countInstalledAgentsAndSkills()
 	fmt.Println()
-	fmt.Printf("Installation complete. %d agents, %d skills installed.\n", agentCount, skillCount)
-	fmt.Println("Restart Claude Code to load them.")
+	fmt.Printf("Installation complete. %s agents, %s skills installed.\n",
+		colorValue(fmt.Sprintf("%d", agentCount)),
+		colorValue(fmt.Sprintf("%d", skillCount)))
+	fmt.Println()
+	fmt.Println(colorWarn("Restart Claude Code to load them."))
 }
 
 // countInstalledAgentsAndSkills counts the number of agent files (installed
@@ -120,9 +122,9 @@ func readSourceFrontmatter(agentName string) (model, effort string) {
 // agentPrintOrder gives a stable output order for the per-agent diff lines.
 var agentPrintOrder = []string{
 	"th-orchestrator", "architect", "agent-builder", "security", "reviewer", "qa",
-	"gcp-cost-analyzer", "init", "implementer", "plan-reviewer", "tester",
-	"acceptance-checker", "diagrammer", "likec4-diagrammer", "d2-diagrammer",
-	"translator", "delivery",
+	"gcp-cost-analyzer", "init", "documenter", "ux-reviewer", "implementer",
+	"plan-reviewer", "tester", "acceptance-checker", "diagrammer",
+	"likec4-diagrammer", "d2-diagrammer", "translator", "delivery",
 }
 
 // printModeSummary prints the install-mode line and (for low-cost) a one-line

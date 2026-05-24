@@ -16,7 +16,7 @@ import (
 // Note: agents/_shared/ contains cross-cutting snippets (not invocable agents)
 // and is intentionally excluded from the count.
 func TestEmbeddedAssets_AgentCount(t *testing.T) {
-	const wantAgents = 18
+	const wantAgents = 20
 	embedded := EmbeddedAssets()
 
 	var mdFiles []string

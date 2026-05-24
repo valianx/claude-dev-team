@@ -59,6 +59,8 @@ const (
 	ansiGrey240 = "\033[38;5;240m" // dim grey       — version line
 	ansiReset   = "\033[0m"
 	ansiDim     = "\033[2m"
+	ansiGreen   = "\033[38;5;114m" // soft green     — success, OK, values
+	ansiBold    = "\033[1m"
 )
 
 func printBannerColor() {
@@ -215,6 +217,51 @@ func plainBannerLines() []string {
 		"  v" + version + "  ·  github.com/valianx/team-harness",
 		"",
 	}
+}
+
+// sectionHeader prints a visually distinct section header with box-drawing
+// characters and extra vertical spacing. Used by the installer to separate
+// major steps so they don't blend together on small terminal fonts.
+func sectionHeader(title string) {
+	w := len(title) + 4
+	border := strings.Repeat("─", w)
+	fmt.Println()
+	if ansiSupported() {
+		fmt.Printf("%s┌%s┐%s\n", ansiGrey244, border, ansiReset)
+		fmt.Printf("%s│  %s%s%s  %s│%s\n", ansiGrey244, ansiReset+ansiOrange, title, ansiReset, ansiGrey244, ansiReset)
+		fmt.Printf("%s└%s┘%s\n", ansiGrey244, border, ansiReset)
+	} else {
+		fmt.Printf("+%s+\n", border)
+		fmt.Printf("|  %s  |\n", title)
+		fmt.Printf("+%s+\n", border)
+	}
+	fmt.Println()
+}
+
+// colorValue formats a value string with green color when ANSI is supported,
+// or returns it plain otherwise. Used for highlighting important values
+// (URLs, paths, counts) in installer output.
+func colorValue(s string) string {
+	if ansiSupported() {
+		return ansiGreen + s + ansiReset
+	}
+	return s
+}
+
+// colorLabel formats a label string with purple color when ANSI is supported.
+func colorLabel(s string) string {
+	if ansiSupported() {
+		return ansiPurple + s + ansiReset
+	}
+	return s
+}
+
+// colorWarn formats a warning string with orange color when ANSI is supported.
+func colorWarn(s string) string {
+	if ansiSupported() {
+		return ansiOrange + s + ansiReset
+	}
+	return s
 }
 
 // pressEnterToExit pauses with a "Press Enter to exit..." prompt when stdin is

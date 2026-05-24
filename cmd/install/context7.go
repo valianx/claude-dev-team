@@ -192,12 +192,11 @@ func promptMenu(prompt string, valid map[string]bool, defaultVal string) string 
 		}
 
 		if isPasteInput(raw) {
-			fmt.Fprintln(os.Stderr, "")
-			fmt.Fprintln(os.Stderr, "Error: pasted multi-character or structured content at a single-letter prompt.")
-			fmt.Fprintf(os.Stderr, "  This prompt accepts only: %s\n", validKeysSorted(valid))
-			fmt.Fprintln(os.Stderr, "  The URL/snippet prompt comes later in the flow.")
-			fmt.Fprintln(os.Stderr, "  Re-run the installer and answer the prompts one at a time.")
-			os.Exit(1)
+			fmt.Fprintf(os.Stderr, "  Pasted content ignored. This prompt accepts only: %s\n", validKeysSorted(valid))
+			if attempt < maxAttempts {
+				fmt.Fprintln(os.Stderr, "  Try again.")
+			}
+			continue
 		}
 
 		lower := strings.ToLower(raw[:1])

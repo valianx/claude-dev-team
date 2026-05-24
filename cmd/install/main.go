@@ -47,27 +47,23 @@ func main() {
 	// Force UTF-8 on Windows by ensuring output isn't transcoded.
 	// (Go's stdout is already binary; this note is for awareness only.)
 
-	fmt.Printf("team-harness installer v%s\n", version)
-	fmt.Printf("  source:   embedded\n")
-	fmt.Printf("  target:   %s\n", claudeDir)
-	fmt.Printf("  platform: %s\n", runtime.GOOS)
+	fmt.Printf("team-harness installer %s\n", colorValue("v"+version))
+	fmt.Printf("  source:   %s\n", colorLabel("embedded"))
+	fmt.Printf("  target:   %s\n", colorValue(claudeDir))
+	fmt.Printf("  platform: %s\n", colorLabel(runtime.GOOS))
 	fmt.Println()
 
-	fmt.Println("Checking dependencies...")
+	sectionHeader("Dependencies")
 	checkDependencies()
-	fmt.Println()
 
-	fmt.Println("context7 setup:")
+	sectionHeader("context7 Setup")
 	context7Key := getContext7APIKey()
-	fmt.Println()
 
-	fmt.Println("Memory MCP setup:")
+	sectionHeader("Memory MCP Setup")
 	memChoice := promptMemoryMCPURL()
-	fmt.Println()
 
-	fmt.Println("Install mode setup:")
+	sectionHeader("Install Mode")
 	installMode := promptInstallMode()
-	fmt.Println()
 
 	ensureDir(claudeDir)
 	loadManifest()
@@ -78,7 +74,7 @@ func main() {
 	}
 	fmt.Println()
 
-	fmt.Println("Installing files...")
+	sectionHeader("Installing Files")
 	installAgents(installMode)
 	installSkills()
 	installHooks()
