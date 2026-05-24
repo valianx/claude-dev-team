@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Installer never modifies user logs config** (`cmd/install/session_docs.go`): once `logs-mode`/`logs-path`/`logs-subfolder` are set in the manifest, the installer always preserves them — the interactive Keep/Change menu is removed. To change logs config, edit `~/.claude/.team-harness.json` directly. First-time installs still prompt.
+
 ## [2.20.0] - 2026-05-24
 
 ### Added
