@@ -60,7 +60,7 @@ class InstallerTestCase(unittest.TestCase):
         self.m.HOME = self.tmp
         self.m.CLAUDE_DIR = self.claude_dir
         self.m.CLAUDE_JSON = self.claude_json
-        self.m.MANIFEST_PATH = self.claude_dir / ".claude-dev-team-manifest.json"
+        self.m.MANIFEST_PATH = self.claude_dir / ".team-harness.json"
 
     def write_claude_json(self, data: dict[str, Any]) -> None:
         self.claude_json.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")

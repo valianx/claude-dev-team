@@ -8,7 +8,11 @@ import (
 	"time"
 )
 
-const manifestFilename = ".claude-dev-team-manifest.json"
+const manifestFilename = ".team-harness.json"
+
+// legacyManifestFilename is the old manifest name (pre-v2.18.0). The installer
+// migrates it on load and deletes the old file.
+const legacyManifestFilename = ".claude-dev-team-manifest.json"
 
 // manifestEntry tracks a single installed file.
 type manifestEntry struct {
@@ -16,7 +20,7 @@ type manifestEntry struct {
 }
 
 // manifestData is the in-memory manifest, loaded from and saved to
-// ~/.claude/.claude-dev-team-manifest.json.
+// ~/.claude/.team-harness.json.
 var manifest = struct {
 	FormatVersion    string                   `json:"format_version"`
 	InstalledVersion string                   `json:"installed_version"`
@@ -33,10 +37,21 @@ func manifestPath() string {
 
 // loadManifest reads the manifest from disk into the global manifest var.
 // If the file is absent or corrupt it silently leaves the manifest at defaults.
+// Migrates from the legacy filename (.claude-dev-team-manifest.json) if the
+// new file doesn't exist but the old one does.
 func loadManifest() {
 	data, err := os.ReadFile(manifestPath())
 	if err != nil {
-		return
+		// Try legacy path migration
+		legacyPath := filepath.Join(claudeDir, legacyManifestFilename)
+		legacyData, legacyErr := os.ReadFile(legacyPath)
+		if legacyErr != nil {
+			return
+		}
+		data = legacyData
+		// Remove legacy file after successful read
+		_ = os.Remove(legacyPath)
+		fmt.Printf("  Migrated manifest: %s → %s\n", legacyManifestFilename, manifestFilename)
 	}
 	var loaded struct {
 		FormatVersion    string                   `json:"format_version"`

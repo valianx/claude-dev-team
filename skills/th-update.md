@@ -20,7 +20,11 @@ The skill is intentionally destructive: it always overwrites every file it touch
 
 ## Argument parsing
 
-This skill accepts no arguments. `$ARGUMENTS` is ignored.
+This skill accepts one optional flag:
+
+- `--force` — bypass the version check and download + replace all files regardless of whether the installed version matches the latest release. Useful when local files are corrupted or when the operator wants a clean reinstall without running the full installer.
+
+If `$ARGUMENTS` contains `--force` (case-insensitive), set a `force` flag to true. All other arguments are ignored.
 
 ---
 
@@ -77,7 +81,7 @@ installed=$(grep -m1 '^var version\|^## team-harness' ~/.claude/agents/th-orches
 If that doesn't work, try reading the manifest:
 
 ```bash
-installed_version=$(cat ~/.claude/.claude-dev-team-manifest.json 2>/dev/null | grep -o '"version":"[^"]*"' | head -1 | sed 's/"version":"//;s/"//')
+installed_version=$(cat ~/.claude/.team-harness.json 2>/dev/null | grep -o '"version":"[^"]*"' | head -1 | sed 's/"version":"//;s/"//')
 ```
 
 Compare the resolved tag (e.g., `v2.17.0`) against the installed version. The tag has a `v` prefix; the manifest version does not. Strip the `v` prefix for comparison:
@@ -86,7 +90,9 @@ Compare the resolved tag (e.g., `v2.17.0`) against the installed version. The ta
 latest_version=${tag#v}
 ```
 
-**If the versions match** (`latest_version` equals `installed_version`), print:
+**If the `force` flag is set**, skip the comparison entirely and proceed to Step 2 (download). Print: `Force flag set — downloading regardless of installed version.`
+
+**If the versions match** (`latest_version` equals `installed_version` and `force` is NOT set), print:
 
 ```
 team-harness up to date
@@ -170,10 +176,23 @@ Track per-category counters as you go, incrementing only when a file is actually
 
 ---
 
+## Step 5b — Update manifest version
+
+After all files are copied successfully, update the installed version in the manifest so the next `/th-update` invocation can detect "already up-to-date" correctly.
+
+Read `~/.claude/.team-harness.json`. If it exists, parse it as JSON, update the `"version"` field to `latest_version` (tag without `v` prefix), and write it back. If the file does not exist, create it with:
+
+```json
+{"version": "<latest_version>"}
+```
+
+This is the minimal manifest shape needed for Step 1b version comparison. The Go installer may extend it with additional fields (hashes, timestamps) on its next run — that is expected and harmless.
+
+---
+
 ## Step 6 — Files explicitly NOT touched
 
 - `~/.claude.json` — MCP server registration (memory, context7) is owned by the bootstrap installer. The update skill never modifies this file.
-- `~/.claude/.claude-dev-team-manifest.json` — the manifest is owned by the Go installer's conflict-detection logic. The update skill never writes it. Side effect: the bootstrap installer's next run may report many files as `conflict` because the manifest's recorded hashes drift away from what is on disk. That is expected and harmless — `/th-update` is the canonical update path and the conflict-gating is bypassed by construction here, the same destructive semantics already documented in CLAUDE.md §3 ("This skill always overwrites").
 - `~/.claude/settings.json` — the operator's hook wiring choice. Never touched.
 - `hooks/config.json` from the release tarball — never copied (see Step 5).
 
