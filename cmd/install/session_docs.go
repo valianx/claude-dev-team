@@ -7,22 +7,23 @@ import (
 	"strings"
 )
 
-// promptLogsMode determines the work-logs output mode from env vars, an
-// existing manifest value, or an interactive prompt. The result is written
-// directly into the global manifest struct. Decision priority:
+// promptLogsMode determines the work-logs output mode. Decision priority:
 //
-//  1. LOGS_MODE env var (non-interactive / CI / scripted installs).
-//  2. Existing manifest.LogsMode (loaded from .team-harness.json).
-//  3. Interactive TTY or /dev/tty → prompt with [l] local / [o] obsidian menu.
+//  1. Existing manifest.LogsMode (loaded from .team-harness.json) → always preserved.
+//  2. LOGS_MODE env var (first-time or --force installs).
+//  3. Interactive TTY → prompt with [l] local / [o] obsidian menu (first-time only).
 //  4. No env var, no existing config, no TTY → default to "local" silently.
+//
+// Once set, the installer never modifies logs config. To change it, the
+// operator edits ~/.claude/.team-harness.json directly.
 func promptLogsMode() {
-	if env := strings.TrimSpace(os.Getenv("LOGS_MODE")); env != "" {
-		promptLogsModeFromEnv(env)
+	if manifest.LogsMode != "" {
+		promptLogsModePreserveOrChange()
 		return
 	}
 
-	if manifest.LogsMode != "" {
-		promptLogsModePreserveOrChange()
+	if env := strings.TrimSpace(os.Getenv("LOGS_MODE")); env != "" {
+		promptLogsModeFromEnv(env)
 		return
 	}
 
@@ -54,39 +55,15 @@ func promptLogsModeFromEnv(env string) {
 }
 
 // promptLogsModePreserveOrChange handles the case where an existing
-// manifest.LogsMode was loaded from disk. Non-interactive installs silently
-// preserve; interactive installs show a Keep/Change menu.
+// manifest.LogsMode was loaded from disk. Always preserves — the installer
+// never modifies user-configured logs settings. To change logs-mode, the
+// operator edits ~/.claude/.team-harness.json directly.
 func promptLogsModePreserveOrChange() {
-	if !hasInteractiveInput() {
-		displayPath := manifest.LogsMode
-		if manifest.LogsMode == "obsidian" && manifest.LogsPath != "" {
-			displayPath = fmt.Sprintf("obsidian → %s", manifest.LogsPath)
-		}
-		fmt.Printf("  Work-logs mode: preserving existing %s (non-interactive)\n", displayPath)
-		return
-	}
-
-	fmt.Println()
+	displayPath := manifest.LogsMode
 	if manifest.LogsMode == "obsidian" && manifest.LogsPath != "" {
-		fmt.Printf("  Existing work-logs mode: %s → %s\n",
-			colorValue(manifest.LogsMode),
-			colorValue(manifest.LogsPath))
-	} else {
-		fmt.Printf("  Existing work-logs mode: %s\n", colorValue(manifest.LogsMode))
+		displayPath = fmt.Sprintf("obsidian → %s", manifest.LogsPath)
 	}
-	choice := promptMenu("  Keep [Y] / Change [c]? [Y]: ",
-		map[string]bool{"y": true, "c": true}, "y")
-	if choice == "y" {
-		// Preserve — manifest fields already loaded from disk.
-		return
-	}
-
-	// Operator chose Change: fall through to interactive prompt.
-	// Reset existing values so the prompt starts clean.
-	manifest.LogsMode = ""
-	manifest.LogsPath = ""
-	manifest.LogsSubfolder = ""
-	promptLogsModeInteractive()
+	fmt.Printf("  Work-logs mode: %s (preserved)\n", displayPath)
 }
 
 // promptLogsModeInteractive shows the [l]/[o] menu and, when obsidian is
