@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.18.0] - 2026-05-23
+
+### Added
+
+- **Installer visual improvements** (`cmd/install/banner.go`, `main.go`, `summary.go`): box-drawing section headers with ANSI colors, colored value/label/warning helpers. Key values (URLs, paths, counts) highlighted in green; labels in purple; warnings in orange. Sections visually separated for readability on small terminal fonts.
+- **`/th-update --force` flag** (`skills/th-update.md`): bypasses the version check and downloads regardless of installed version.
+- **`/th-update` manifest update** (`skills/th-update.md`): Step 5b writes the installed version to the manifest after copy so the next invocation detects "already up-to-date" correctly.
+
+### Changed
+
+- **Manifest renamed** (`cmd/install/manifest.go`): `.claude-dev-team-manifest.json` → `.team-harness.json`. Migration: the installer reads the legacy file if the new one doesn't exist, then deletes the legacy file.
+
+### Fixed
+
+- **Paste crash at Keep/Change prompts** (`cmd/install/util.go`, `context7.go`): pasting a URL or multi-character content at a single-letter prompt (Keep/Change, Install mode) no longer crashes the installer with `os.Exit(1)`. Instead it warns "Pasted content ignored" and re-prompts, consuming one retry attempt from the 3-attempt budget.
+
 ## [2.17.1] - 2026-05-23
 
 ### Fixed
