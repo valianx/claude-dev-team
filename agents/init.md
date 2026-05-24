@@ -292,7 +292,11 @@ Insert the following block VERBATIM. Same text in every repo. Do NOT compress, s
 
 CLAUDE.md is a quick-reference surface — it tells agents *where to look*, not *everything to know*. Detailed content lives in `docs/`.
 
-### 7.1 Size rules
+### 7.1 File size cap
+
+**CLAUDE.md must stay under 40 KB.** Claude Code warns above this threshold and performance degrades. The delivery agent checks file size after every update; if CLAUDE.md exceeds 35 KB, it must offload the largest non-structural section to `docs/` before committing.
+
+### 7.2 Section size rules
 
 | Section | Max entries in CLAUDE.md | Overflow target |
 |---------|------------------------|-----------------|
@@ -307,7 +311,7 @@ When a section exceeds its limit, the delivery agent extracts older entries to t
 See `docs/decisions.md` for the full log. Recent entries kept inline below.
 ```
 
-### 7.2 What belongs in CLAUDE.md vs docs/
+### 7.3 What belongs in CLAUDE.md vs docs/
 
 | CLAUDE.md | docs/ |
 |-----------|-------|
@@ -317,7 +321,7 @@ See `docs/decisions.md` for the full log. Recent entries kept inline below.
 | Architectural boundaries (one-liners) | Detailed constraint analysis |
 | Pointers to docs/ files | The detailed content itself |
 
-### 7.3 docs/ structure
+### 7.4 docs/ structure
 
 | File | Content | Updated by |
 |------|---------|-----------|
