@@ -49,20 +49,22 @@ func printSummary(claudeJSONBackup string, mem MemoryMCPChoice, context7Preserve
 	fmt.Println("Next steps:")
 	fmt.Println("  1. Restart Claude Code so it picks up the new MCP servers and hooks.")
 
-	agentCount, skillCount := countInstalledAgentsAndSkills()
+	agentCount, skillCount, hookCount := countInstalledAssets()
 	fmt.Println()
-	fmt.Printf("Installation complete. %s agents, %s skills installed.\n",
+	fmt.Printf("Installation completed successfully. %s agents, %s skills, %s hooks installed.\n",
 		colorValue(fmt.Sprintf("%d", agentCount)),
-		colorValue(fmt.Sprintf("%d", skillCount)))
+		colorValue(fmt.Sprintf("%d", skillCount)),
+		colorValue(fmt.Sprintf("%d", hookCount)))
 	fmt.Println()
 	fmt.Println(colorWarn("Restart Claude Code to load them."))
 }
 
-// countInstalledAgentsAndSkills counts the number of agent files (installed
-// under an "agents" path segment) and skill files (installed under a "commands"
-// path segment) across all outcome buckets. A file is counted only once
-// regardless of which bucket it landed in.
-func countInstalledAgentsAndSkills() (agents, skills int) {
+// countInstalledAssets counts the number of agent files (installed under an
+// "agents" path segment), skill files (installed under a "commands" path
+// segment), and hook files (installed under a "hooks" path segment) across all
+// outcome buckets. A file is counted only once regardless of which bucket it
+// landed in.
+func countInstalledAssets() (agents, skills, hooks int) {
 	all := make([]string, 0, len(stats.Installed)+len(stats.Updated)+len(stats.Unchanged))
 	all = append(all, stats.Installed...)
 	all = append(all, stats.Updated...)
@@ -74,9 +76,11 @@ func countInstalledAgentsAndSkills() (agents, skills int) {
 			agents++
 		case strings.Contains(fp, "/commands/"):
 			skills++
+		case strings.Contains(fp, "/hooks/"):
+			hooks++
 		}
 	}
-	return agents, skills
+	return agents, skills, hooks
 }
 
 // readSourceFrontmatter reads the model: and effort: values from the embedded
