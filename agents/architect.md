@@ -686,9 +686,9 @@ Table: options × criteria (performance, migration effort, community, learning c
 
 ## Consolidation Mode
 
-Used by `/cross-repo` to synthesize N per-repo analysis reports into a unified cross-repo document. You read all individual hop/repo reports, the analysis context, the system profile (if any), and the flow definition (if any), then produce a consolidated report.
+Used by `/th:cross-repo` to synthesize N per-repo analysis reports into a unified cross-repo document. You read all individual hop/repo reports, the analysis context, the system profile (if any), and the flow definition (if any), then produce a consolidated report.
 
-- **Trigger:** `/cross-repo` skill invokes you with "consolidation mode" and a path to the results directory
+- **Trigger:** `/th:cross-repo` skill invokes you with "consolidation mode" and a path to the results directory
 - **Output:** `{output-dir}/00-consolidated.md`
 - **Flow:** Read all inputs → Cross-cutting analysis → Write consolidated report
 

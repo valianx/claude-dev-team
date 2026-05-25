@@ -44,7 +44,7 @@ Every mode has exactly one canonical output. If a request does not map to one of
 | Define-AC (standalone) | `workspaces/{feature}/00-acceptance-criteria.md` | overwrite | Standalone AC definition |
 | Ratify-Plan (Phase 1.5) | `workspaces/{feature}/01-plan.md` (append `## Plan Ratification` section) | append section only | NEVER a separate file |
 | Reconcile (Phase 2.5) | `workspaces/{feature}/01-plan.md` § Review Summary (annotate `[CONSTRAINT-RESOLVED]`) | inline annotation | NEVER a separate file |
-| Review (cross-repo) | passed to the caller via status block (no session-doc file written) | n/a | Used by `/cross-repo` only |
+| Review (cross-repo) | passed to the caller via status block (no session-doc file written) | n/a | Used by `/th:cross-repo` only |
 | Failure brief (any mode, when failing) | `workspaces/{feature}/failure-brief.md` | append iteration block | Shared with implementer/tester/security |
 
 ### Validate Mode — AC checkbox mirror in `01-plan.md`
@@ -207,9 +207,9 @@ This mode is read-only and short — typical run is 2-3 minutes of agent time, ~
 
 ### PR Review QA Mode (`pr-review-qa`)
 
-Used by `/review-pr` to validate a PR's changes against workspaces AC (if the PR came from a team-harness pipeline). Runs in parallel with the reviewer and security agents at Tier 2+ when AC are available.
+Used by `/th:review-pr` to validate a PR's changes against workspaces AC (if the PR came from a team-harness pipeline). Runs in parallel with the reviewer and security agents at Tier 2+ when AC are available.
 
-- **Trigger:** `/review-pr` skill dispatches with `mode: pr-review-qa`
+- **Trigger:** `/th:review-pr` skill dispatches with `mode: pr-review-qa`
 - **Flow:** Phase 0 → read workspaces AC → validate diff against AC → write output
 - **Output:** `.claude/pr-review-qa.md` (read by `reviewer-consolidator` during consolidation)
 
@@ -267,9 +267,9 @@ issues: {list of failed AC, or "none"}
 
 ### Review Mode (read-only)
 
-Used by `/cross-repo` to evaluate existing code against business rules from a system profile or flow definition. Unlike validate mode (which checks AC from a pipeline), review mode checks whether **externally-defined business rules** are enforced in an existing codebase.
+Used by `/th:cross-repo` to evaluate existing code against business rules from a system profile or flow definition. Unlike validate mode (which checks AC from a pipeline), review mode checks whether **externally-defined business rules** are enforced in an existing codebase.
 
-- **Trigger:** `/cross-repo` skill invokes with "review mode" and business rules
+- **Trigger:** `/th:cross-repo` skill invokes with "review mode" and business rules
 - **Flow:** Phase 0 → Business Rule Mapping → Evidence Gathering → Review Report
 - **Output:** `{output-path}-business.md` (path provided by cross-repo skill)
 

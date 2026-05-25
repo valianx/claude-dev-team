@@ -4,7 +4,7 @@ Analyze the input: $ARGUMENTS
 
 ## Mode 1 — Full translation (default)
 
-Examples: `/translate`, `/translate src/`, `/translate src/components/`
+Examples: `/th:translate`, `/th:translate src/`, `/th:translate src/components/`
 
 1. Parse the input:
    - If no arguments: full project translation (discover all strings, build glossary, set up i18n, translate, replace)
@@ -25,7 +25,7 @@ Examples: `/translate`, `/translate src/`, `/translate src/components/`
 
 ## Mode 2 — Glossary only
 
-Examples: `/translate glossary`, `/translate glossary-only`
+Examples: `/th:translate glossary`, `/th:translate glossary-only`
 
 1. Build the glossary without modifying any code. Useful for reviewing terms before committing to translations.
 
@@ -42,7 +42,7 @@ Examples: `/translate glossary`, `/translate glossary-only`
 
 ## Mode 3 — Translate only (existing i18n)
 
-Examples: `/translate apply`, `/translate translate-only`
+Examples: `/th:translate apply`, `/th:translate translate-only`
 
 1. Apply translations using an existing glossary. Assumes i18n infrastructure is already set up. Useful for incremental translation after new strings are added.
 

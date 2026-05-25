@@ -241,7 +241,7 @@ For each scenario, produce:
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  /eval — {agent-name} / {scenario-name}
+  /th:eval — {agent-name} / {scenario-name}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   Critical Rules:     {N}/{M} passed
@@ -314,9 +314,9 @@ If `--scenario {name}` is given, generate only one scenario with that name and a
 Show usage:
 
 ```
-/eval {agent-name}              — run all scenarios for an agent
-/eval {agent-name} --scenario X — run a specific scenario
-/eval --list                    — list available scenarios
-/eval --create {agent-name}     — auto-generate scenarios from agent definition
-/eval {agent-name} --dry-run    — show evaluation plan without executing
+/th:eval {agent-name}              — run all scenarios for an agent
+/th:eval {agent-name} --scenario X — run a specific scenario
+/th:eval --list                    — list available scenarios
+/th:eval --create {agent-name}     — auto-generate scenarios from agent definition
+/th:eval {agent-name} --dry-run    — show evaluation plan without executing
 ```

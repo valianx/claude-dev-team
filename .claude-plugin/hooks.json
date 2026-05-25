@@ -1,0 +1,29 @@
+{
+  "_comment": "Plugin-mode hooks (loaded by Claude Code plugin runtime). Uses ${CLAUDE_PLUGIN_ROOT} — a plugin runtime variable that resolves to the plugin's install cache directory. For Go installer mode, use hooks/config.json instead (uses ~/.claude/hooks/ paths). Policy gate (PreToolUse) fires on every write/exec tool; notification (Notification) fires only on idle_prompt.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Write|Edit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/policy-block.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "idle_prompt",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/notify-stage.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -4,7 +4,7 @@ Analyze the input: $ARGUMENTS
 
 ## Mode 1 — Full analysis (default)
 
-Examples: `/gcp-costs`, `/gcp-costs all`, `/gcp-costs full`
+Examples: `/th:gcp-costs`, `/th:gcp-costs all`, `/th:gcp-costs full`
 
 1. Parse the input:
    - If no arguments or "all" or "full": full analysis across all accessible GCP projects
@@ -20,7 +20,7 @@ Examples: `/gcp-costs`, `/gcp-costs all`, `/gcp-costs full`
 
 ## Mode 2 — Scoped analysis (specific projects or services)
 
-Examples: `/gcp-costs project-abc project-xyz`, `/gcp-costs --service compute`, `/gcp-costs project-abc --service sql`
+Examples: `/th:gcp-costs project-abc project-xyz`, `/th:gcp-costs --service compute`, `/th:gcp-costs project-abc --service sql`
 
 1. Parse the input:
    - Extract project IDs (plain words that look like project IDs)
@@ -38,7 +38,7 @@ Examples: `/gcp-costs project-abc project-xyz`, `/gcp-costs --service compute`, 
 
 ## Mode 3 — Quick scan (idle resources only)
 
-Examples: `/gcp-costs --quick`, `/gcp-costs --quick project-abc`
+Examples: `/th:gcp-costs --quick`, `/th:gcp-costs --quick project-abc`
 
 1. Parse the input:
    - Detect `--quick` flag

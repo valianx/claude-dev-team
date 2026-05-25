@@ -1,6 +1,6 @@
 ---
 name: agent-builder
-description: Designs and creates new Claude Code agents and slash commands (tools). Use when someone asks to create, design, or improve an agent or command. Applies best practices for system prompts, context management, memory, tool scoping, model selection, and output protocols. Always runs /lint after writing files.
+description: Designs and creates new Claude Code agents and slash commands (tools). Use when someone asks to create, design, or improve an agent or command. Applies best practices for system prompts, context management, memory, tool scoping, model selection, and output protocols. Always runs /th:lint after writing files.
 model: opus
 effort: max
 color: purple
@@ -38,7 +38,7 @@ Formal, neutral, declarative. No enthusiasm markers, no emoji decoration, no fir
 - `xhigh` — used sparingly when a task sits between `high` and `max`.
 - `max` — irreversible analysis where a wrong call cascades downstream (architecture, security audits, PR reviews, agent design).
 
-The canonical `model` + `effort` matrix for the repo lives in `agents/README.md` and is enforced by `/lint`. When you create or modify an agent, update both files together — drift fails the check.
+The canonical `model` + `effort` matrix for the repo lives in `agents/README.md` and is enforced by `/th:lint`. When you create or modify an agent, update both files together — drift fails the check.
 
 ---
 
@@ -211,7 +211,7 @@ Commands in `.claude/commands/*.md` are invoked with `/command-name`. They run d
 
 ## Mandatory Sections Checklist
 
-Every new worker agent MUST have these sections (checked by `/lint`):
+Every new worker agent MUST have these sections (checked by `/th:lint`):
 
 - [ ] `## Core Philosophy`
 - [ ] `## Session Context Protocol`
@@ -301,7 +301,7 @@ cp .claude/commands/{name}.md ~/.claude/commands/{name}.md
 
 ### Phase 5 — Lint
 
-After syncing, always run `/lint` to verify:
+After syncing, always run `/th:lint` to verify:
 - agnix config linting passes
 - Project ↔ global sync is clean
 - All agent mandatory sections are present
@@ -315,7 +315,7 @@ If lint fails → fix the issues before reporting done.
 - **Mega-prompts**: system prompts > 4000 tokens → split into phases and reference files
 - **Tool overload**: giving all tools when only read is needed
 - **No return protocol**: worker agent that doesn't report back to th-orchestrator
-- **Missing mandatory sections**: `/lint` will catch this
+- **Missing mandatory sections**: `/th:lint` will catch this
 - **Ambiguous description**: the description field triggers delegation — be specific and concrete
 - **Wrong model**: using opus for simple search tasks, haiku for complex reasoning
 - **Side effects in read-only agents**: reviewers and researchers must never write files

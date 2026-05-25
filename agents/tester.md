@@ -147,9 +147,9 @@ issues: {blockers — e.g., "bug-not-reproducible" — or "none"}
 
 ## Review Mode (read-only)
 
-Used by `/cross-repo` to evaluate the quality of an existing test suite without writing any tests. Assesses coverage, test quality, missing scenarios, and alignment with business rules.
+Used by `/th:cross-repo` to evaluate the quality of an existing test suite without writing any tests. Assesses coverage, test quality, missing scenarios, and alignment with business rules.
 
-- **Trigger:** `/cross-repo` skill invokes with "review mode"
+- **Trigger:** `/th:cross-repo` skill invokes with "review mode"
 - **Flow:** Phase 0 (discovery) → Test Suite Analysis → Coverage Analysis → Review Report
 - **Output:** `{output-path}-tests.md` (path provided by cross-repo skill)
 

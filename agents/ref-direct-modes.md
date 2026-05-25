@@ -15,12 +15,12 @@ This file is read on-demand by the th-orchestrator when executing a direct mode.
 
 **When invoked:** the user wants to re-audit a Stage 1 plan after a manual edit, or wants to audit a plan produced under a previous th-orchestrator run, without re-running the full pipeline. Common trigger: developer hand-edits `01-plan.md` and wants to confirm the changes still satisfy the five plan-shape rules before continuing.
 
-**Routing:** the user invokes `/plan-review {feature-name}` (or `audit my plan`, `revisa el plan`, "is my plan compliant?"). Skill payload is `Direct Mode Task: plan-review` with `feature_name`.
+**Routing:** the user invokes `/th:plan-review {feature-name}` (or `audit my plan`, `revisa el plan`, "is my plan compliant?"). Skill payload is `Direct Mode Task: plan-review` with `feature_name`.
 
 **Process:**
 
-1. Glob `workspaces/{feature-name}/`. If the folder does not exist, return a friendly message asking the user to first run `/design` or to confirm the feature name.
-2. Confirm `01-plan.md` exists. If it is absent but `01-architecture.md` is present, prompt the user: "no `01-plan.md` — this looks like a legacy plan (pipeline_version 1) or an incomplete design. Run `/design {feature}` to produce the merged plan, or invoke `/plan-review` after the architect has emitted `01-plan.md`."
+1. Glob `workspaces/{feature-name}/`. If the folder does not exist, return a friendly message asking the user to first run `/th:design` or to confirm the feature name.
+2. Confirm `01-plan.md` exists. If it is absent but `01-architecture.md` is present, prompt the user: "no `01-plan.md` — this looks like a legacy plan (pipeline_version 1) or an incomplete design. Run `/th:design {feature}` to produce the merged plan, or invoke `/th:plan-review` after the architect has emitted `01-plan.md`."
 3. Invoke `plan-reviewer` via Task tool with the standard input contract (feature name + pointer to `01-plan.md`).
 4. Wait for the agent's status block. Read `verdict` and `findings` counts.
 5. Print the verdict and findings inline to the user. Direct mode does NOT emit a STAGE-GATE-1 STOP block — there is no pipeline to gate. The user is invoking interactively for information.

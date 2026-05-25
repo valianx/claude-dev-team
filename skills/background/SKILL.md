@@ -1,6 +1,6 @@
 Dispatch a small, well-scoped task to a separate Claude session so the current session keeps moving. Designed for fire-and-forget work the developer would otherwise context-switch to handle: a typo fix, a version bump, a dependency upgrade, a one-line config change, a doc update, a missing `loading.tsx` for an App Router segment.
 
-**This is NOT** a way to outsource an unbounded feature. The pipeline (th-orchestrator + agents) exists for that — `/issue`, `/plan`, or just typing the feature description routes through the full SDD pipeline with verification gates. `/background` is the opposite: it accepts that the gates are too heavy for a 30-second change and offers a structured fast-path.
+**This is NOT** a way to outsource an unbounded feature. The pipeline (th-orchestrator + agents) exists for that — `/th:issue`, `/th:plan`, or just typing the feature description routes through the full SDD pipeline with verification gates. `/th:background` is the opposite: it accepts that the gates are too heavy for a 30-second change and offers a structured fast-path.
 
 ## Voice
 
@@ -38,7 +38,7 @@ Read `$ARGUMENTS`. Reject the task and stop if any of these is true. Print one l
 | Scope | one concrete change in a single file or two tightly-related files | "fix the auth flow", "improve performance", any vague verb |
 | Reversibility | trivially reversible (one commit, one file) | adds a new component / migration / breaking change |
 | Verification cost | obvious from the description (typo, version bump, copy change, missing import) | requires running tests to know if it worked |
-| AC complexity | 0 implicit AC (the change IS the AC) | needs `/define-ac` to make explicit |
+| AC complexity | 0 implicit AC (the change IS the AC) | needs `/th:define-ac` to make explicit |
 | Security surface | none | touches auth, secrets, request validation, CORS, CSP, dependencies with known CVEs |
 | State changes | local only | publishes a package, deploys, sends a message, deletes data |
 | Estimated time in foreground | ≤ 5 minutes | longer means there's hidden complexity that the gates would catch |
@@ -96,7 +96,7 @@ Print three blocks to the user, in this order:
    - `jobs` to see the running process.
    - `kill %1` (or the appropriate job number) to stop it.
 
-Then **stop**. Do NOT run the command yourself — the user owns the dispatch. The point of `/background` is that the user is in control of when it actually fires; the skill only validates and prepares.
+Then **stop**. Do NOT run the command yourself — the user owns the dispatch. The point of `/th:background` is that the user is in control of when it actually fires; the skill only validates and prepares.
 
 ---
 
@@ -119,7 +119,7 @@ Ask the user: "What would you like to dispatch in the background? Provide a one-
 
 ## Important
 
-- **`/background` does NOT invoke the th-orchestrator.** This is a deliberately different surface — the th-orchestrator and its gates exist precisely because most tasks are not eligible for fast-path. If you find yourself wanting to bypass the gates often, the cost is the gates being too heavy, not the gates being wrong; raise it as a `team-harness` issue instead of widening `/background`'s eligibility criteria.
-- **`/background` does NOT run the dispatched command.** The user owns the actual fire. The skill only validates eligibility, builds the command, and explains how to monitor it.
+- **`/th:background` does NOT invoke the th-orchestrator.** This is a deliberately different surface — the th-orchestrator and its gates exist precisely because most tasks are not eligible for fast-path. If you find yourself wanting to bypass the gates often, the cost is the gates being too heavy, not the gates being wrong; raise it as a `team-harness` issue instead of widening `/th:background`'s eligibility criteria.
+- **`/th:background` does NOT run the dispatched command.** The user owns the actual fire. The skill only validates eligibility, builds the command, and explains how to monitor it.
 - **The dispatched session inherits the user's `~/.claude/` config**, including the `policy-block.sh` PreToolUse hook. Destructive commands stay blocked even in the background session.
-- For multiple parallel tasks, `/tmux` is the right tool — it manages tmux panes, dependency analysis, and aggregates results. `/background` is for a single fire-and-forget.
+- For multiple parallel tasks, `/th:tmux` is the right tool — it manages tmux panes, dependency analysis, and aggregates results. `/th:background` is for a single fire-and-forget.
