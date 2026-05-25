@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.27.0] - 2026-05-25
+
+### Added
+
+- Phase Transition Protocol in th-orchestrator — consolidates event append + state update + dispatch into an atomic 3-step sequence, preventing missed execution events.
+- 9 structural assertions in Suite 20 (test_agent_structure.py) guarding the Phase Transition Protocol against regression.
+
 ## [2.26.0] - 2026-05-25
 
 ### Changed
