@@ -9,9 +9,18 @@
 
 ## Install
 
+1. Add the marketplace:
 ```
 /plugin marketplace add valianx/team-harness
+```
+
+2. Install the plugin:
+```
 /plugin install th
+```
+
+3. Configure MCP servers and logs mode:
+```
 /th:setup
 ```
 
@@ -24,8 +33,13 @@
 
 ### Update
 
+1. Pull the latest version:
 ```
 /plugin marketplace update team-harness-marketplace
+```
+
+2. Reload:
+```
 /reload-plugins
 ```
 
