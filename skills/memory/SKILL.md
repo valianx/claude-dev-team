@@ -98,7 +98,7 @@ Analyze the input: $ARGUMENTS
 
 ### `prune` — Find stale entities and soft-delete via `mark_superseded`
 
-**Default action is soft-delete (reversible), not hard-delete.** `prune` runs `mark_superseded(old=<stale>, new=<self-or-placeholder>, archive_old_observations=true)` to hide the stale node's observations without destroying them. Hard-delete lives in `/memory hard-delete` (separate sub-command, double confirmation required).
+**Default action is soft-delete (reversible), not hard-delete.** `prune` runs `mark_superseded(old=<stale>, new=<self-or-placeholder>, archive_old_observations=true)` to hide the stale node's observations without destroying them. Hard-delete lives in `/th:memory hard-delete` (separate sub-command, double confirmation required).
 
 1. Use Knowledge Graph MCP `read_graph` to get everything
 2. Analyze each entity for staleness:
@@ -122,10 +122,10 @@ Analyze the input: $ARGUMENTS
 
    Action: mark_superseded archives observations but the node + relations stay
    queryable as supersedes-relation targets. Reversible by removing the relation
-   and clearing deleted_at. Hard-delete requires `/memory hard-delete <name>`.
+   and clearing deleted_at. Hard-delete requires `/th:memory hard-delete <name>`.
    ```
 4. Ask user: "Soft-delete (archive observations) any of these? List entity names separated by commas, or 'none'."
-5. If user confirms → for each entity, call Knowledge Graph MCP `mark_superseded(old=<name>, new=<name>, archive_old_observations=true, reason="prune: stale per /memory prune <date>")`. The self-supersedes pattern (`old == new`) marks the node archived without inventing a replacement — confirm the MCP backend accepts this; otherwise fall back to creating a placeholder entity `archived-<name>` of type `process-insight` with a single observation `"Archived: superseded entry for <name>, no replacement"` and use that as `new`.
+5. If user confirms → for each entity, call Knowledge Graph MCP `mark_superseded(old=<name>, new=<name>, archive_old_observations=true, reason="prune: stale per /th:memory prune <date>")`. The self-supersedes pattern (`old == new`) marks the node archived without inventing a replacement — confirm the MCP backend accepts this; otherwise fall back to creating a placeholder entity `archived-<name>` of type `process-insight` with a single observation `"Archived: superseded entry for <name>, no replacement"` and use that as `new`.
 
 ### `consolidate` — Merge similar entities via `mark_superseded`
 
@@ -149,7 +149,7 @@ Analyze the input: $ARGUMENTS
    ```
 4. If approved:
    - Use `add_observations` to add missing observations to the kept entity
-   - Use `mark_superseded(old=<b>, new=<a>, archive_old_observations=true, reason="consolidate via /memory")` — preserves {entity-b} as a queryable but archived node with a `supersedes` relation pointing to {entity-a}
+   - Use `mark_superseded(old=<b>, new=<a>, archive_old_observations=true, reason="consolidate via /th:memory")` — preserves {entity-b} as a queryable but archived node with a `supersedes` relation pointing to {entity-a}
    - Update relations if needed (relations from {entity-b} should be re-pointed to {entity-a} via `create_relations`; relations into {entity-b} can stay — the supersedes edge makes the redirection discoverable)
 
 ### `hard-delete <entity-name>` — Permanent deletion (double confirmation)
@@ -186,7 +186,7 @@ Analyze the input: $ARGUMENTS
 ### No args — Show usage help
 
 ```
-Usage: /memory <action> [args]
+Usage: /th:memory <action> [args]
 
 Actions:
   search <query>              Search entities by text
@@ -198,14 +198,14 @@ Actions:
   hard-delete <entity-name>   Permanent deletion — double confirmation, irreversible
 
 Examples:
-  /memory search "Next.js auth"
-  /memory list pattern
-  /memory list service
-  /memory show prisma-sqlite-workaround
-  /memory stats
-  /memory prune
-  /memory consolidate
-  /memory hard-delete leaked-customer-name-entity
+  /th:memory search "Next.js auth"
+  /th:memory list pattern
+  /th:memory list service
+  /th:memory show prisma-sqlite-workaround
+  /th:memory stats
+  /th:memory prune
+  /th:memory consolidate
+  /th:memory hard-delete leaked-customer-name-entity
 ```
 
 ---

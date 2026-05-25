@@ -29,7 +29,7 @@ color: blue
 
 ## Roster
 
-The combination of `model` + `effort` + `tools` below is the canonical matrix for this repo. `/lint` enforces `model` and `effort` (Check 7) and the tool allowlist surface (Check 4) — any drift between an agent's frontmatter and this table fails the check.
+The combination of `model` + `effort` + `tools` below is the canonical matrix for this repo. `/th:lint` enforces `model` and `effort` (Check 7) and the tool allowlist surface (Check 4) — any drift between an agent's frontmatter and this table fails the check.
 
 | Agent | Model | Effort | Tools (allowlist) | Role |
 |---|---|---|---|---|
@@ -54,7 +54,7 @@ The combination of `model` + `effort` + `tools` below is the canonical matrix fo
 | `delivery` | sonnet | `medium` | Read, Edit, Write, Bash, Glob, Grep | Docs, changelog, version, branch, commit, PR. |
 | `reviewer-consolidator` | opus | `high` | Read, Edit, Write, Glob, Grep | Merges 2-3 focused review drafts (security/architecture/style) into a single unified review. De-duplicates findings, surfaces contradictions, determines verdict. Invoked by th-orchestrator after parallel focused reviewer passes in multi-reviewer mode. |
 
-Plus reference files (`ref-direct-modes.md`, `ref-special-flows.md`) loaded on-demand by the th-orchestrator. They are not invocable subagents — their `model` field is vestigial and not enforced by `/lint`.
+Plus reference files (`ref-direct-modes.md`, `ref-special-flows.md`) loaded on-demand by the th-orchestrator. They are not invocable subagents — their `model` field is vestigial and not enforced by `/th:lint`.
 
 Plus `_shared/gh-fallback.md` — a cross-cutting snippet (not an invocable agent) installed to `~/.claude/agents/_shared/`. Contains the single source-of-truth fallback patterns for graceful degradation when the `gh` CLI is unavailable. Consumed by `delivery.md`, `th-orchestrator.md`, `ref-special-flows.md`, and skills `issue.md`, `plan.md`, `design.md`, `define-ac.md`, `audit.md`, `review-pr.md` via cross-references.
 

@@ -33,10 +33,10 @@ The operator can chat in any language; you reply in the operator's chat language
 
 Expected formats:
 ```
-/cross-repo <repos...> --context "<description>"
-/cross-repo --profile <profile-name> --flow <flow-name>
-/cross-repo --profile <profile-name> --flow <flow-name> --focus security
-/cross-repo --list-profiles
+/th:cross-repo <repos...> --context "<description>"
+/th:cross-repo --profile <profile-name> --flow <flow-name>
+/th:cross-repo --profile <profile-name> --flow <flow-name> --focus security
+/th:cross-repo --list-profiles
 ```
 
 Parse:
@@ -380,7 +380,7 @@ rm -rf /tmp/cross-repo-*  # clean temp work directory
 ## Utility: --list-profiles
 
 ```
-/cross-repo --list-profiles
+/th:cross-repo --list-profiles
 
 Available system profiles:
 
@@ -392,7 +392,7 @@ Available system profiles:
     Profile: Payment Gateway (6 services, AWS)
     Flows: payment-processing, refund
 
-Use: /cross-repo --profile banco-x --flow deposito
+Use: /th:cross-repo --profile banco-x --flow deposito
 ```
 
 Read each `system-profiles/*/profile.md` header and list `system-profiles/*/flows/*.md` files.

@@ -51,7 +51,7 @@ When the user wants to quickly test a technical hypothesis without full pipeline
    Options:
    1. Formalize as feature → I'll create an issue with findings as technical context
    2. Discard → I'll revert the changes (git checkout)
-   3. Investigate further → I'll run another spike or a /research
+   3. Investigate further → I'll run another spike or a /th:research
    ```
 8. **Act on user's choice:**
    - Formalize: create GitHub issue using **SDD template** — include spike findings in Technical Context. **Detection + fallback:** see `agents/_shared/gh-fallback.md` § "Tier B — create an issue". When `has_gh=true`: `gh issue create`. When `has_gh=false` and token + GitHub origin available: curl POST. When neither: write SDD body to `workspaces/{feature}/inputs/issue-create.md` and prompt operator to paste it into GitHub, then reply with the new issue number. Ask: "Issue created (or paste required). Run full pipeline now?"
@@ -68,7 +68,7 @@ Two modes: `plan` (analysis only) and `plan-and-execute` (analysis + full pipeli
 
 | File | Mode | Consumer | Purpose |
 |---|---|---|---|
-| `01-planning.md` | planning mode (`/plan`, `/plan plan-and-execute`) | th-orchestrator (multi-task dispatch) | break a broad scope into N parallel tasks |
+| `01-planning.md` | planning mode (`/th:plan`, `/th:plan plan-and-execute`) | th-orchestrator (multi-task dispatch) | break a broad scope into N parallel tasks |
 | `01-plan.md` | design mode (normal pipeline) | implementer + qa + plan-reviewer | merged architecture + task list (§ Architecture + § Task List) |
 
 Inside each task dispatched by `plan-and-execute`, the child th-orchestrator runs the full single-feature pipeline (Stage 1 → STAGE-GATE-1 → Stage 2 → STAGE-GATE-2 between PRs → Stage 3 → STAGE-GATE-3), which DOES produce its own `01-plan.md` for that task's PRs. The parent batch th-orchestrator gates at task boundaries via the multi-task progress tracker — it does NOT additionally fire STAGE-GATE-1/2/3 at the batch level. **No double-gating.**
@@ -97,15 +97,15 @@ Inside each task dispatched by `plan-and-execute`, the child th-orchestrator run
 Parallel dispatch is defined in the th-orchestrator's **Multi-Task Orchestration** section. It is the **default behavior** whenever the th-orchestrator has 2+ tasks, regardless of entry point.
 
 **Entry points that lead here:**
-- `/plan plan-and-execute` → architect produces task breakdown → dispatch
-- `/issue #1 #2 #3` → multiple issues → dispatch
+- `/th:plan plan-and-execute` → architect produces task breakdown → dispatch
+- `/th:issue #1 #2 #3` → multiple issues → dispatch
 - User requests batch/parallel work → th-orchestrator runs Specify + Design (planning mode) → dispatch
 - th-orchestrator identifies broad scope needing breakdown → auto plan-and-execute → dispatch
 
 When multiple tasks exist:
 1. The th-orchestrator reads `01-planning.md` for dependency info (if available) or analyzes dependencies itself
 2. Follows the **Multi-Task Orchestration** flow (dependency analysis → rounds → hooks + inotifywait → event-driven monitoring)
-3. Each worktree runs a full pipeline via `/issue #{number}`
+3. Each worktree runs a full pipeline via `/th:issue #{number}`
 
 ### Branching strategy
 
@@ -366,7 +366,7 @@ Every artifact required by `type: fix` is also required by `type: hotfix`, **wit
 
 ### Operator-facing surface
 
-v1 detects hotfix by keyword in natural language (auto-classification + operator override). The `/hotfix` slash command is deferred to v2.
+v1 detects hotfix by keyword in natural language (auto-classification + operator override). The `/th:hotfix` slash command is deferred to v2.
 
 ---
 
@@ -407,7 +407,7 @@ The key difference: existing passing tests are the safety net. If they break, th
 
 A dedicated pipeline for achieving **80% branch coverage service-wide**. Decomposes a service into modules, dispatches tester agents in parallel, and iterates until the coverage gate is met.
 
-**Entry:** `/test-pipeline [path] [--skip-security] [--modules x,y] [--coverage-only]`
+**Entry:** `/th:test-pipeline [path] [--skip-security] [--modules x,y] [--coverage-only]`
 
 ### Phase 0 --- Analyze & Decompose
 
@@ -709,7 +709,7 @@ workspaces/
 
 ## Documentation Flow
 
-When the user asks to document a service, database, API, library, infrastructure, or product — typically via `/docs` or conversational requests like "documenta en obsidian el servicio X", "document the auth service", "genera documentación del API de pagos".
+When the user asks to document a service, database, API, library, infrastructure, or product — typically via `/th:docs` or conversational requests like "documenta en obsidian el servicio X", "document the auth service", "genera documentación del API de pagos".
 
 ### Phase 0 — Intake
 

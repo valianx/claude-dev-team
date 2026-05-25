@@ -4,7 +4,7 @@ Analyze the input: $ARGUMENTS
 
 ## Mode 1 — Project or area provided
 
-Examples: `/security`, `/security auth`, `/security api`, `/security dependencies`
+Examples: `/th:security`, `/th:security auth`, `/th:security api`, `/th:security dependencies`
 
 1. Parse the input:
    - If no arguments: full audit of the current project

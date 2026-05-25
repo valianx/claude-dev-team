@@ -1,5 +1,7 @@
 Pull the latest team-harness release into `~/.claude/` inline, without launching the Go installer binary. This is a standalone utility — does NOT route through the th-orchestrator.
 
+> **Plugin installations only:** If team-harness was installed as a Claude Code plugin, updates are handled automatically. Use `/plugin marketplace update` instead. This skill is for Go installer installations only.
+
 ## Voice
 
 Formal, neutral, declarative. No enthusiasm markers, no emoji decoration, no first-person personality, no filler closings. workspaces prose follows the operator's chat language; structural elements (headers, field names, status-block keys) stay English.
@@ -14,7 +16,7 @@ The skill drives the update directly from inside this Claude Code session using 
 
 This is the canonical update path. The Go installer (`install.sh` / `install.ps1` / `install.cmd` one-liners) remains the bootstrap path for first-time installs only — it handles MCP server registration, TTY-driven credential prompts, manifest write, and the "Press Enter to exit" prompt that are irrelevant once the operator is already running team-harness.
 
-The skill is intentionally destructive: it always overwrites every file it touches. Local edits to team-harness files under `~/.claude/agents/`, `~/.claude/commands/`, `~/.claude/skills/`, and `~/.claude/hooks/` will be replaced with the bytes from the release tarball. Source-level customizations belong in the team-harness repo and reach the operator via a new release, not via hand-edits in `~/.claude/`. No `--force` flag is exposed because no other mode is possible.
+The skill is intentionally destructive: it always overwrites every file it touches. Local edits to team-harness files under `~/.claude/agents/`, `~/.claude/skills/`, and `~/.claude/hooks/` will be replaced with the bytes from the release tarball. Source-level customizations belong in the team-harness repo and reach the operator via a new release, not via hand-edits in `~/.claude/`. No `--force` flag is exposed because no other mode is possible.
 
 ---
 
@@ -169,13 +171,25 @@ Track per-category counters as you go, incrementing only when a file is actually
 
 1. **Agents** — every `agents/*.md` file in the extracted tree, except `README.md`, is copied to `~/.claude/agents/<filename>`. Includes `ref-direct-modes.md` and `ref-special-flows.md`. Ensure `~/.claude/agents/` exists first (`mkdir -p`). Increment `agents_count` for each file written.
 
-2. **Simple skills** — every top-level `skills/*.md` file in the extracted tree, except `README.md`, is copied to `~/.claude/commands/<filename>`. Ensure `~/.claude/commands/` exists first. Increment `simple_skills_count` for each file written.
+2. **Skills** — every subdirectory under `skills/` that contains a `SKILL.md` is copied recursively (preserving subfolder structure) to `~/.claude/skills/<dirname>/`. Use `cp -r` (or the equivalent loop with `mkdir -p` + per-file copy on Windows). Increment `skills_count` once per top-level subdirectory copied — not once per inner file. Detection: list directories under `skills/` and check for the presence of `SKILL.md` inside each.
 
-3. **Complex skills** — every subdirectory under `skills/` that contains a `SKILL.md` is copied recursively (preserving subfolder structure) to `~/.claude/skills/<dirname>/`. Use `cp -r` (or the equivalent loop with `mkdir -p` + per-file copy on Windows). Increment `complex_skills_count` once per top-level subdirectory copied — not once per inner file. Detection: list directories under `skills/` and check for the presence of `SKILL.md` inside each.
+   Note: all skills are now in directory format. There are no longer any flat `skills/*.md` files to copy to `~/.claude/commands/`.
 
-4. **Hooks** — every `hooks/*.sh` file in the extracted tree is copied to `~/.claude/hooks/<filename>`. Ensure `~/.claude/hooks/` exists first. On Linux and macOS, set the executable bit (`chmod +x`); on Windows, no chmod is required. Increment `hooks_count` for each file written. **Do NOT copy `hooks/config.json`** — that file stays under operator control.
+3. **Hooks** — every `hooks/*.sh` file in the extracted tree is copied to `~/.claude/hooks/<filename>`. Ensure `~/.claude/hooks/` exists first. On Linux and macOS, set the executable bit (`chmod +x`); on Windows, no chmod is required. Increment `hooks_count` for each file written. **Do NOT copy `hooks/config.json`** — that file stays under operator control.
 
-5. **Legacy cleanup — `orchestrator.md` removal (one-shot, v2.6.0 rename migration)**. After the agent copy in step 1, check whether `~/.claude/agents/orchestrator.md` still exists on disk. If it does, remove it with `rm -f` (no error if missing — the file disappears silently on systems that already migrated). Track this in a `legacy_removed` flag (boolean) so the operator-facing summary can surface the cleanup. This is a one-time migration: the v2.6.0 release renamed the `orchestrator` agent to `th-orchestrator`, and existing installs would otherwise carry both the stale and the new file side-by-side. The check is conditional and idempotent — safe to re-run.
+4. **Legacy cleanup — orphaned flat skill files in `~/.claude/commands/`**. After copying skills in step 2, check for orphaned flat skill files that were installed by older versions of team-harness. These files exist in `~/.claude/commands/` and match known skill names. Remove each if present:
+
+   ```
+   audit.md, background.md, cross-repo.md, define-ac.md, deliver.md, design.md,
+   diagram.md, docs.md, eval.md, gcp-costs.md, init.md, issue.md, lint.md,
+   memory.md, plan.md, recover.md, research.md, review-pr.md, security.md,
+   setup.md, spike.md, status.md, test.md, test-pipeline.md, th-update.md,
+   tmux.md, trace.md, translate.md, validate.md
+   ```
+
+   For each file, check whether it exists at `~/.claude/commands/<name>.md`. If it does, remove it with `rm -f`. Track the names of files actually removed in a `legacy_commands_removed` list. If none are found, the list is empty. This cleanup is idempotent — safe to run on a fresh install (the files simply won't be present).
+
+5. **Legacy cleanup — `orchestrator.md` removal (one-shot, v2.6.0 rename migration)**. After the agent copy in step 1, check whether `~/.claude/agents/orchestrator.md` still exists on disk. If it does, remove it with `rm -f` (no error if missing — the file disappears silently on systems that already migrated). Track this in a `legacy_agent_removed` flag (boolean) so the operator-facing summary can surface the cleanup. This is a one-time migration: the v2.6.0 release renamed the `orchestrator` agent to `th-orchestrator`, and existing installs would otherwise carry both the stale and the new file side-by-side. The check is conditional and idempotent — safe to re-run.
 
 **File-copy failure handling.** If any individual copy fails (permission denied, disk full, source not found after extraction), print the failing source path and destination path and stop. Do not roll back files already written; report counters as they stood at the failure.
 
@@ -183,7 +197,7 @@ Track per-category counters as you go, incrementing only when a file is actually
 
 ## Step 5b — Update manifest version (preserve all other fields)
 
-After all files are copied successfully, update the installed version in the manifest so the next `/th-update` invocation can detect "already up-to-date" correctly.
+After all files are copied successfully, update the installed version in the manifest so the next `/th:th-update` invocation can detect "already up-to-date" correctly.
 
 Read `~/.claude/.team-harness.json`. If it exists, parse the **entire** JSON object, update ONLY the `"version"` field (or `"installed_version"` if that key exists instead) to `latest_version` (tag without `v` prefix), and write back the **complete object** with all other fields preserved. Fields that MUST be preserved if present: `format_version`, `installed_version`, `updated_at`, `logs-mode`, `logs-path`, `logs-subfolder`, `files`, and any other keys.
 
@@ -203,6 +217,7 @@ This is the minimal manifest shape needed for Step 1b version comparison. The Go
 
 - `~/.claude.json` — MCP server registration (memory, context7) is owned by the bootstrap installer. The update skill never modifies this file.
 - `~/.claude/settings.json` — the operator's hook wiring choice. Never touched.
+- `~/.claude/commands/` — no new files are written here. Legacy files are only removed (Step 5, item 4).
 - `hooks/config.json` from the release tarball — never copied (see Step 5).
 
 ---
@@ -228,17 +243,25 @@ team-harness update
 -------------------
 release:  <tag>
 agents:   <agents_count>
-skills:   <simple_skills_count + complex_skills_count> (<simple_skills_count> simple, <complex_skills_count> complex)
+skills:   <skills_count> directories installed to ~/.claude/skills/
 hooks:    <hooks_count>
 ```
 
-If `legacy_removed` is true (the v2.6.0 one-shot orchestrator-to-th-orchestrator migration fired this run), append one more line immediately after the `hooks:` line:
+If `legacy_agent_removed` is true (the v2.6.0 one-shot orchestrator-to-th-orchestrator migration fired this run), append one line immediately after the `hooks:` line:
 
 ```
 legacy:   removed ~/.claude/agents/orchestrator.md
 ```
 
-If `legacy_removed` is false, omit the line entirely — operators on a clean install or already-migrated install should not see a no-op row.
+If `legacy_commands_removed` is non-empty (orphaned flat skill files were cleaned up), append one line after any `legacy:` agent line (or after `hooks:` if the agent legacy line was omitted):
+
+```
+cleanup:  removed <N> flat skill file(s) from ~/.claude/commands/ (<comma-separated list of filenames>)
+```
+
+Where `<N>` is the count of files removed and the list is the filenames (e.g., `deliver.md, design.md`).
+
+If both `legacy_agent_removed` is false and `legacy_commands_removed` is empty, omit both legacy/cleanup lines entirely — operators on a clean install should not see no-op rows.
 
 Substitute the tag captured in Step 1 and the counters tracked in Step 5.
 
@@ -273,5 +296,5 @@ No emoji, no leading marker, no rephrasing. Print this even on a partial-failure
 - This skill does NOT prompt the operator interactively. There are no credentials to capture — `MEMORY_MCP_URL`, `MEMORY_MCP_BEARER`, and `CONTEXT7_API_KEY` were already written to `~/.claude.json` during the original bootstrap install and are not touched here.
 - This skill compares the latest release tag against the installed version (from manifest). If they match, it prints "up to date" and exits without downloading. To force a full reinstall regardless, use the installer one-liner.
 - This skill does NOT write to `workspaces/`.
-- This skill does NOT retry on network failure. The agent surfaces the error and the operator re-invokes `/th-update` when their connection is back.
+- This skill does NOT retry on network failure. The agent surfaces the error and the operator re-invokes `/th:th-update` when their connection is back.
 - The skill always overwrites. Operators who customize agents should fork the repo or contribute upstream — local edits to `~/.claude/agents/*.md` are explicitly out of scope.

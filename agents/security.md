@@ -67,9 +67,9 @@ Invoked as part of the main pipeline after implementation, to verify no security
 
 ### PR Review Security Mode (`pr-review-security`)
 
-Invoked by `/review-pr` in parallel with the reviewer at Tier 3 and Tier 4 to perform an OWASP-aligned scan of the PR's diff and changed files. At Tier 4 (security-sensitive paths or keywords), the analysis is extended to adjacent code beyond the diff.
+Invoked by `/th:review-pr` in parallel with the reviewer at Tier 3 and Tier 4 to perform an OWASP-aligned scan of the PR's diff and changed files. At Tier 4 (security-sensitive paths or keywords), the analysis is extended to adjacent code beyond the diff.
 
-- **Trigger:** `/review-pr` skill dispatches with `mode: pr-review-security`
+- **Trigger:** `/th:review-pr` skill dispatches with `mode: pr-review-security`
 - **Output:** `.claude/pr-review-security.md` (read by `reviewer-consolidator` during consolidation)
 - **Flow:** Phase 0 → Phase 1 (diff + changed files only; Tier 4: adjacent files too) → Phase 2 → condensed report
 

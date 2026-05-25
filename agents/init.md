@@ -448,7 +448,7 @@ Scaffold the team-harness review policy file into the consumer repo.
 2. **Create `.team-harness/` directory** if it does not exist.
 3. **Copy the policy template** from `~/.claude/agents/_shared/../../../assets/scaffolds/review-policy.md` to `.team-harness/review-policy.md`. Replace `<repo-name>` in the header with the actual repo name (derived from `git remote get-url origin` or the current directory name).
 4. **Create `.team-harness/README.md`** with one line: "Configuration consumed by team-harness agents. See https://valianx.github.io/team-harness/configuration"
-5. **Tell the operator:** "Review policy scaffolded at `.team-harness/review-policy.md`. Edit the file to add your project-specific review rules. The `reviewer` agent will load it automatically on the next `/review-pr` invocation."
+5. **Tell the operator:** "Review policy scaffolded at `.team-harness/review-policy.md`. Edit the file to add your project-specific review rules. The `reviewer` agent will load it automatically on the next `/th:review-pr` invocation."
 
 **Interactive mode (no flag):** when the project has any of `.github/`, `package.json`, `go.mod`, `pyproject.toml`, `Cargo.toml` AND no `.team-harness/review-policy.md`, offer to scaffold: "Scaffold a review policy for this repo? [y/N]". Proceed only on explicit yes.
 

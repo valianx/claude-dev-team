@@ -182,7 +182,7 @@ Result:
 
 ## --fix Mode
 
-If the user invokes `/lint --fix` (check if `$ARGUMENTS` contains `--fix`):
+If the user invokes `/th:lint --fix` (check if `$ARGUMENTS` contains `--fix`):
 
 After running all checks, **auto-fix sync issues from Check 2:**
 
@@ -211,7 +211,7 @@ Present the consolidated report using this exact format:
 
 ```
 ====================================
-  /lint — Agent & Skill Health Check
+  /th:lint — Agent & Skill Health Check
 ====================================
 
 --- Check 1: agnix config linting ---

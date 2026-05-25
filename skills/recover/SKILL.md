@@ -4,10 +4,10 @@ Analyze the input: $ARGUMENTS
 
 ---
 
-## Mode 1 — Feature name provided (`/recover my-feature`)
+## Mode 1 — Feature name provided (`/th:recover my-feature`)
 
 1. Check that `workspaces/{feature}/00-state.md` exists
-2. If not found, tell the user: "No pipeline state found for '{feature}'. Use `/status` to see active pipelines."
+2. If not found, tell the user: "No pipeline state found for '{feature}'. Use `/th:status` to see active pipelines."
 3. Read `workspaces/{feature}/00-state.md` in full
 4. Read `workspaces/{feature}/00-execution-log.md` if it exists (for timing context)
 5. Validate the state:
@@ -31,12 +31,12 @@ Analyze the input: $ARGUMENTS
 
 ---
 
-## Mode 2 — Batch recovery (`/recover --batch`)
+## Mode 2 — Batch recovery (`/th:recover --batch`)
 
 Recovers ALL interrupted tasks from a multi-task batch (parallel dispatch via worktrees).
 
 1. Check that `workspaces/batch-progress.md` exists
-2. If not found → "No batch progress found. Use `/recover {feature}` for single pipeline recovery."
+2. If not found → "No batch progress found. Use `/th:recover {feature}` for single pipeline recovery."
 3. Read `workspaces/batch-progress.md` — extract all tasks with status `RUNNING` or `FAILED`
 4. If none found → "All batch tasks are DONE or PENDING. Nothing to recover."
 5. For each incomplete task, check if its worktree still exists:
@@ -72,16 +72,16 @@ Recovers ALL interrupted tasks from a multi-task batch (parallel dispatch via wo
 
 The th-orchestrator will:
 - For tasks with existing worktrees: launch `claude --worktree {name} --tmux --dangerously-skip-permissions --continue` to resume the session
-- For tasks with removed worktrees but existing state: create new worktree and launch with `/recover {feature}`
-- For tasks with no state at all: re-launch from scratch with `/issue #{number}`
+- For tasks with removed worktrees but existing state: create new worktree and launch with `/th:recover {feature}`
+- For tasks with no state at all: re-launch from scratch with `/th:issue #{number}`
 - Track progress in `batch-progress.md` as normal
 
 ---
 
-## Mode 3 — No input provided (`/recover`)
+## Mode 3 — No input provided (`/th:recover`)
 
 1. First check for `workspaces/batch-progress.md` with incomplete tasks
-   - If found → show batch status and ask: "Batch has {N} incomplete tasks. Recover the batch (`/recover --batch`) or a specific pipeline?"
+   - If found → show batch status and ask: "Batch has {N} incomplete tasks. Recover the batch (`/th:recover --batch`) or a specific pipeline?"
 2. If no batch, scan `workspaces/*/00-state.md` for incomplete pipelines (status != complete)
 3. If none found → "No interrupted pipelines found."
 4. If exactly one found → auto-select it and proceed as Mode 1

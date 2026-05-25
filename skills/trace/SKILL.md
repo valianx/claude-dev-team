@@ -32,10 +32,10 @@ Analyze the input: $ARGUMENTS
 ## Usage
 
 ```
-/trace <feature-name>           Print 00-pipeline-summary.md verbatim (default mode)
-/trace <feature-name> --jsonl   Tail the last 30 events (auto-detects .md or .jsonl format)
-/trace <feature-name> --tools   Aggregate tool usage across the pipeline
-/trace <feature-name> --fails   Filter to failures, dispatch issues, iterations
+/th:trace <feature-name>           Print 00-pipeline-summary.md verbatim (default mode)
+/th:trace <feature-name> --jsonl   Tail the last 30 events (auto-detects .md or .jsonl format)
+/th:trace <feature-name> --tools   Aggregate tool usage across the pipeline
+/th:trace <feature-name> --fails   Filter to failures, dispatch issues, iterations
 ```
 
 Parse `$ARGUMENTS`:
@@ -70,7 +70,7 @@ These are written by the **th-orchestrator** during pipeline runs (see `agents/t
    Possible reasons:
      • Pipeline ran before observability was wired up (pre-2026-05-21 spec).
      • Pipeline was interrupted before the th-orchestrator could write the summary.
-     • Feature name is wrong — run /status to see available features.
+     • Feature name is wrong — run /th:status to see available features.
    ```
    Exit cleanly (no crash).
 
@@ -79,9 +79,9 @@ These are written by the **th-orchestrator** during pipeline runs (see `agents/t
 3. If `workspaces/{feature-name}/00-execution-events.md` or `workspaces/{feature-name}/00-execution-events.jsonl` exists, append at the bottom:
    ```
    ---
-   For raw events: /trace {feature-name} --jsonl
-   For tool effectiveness: /trace {feature-name} --tools
-   For failures only:      /trace {feature-name} --fails
+   For raw events: /th:trace {feature-name} --jsonl
+   For tool effectiveness: /th:trace {feature-name} --tools
+   For failures only:      /th:trace {feature-name} --fails
    ```
 
 ---
@@ -245,31 +245,31 @@ These are written by the **th-orchestrator** during pipeline runs (see `agents/t
 
 ## Error handling
 
-- **Feature name not found / no workspaces folder:** report and suggest `/status` to see available features. Exit cleanly.
+- **Feature name not found / no workspaces folder:** report and suggest `/th:status` to see available features. Exit cleanly.
 - **Malformed JSONL line:** `jq` will fail loudly on that line. Skip with a one-line warning (`skipped 1 malformed event at line N`) and continue. Do not crash the skill.
 - **No `jq` binary:** every mode has a documented fallback (raw tail, summary-section slice, grep). Never block on `jq` absence.
 - **Permission errors reading workspaces:** report the OS error and exit cleanly.
 
 ---
 
-## What `/trace` does NOT do
+## What `/th:trace` does NOT do
 
-- It does not write or modify any file under `workspaces/`. Strict read-only contract — same rule as `/status`.
+- It does not write or modify any file under `workspaces/`. Strict read-only contract — same rule as `/th:status`.
 - It does not aggregate across multiple features. For cross-pipeline analysis, run `jq` manually over `workspaces/*/00-execution-events.jsonl` (local mode) or `workspaces/*/00-execution-events.md` (obsidian mode). A future `/metrics` skill may add aggregation once we have 5-10 traces to validate the shape.
 - It does not modify or invalidate the trace. If the JSONL is corrupted, the renderer skips bad lines; it never deletes or rewrites them.
 - It does not invoke any other agent. Read-only file reads + `jq` / `tail` / `grep` via Bash only.
 
 ---
 
-## Relationship to `/status`
+## Relationship to `/th:status`
 
 | Use case | Skill |
 |---|---|
-| "What pipelines are running right now?" | `/status` (no args) — table of all active pipelines |
-| "Detailed narrative state for one feature" | `/status <feature>` — narrative renderer with TL;DR + Hot Context + Timeline from JSONL |
-| "Did this pipeline work? Quick summary." | `/trace <feature>` — the canonical 30-second answer |
-| "How effective were the tools in this pipeline?" | `/trace <feature> --tools` |
-| "What failed and why?" | `/trace <feature> --fails` |
-| "Show me the raw event log." | `/trace <feature> --jsonl` |
+| "What pipelines are running right now?" | `/th:status` (no args) — table of all active pipelines |
+| "Detailed narrative state for one feature" | `/th:status <feature>` — narrative renderer with TL;DR + Hot Context + Timeline from JSONL |
+| "Did this pipeline work? Quick summary." | `/th:trace <feature>` — the canonical 30-second answer |
+| "How effective were the tools in this pipeline?" | `/th:trace <feature> --tools` |
+| "What failed and why?" | `/th:trace <feature> --fails` |
+| "Show me the raw event log." | `/th:trace <feature> --jsonl` |
 
-`/status <feature>` is the deep narrative; `/trace <feature>` is the rollup. They read the same events file (`.md` or `.jsonl` depending on mode) plus, in `/trace`'s case, the rendered summary MD.
+`/th:status <feature>` is the deep narrative; `/th:trace <feature>` is the rollup. They read the same events file (`.md` or `.jsonl` depending on mode) plus, in `/th:trace`'s case, the rendered summary MD.

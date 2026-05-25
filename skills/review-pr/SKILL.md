@@ -117,7 +117,7 @@ fi
 When `has_policy=false`, emit one line to the operator:
 ```
 Review policy: not found (using general review judgement).
-Scaffold with: /init --scaffold-review-policy
+Scaffold with: /th:init --scaffold-review-policy
 ```
 
 ### Phase 2 — Tier Classification
@@ -380,7 +380,7 @@ Choose [a/b/c/d/e]:
 **If operator picks `(d) defer`:**
 - Ensure draft is at `.claude/pr-review-final.md` (copy from canonical path if needed).
 - Remove the cleanup trap so files persist.
-- Print: "Draft saved to .claude/pr-review-final.md. Run /review-pr {N} --resume-from-draft to publish later."
+- Print: "Draft saved to .claude/pr-review-final.md. Run /th:review-pr {N} --resume-from-draft to publish later."
 - STOP cleanly. Do NOT remove the worktree (it may be needed for reference). Note: operator should remove it manually or it will be cleaned up at session end.
 
 **If operator picks `(e) cancel`:**
@@ -430,7 +430,7 @@ f. **Verify the review was posted.** After the API call, check the exit code. If
   cleanup
   ```
 
-**Context prune reminder (MANDATORY).** Each `/review-pr` invocation accumulates 5-30K tokens in the main context (PR metadata, full diff, file lists from `gh` and `git` outputs in Phase 1, plus the th-orchestrator's status block, plus Phase 5 publish outputs). Subagents die between PRs but the **main context does not** — successive reviews in the same session compound linearly.
+**Context prune reminder (MANDATORY).** Each `/th:review-pr` invocation accumulates 5-30K tokens in the main context (PR metadata, full diff, file lists from `gh` and `git` outputs in Phase 1, plus the th-orchestrator's status block, plus Phase 5 publish outputs). Subagents die between PRs but the **main context does not** — successive reviews in the same session compound linearly.
 
 Your **final response** to the user MUST include this reminder block (verbatim or equivalent — do NOT shorten it, do NOT phrase it as optional):
 
@@ -444,7 +444,7 @@ next PR, run:
 
     /compact
 
-Without this, each successive `/review-pr` adds another 5-30K
+Without this, each successive `/th:review-pr` adds another 5-30K
 tokens that never get released. After 5 or more reviews in one
 session, response latency and per-turn cost grow noticeably.
 

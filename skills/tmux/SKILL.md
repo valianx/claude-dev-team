@@ -141,7 +141,7 @@ Display results as a formatted table.
 If no arguments or invalid action, show:
 
 ```
-Usage: /tmux <action> [session_name] [payload]
+Usage: /th:tmux <action> [session_name] [payload]
 
 Actions:
   list                          List all active tmux sessions
@@ -153,12 +153,12 @@ Actions:
   stop-all                      Kill all tmux sessions
 
 Examples:
-  /tmux start backend_worker
-  /tmux send backend_worker "implement the REST API for /users"
-  /tmux read backend_worker 100
-  /tmux keys backend_worker C-c
-  /tmux list
-  /tmux stop backend_worker
+  /th:tmux start backend_worker
+  /th:tmux send backend_worker "implement the REST API for /users"
+  /th:tmux read backend_worker 100
+  /th:tmux keys backend_worker C-c
+  /th:tmux list
+  /th:tmux stop backend_worker
 ```
 
 ---

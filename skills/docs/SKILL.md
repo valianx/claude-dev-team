@@ -3,7 +3,7 @@ name: docs
 description: "Generate Obsidian documentation for a service, database, API, library, or product. Routes through the th-orchestrator documentation pipeline: architect researches → documenter writes → diagram agents visualize → QA validates."
 ---
 
-# /docs — Documentation Pipeline
+# /th:docs — Documentation Pipeline
 
 Parse the user's input to extract:
 
@@ -15,10 +15,10 @@ Parse the user's input to extract:
 ## Examples
 
 ```
-/docs the auth service
-/docs --lang es the payment API
-/docs --folder infrastructure the deployment setup
-/docs the user database --lang en
+/th:docs the auth service
+/th:docs --lang es the payment API
+/th:docs --folder infrastructure the deployment setup
+/th:docs the user database --lang en
 ```
 
 ## Multi-topic detection
@@ -26,7 +26,7 @@ Parse the user's input to extract:
 If the input contains multiple topics separated by commas, "and"/"y", or enumerated:
 
 ```
-/docs the auth service, the user database, and the payment API
+/th:docs the auth service, the user database, and the payment API
 ```
 
 Pass all topics to the orchestrator. It handles parallel dispatch (one research+write cycle per topic).

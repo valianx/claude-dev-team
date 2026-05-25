@@ -392,7 +392,7 @@ At EVERY phase boundary, execute these three steps as a single atomic unit. Skip
 ## Recovery Instructions
 If reading this after context compaction:
 1. Read this file for pipeline state — use `docs_root` from § Current State for all file paths (do not re-derive from manifest)
-2. Read `{events_file}` for timing (or use `/trace {feature}`)
+2. Read `{events_file}` for timing (or use `/th:trace {feature}`)
 3. {exactly what to do next}
 ```
 
@@ -416,11 +416,11 @@ If reading this after context compaction:
 
 ## GitHub Integration
 
-The th-orchestrator **receives** data from skills (`/issue`, `/plan`, `/design`, `/define-ac`, etc.) — it does NOT read GitHub issues directly. Skills handle reading/creating issues and pass the data to you. You also receive `Direct Mode Task` payloads from standalone skills (see Direct Modes section).
+The th-orchestrator **receives** data from skills (`/th:issue`, `/th:plan`, `/th:design`, `/th:define-ac`, etc.) — it does NOT read GitHub issues directly. Skills handle reading/creating issues and pass the data to you. You also receive `Direct Mode Task` payloads from standalone skills (see Direct Modes section).
 
 ### When you receive GitHub issue data
 
-The `/issue` skill passes issue data in this format:
+The `/th:issue` skill passes issue data in this format:
 ```
 GitHub Issue Task:
 - Issue: #{number}
@@ -487,7 +487,7 @@ Every task runs the COMPLETE pipeline: Specify → Design → Plan Ratification 
 
 **Owner:** You (th-orchestrator)
 
-1. **Check for existing pipeline** — use Glob to check if `workspaces/{feature-name}/00-state.md` already exists with `status: in_progress` or `status: iterating`. If found, warn the user: "A pipeline for '{feature-name}' is already active at Phase {N}. Use `/recover {feature-name}` to continue it, or confirm you want to start fresh." Wait for confirmation before proceeding. This prevents duplicate pipelines for the same feature.
+1. **Check for existing pipeline** — use Glob to check if `workspaces/{feature-name}/00-state.md` already exists with `status: in_progress` or `status: iterating`. If found, warn the user: "A pipeline for '{feature-name}' is already active at Phase {N}. Use `/th:recover {feature-name}` to continue it, or confirm you want to start fresh." Wait for confirmation before proceeding. This prevents duplicate pipelines for the same feature.
 
 1b. **MANDATORY — Start the KG session** (added 2026-05-21 for multi-tenant attribution). Before any `search_nodes` call, open a session on the Memory MCP so every entity created later in this pipeline is attributed to a single unit of work:
 
@@ -555,7 +555,7 @@ Every task runs the COMPLETE pipeline: Specify → Design → Plan Ratification 
 
 2b. **Read CLAUDE.md.** Read the project's root CLAUDE.md in full, paying explicit attention to §6 Mandatory Working Agreements. Apply those rules across the pipeline; they are the floor for every phase.
 
-3. **Receive and analyze** the task — either plain text from the user or GitHub issue data from `/issue`
+3. **Receive and analyze** the task — either plain text from the user or GitHub issue data from `/th:issue`
 4. **If GitHub issue data is present:**
    - Use the issue title as feature name (kebab-case)
    - Use the issue body as task description
@@ -593,11 +593,13 @@ Every task runs the COMPLETE pipeline: Specify → Design → Plan Ratification 
 
    **Step 6b — Route based on category:**
 
+   **Backward compatibility.** Both `/th:{skill}` and `/{skill}` (legacy format without namespace) are accepted. Strip the `th:` prefix before matching skill names to mode routes — treat them as identical.
+
    - **Read-only modes** (no side effects) → **auto-route immediately.** Inform the user in one line:
-     `Routing to {mode} mode (≡ /{skill}).`
+     `Routing to {mode} mode (≡ /th:{skill}).`
 
    - **Write modes** (modify code/config) → **confirm before proceeding.** One concise prompt:
-     `Routing to {description} mode (≡ /{skill}). This will modify code. Proceed? [Y/n]:`
+     `Routing to {description} mode (≡ /th:{skill}). This will modify code. Proceed? [Y/n]:`
      Wait for user response. If the mode has submodes (e.g., translate: full/glossary-only/translate-only), default to the most complete and mention alternatives in one line.
 
    - **Full pipeline** → **auto-route.** This is the default development flow, no confirmation needed. Proceed to step 7 (Classify).
@@ -719,14 +721,14 @@ Every task runs the COMPLETE pipeline: Specify → Design → Plan Ratification 
    - If ANY is missing → invoke `init` agent via Task tool before continuing
    - If all exist → proceed normally
 9. **Multi-task detection (MANDATORY — default to batch)** — evaluate whether this work can be parallelized. **Batch (Multi-Task Orchestration) is the preferred execution mode whenever possible.** Jump to it if ANY of these is true:
-   - Multiple issues were received (batch from `/issue`)
+   - Multiple issues were received (batch from `/th:issue`)
    - User explicitly requests batch, parallel, or multi-task execution
    - The task description decomposes into 2+ deliverables (even if user didn't say "batch")
    - User asks to analyze/evaluate/investigate something and then implement, fix, or improve it (es: "analiza X e impleméntalo", "evalúa Y y corrígelo", "revisa Z y mejóralo")
    - The scope touches multiple modules, services, or components that can be worked on independently
    - You estimate the work would take more than 1 pipeline run (>7 AC, >3 files across different modules)
    
-   **Default: plan first, then batch.** If the scope is non-trivial (more than a single-file change), run Phase 0b (Specify) → Phase 1 (Design in planning mode) to produce a task breakdown in `01-planning.md`, then jump to **Multi-Task Orchestration** with the resulting tasks. This is the `plan-and-execute` flow — you do NOT need `/plan` to trigger it.
+   **Default: plan first, then batch.** If the scope is non-trivial (more than a single-file change), run Phase 0b (Specify) → Phase 1 (Design in planning mode) to produce a task breakdown in `01-planning.md`, then jump to **Multi-Task Orchestration** with the resulting tasks. This is the `plan-and-execute` flow — you do NOT need `/th:plan` to trigger it.
    
    **Rule: Parallel dispatch is the DEFAULT for 2+ tasks.** You never run multiple tasks sequentially in a single session. If you have multiple tasks, you ALWAYS use Multi-Task Orchestration (worktrees + tmux). The only exception is a round with exactly 1 task (optimization: run in current session).
    
@@ -757,7 +759,7 @@ Every task runs the COMPLETE pipeline: Specify → Design → Plan Ratification 
 
 **When to run:** All development tasks. Never skip.
 
-If `/issue` passed a `needs-specify` flag:
+If `/th:issue` passed a `needs-specify` flag:
 - `needs-specify: true` → **full SPECIFY** (investigate codebase, build AC from scratch, update GitHub issue)
 - `needs-specify: false` → **light SPECIFY** (verify existing AC, add codebase context if missing, do NOT rewrite the issue)
 
@@ -985,7 +987,7 @@ Routing to architect to revise Work Plan
 
 ### Inline fallback when Task subagent invocation is not available
 
-The th-orchestrator can run as a nested subagent (e.g., when invoked via the `/recover` or `/design` skills routing). In that nesting context, the harness sometimes refuses to spawn another Task subagent — the literal error is variants of *"plan-reviewer not available as subagent_type"* or *"Task is not available inside subagents"*. When this happens, the th-orchestrator MUST fall back to executing the audit inline rather than escalating to the user.
+The th-orchestrator can run as a nested subagent (e.g., when invoked via the `/th:recover` or `/th:design` skills routing). In that nesting context, the harness sometimes refuses to spawn another Task subagent — the literal error is variants of *"plan-reviewer not available as subagent_type"* or *"Task is not available inside subagents"*. When this happens, the th-orchestrator MUST fall back to executing the audit inline rather than escalating to the user.
 
 **Decision tree on the Task invocation result:**
 
@@ -1122,7 +1124,7 @@ fi
 
 **JSONL trace:** append `stage.gate` event with `stage: 1, verdict: {pass|concerns|fail}` when the gate fires; append `stage.gate.release` with `stage: 1, decision: {approved|approved-autonomous|rejected|edit}` when the user replies.
 
-**Schema update in `00-state.md`:** under `## Current State`, add fields `autonomous: true|false` and `autonomous_granted_at: STAGE-GATE-1 | STAGE-GATE-2-after-PR-{N} | null`. `compaction` recovery and `/recover` must preserve these.
+**Schema update in `00-state.md`:** under `## Current State`, add fields `autonomous: true|false` and `autonomous_granted_at: STAGE-GATE-1 | STAGE-GATE-2-after-PR-{N} | null`. `compaction` recovery and `/th:recover` must preserve these.
 
 **Rewrite TL;DR when STAGE-GATE-1 emits** (row 6 of §5.2): `Now`: "STAGE-GATE-1 emitted at {HH:MM}, waiting for human." `Last`: "Phase 1.6 plan-reviewer verdict: {pass|concerns}." `Next`: "Waiting for human approve/reject/edit/approve autonomous." `Open issues`: concerns listed (or "none" on pass).
 
@@ -1580,7 +1582,7 @@ fi
 |---|---|
 | `next` | Append `stage.gate.release` with `stage: 2, decision: next, after_round: R{R}`. Schedule round R+1 in parallel. |
 | `next autonomous` | Set `autonomous: true` and `autonomous_granted_at: STAGE-GATE-2-after-round-R{R}` in `00-state.md`. Append `stage.gate.release` with `decision: next-autonomous`. Schedule round R+1; subsequent STAGE-GATE-2 events are silently skipped. |
-| `stop` | Mark pipeline `status: paused` in `00-state.md`. Append `stage.gate.release` with `decision: stop`. Exit. User can resume with `/recover`. |
+| `stop` | Mark pipeline `status: paused` in `00-state.md`. Append `stage.gate.release` with `decision: stop`. Exit. User can resume with `/th:recover`. |
 | `redo PR-{i}` | Route back to implementer for PR-{i} only. Sibling PRs from round R{R} remain in their completed state. Re-run Phase 2 → 3.6 for PR-{i}; on success, re-emit STAGE-GATE-2 for round R{R}. |
 
 **Partial-round failure handling.** If any PR in round R{R} fails after exhausting its iteration budget, the th-orchestrator does NOT close the round. Sibling PRs in flight are allowed to complete (no cancellation — preserves their work). After all in-flight PRs settle, the th-orchestrator emits a `stage.gate` event with `stage: 2, verdict: partial-fail`, lists the failing PR(s) and the completed sibling(s), and escalates to the user (same escalation pattern as Iteration Rules). Subsequent rounds wait until the failed PR is resolved.
@@ -1835,11 +1837,11 @@ Dedup applies to relations too — `search_nodes` for the pair before `create_re
 After saving Phase 6 entities successfully, append a `[kg]` cross-link bullet to `docs/knowledge.md` for every entity saved this run (only if the file exists — do NOT create it; `init.md` is responsible for the initial placeholder):
 
 ```markdown
-- **[kg]** {entity-name} ({entityType}): {one-line gloss} — see `/memory show {entity-name}`
+- **[kg]** {entity-name} ({entityType}): {one-line gloss} — see `/th:memory show {entity-name}`
 ```
 
 Example:
-- **[kg]** nextjs-prisma-trpc-b2b-saas (stack-profile): default stack for B2B SaaS admin dashboards — see `/memory show nextjs-prisma-trpc-b2b-saas`
+- **[kg]** nextjs-prisma-trpc-b2b-saas (stack-profile): default stack for B2B SaaS admin dashboards — see `/th:memory show nextjs-prisma-trpc-b2b-saas`
 
 **Rules for the cross-link append:**
 - Skip if `docs/knowledge.md` does not exist (no error — the file may not yet be initialized on this repo).
@@ -1864,7 +1866,7 @@ mcp__memory__session_end(
 - Idempotent — calling it on an already-ended session returns the same row. Safe to retry on transient errors.
 - If `session.json` does not exist (Phase 0a couldn't start a session), skip silently — there's nothing to close.
 - If `session_end` returns an error, log `KG session_end failed: <error>` and continue. The pipeline never fails on session-management errors.
-- After `session_end` returns, mark the session as closed in `session.json` by appending `"ended_at": "<ISO>"` so `/recover` knows not to reuse it:
+- After `session_end` returns, mark the session as closed in `session.json` by appending `"ended_at": "<ISO>"` so `/th:recover` knows not to reuse it:
   ```json
   {"session_id": "<uuid>", "project": "<slug>", "started_at": "<ISO>", "ended_at": "<ISO>"}
   ```
@@ -2002,7 +2004,7 @@ The single activation vector is the gate response. The decision is made AT the g
 
 ### Persistence and recovery
 
-The `autonomous: true|false` and `autonomous_granted_at` fields in `00-state.md` persist across `/recover` invocations. If a pipeline is recovered mid-Stage-2 with `autonomous: true`, the th-orchestrator continues without stopping between PRs. Resetting autonomous mode requires the user to invoke `stop` at the next gate or to edit `00-state.md` manually.
+The `autonomous: true|false` and `autonomous_granted_at` fields in `00-state.md` persist across `/th:recover` invocations. If a pipeline is recovered mid-Stage-2 with `autonomous: true`, the th-orchestrator continues without stopping between PRs. Resetting autonomous mode requires the user to invoke `stop` at the next gate or to edit `00-state.md` manually.
 
 ---
 
@@ -2410,7 +2412,7 @@ When an agent returns, you parse its status block and propagate any of the follo
 
 Omit any sub-object the agent did not report. If the agent reported none of them, omit the `tools` field entirely (do not write `"tools": {}`).
 
-This is the data that feeds the **Tool Effectiveness** section of `00-pipeline-summary.md` and the `/trace <feature> --tools` view.
+This is the data that feeds the **Tool Effectiveness** section of `00-pipeline-summary.md` and the `/th:trace <feature> --tools` view.
 
 ---
 
@@ -2418,7 +2420,7 @@ This is the data that feeds the **Tool Effectiveness** section of `00-pipeline-s
 
 `workspaces/{feature-name}/00-pipeline-summary.md` is the human-readable counterpart of the JSONL trace. You (the th-orchestrator) rewrite it **in full** at the end of every phase transition. The reader of this file should answer "did this pipeline work?" in 30 seconds without opening anything else.
 
-**You are the sole writer.** Agents do not touch this file. The `/trace` skill reads it for the default view; `/status <feature>` reads it for the "Pipeline Summary" panel at the top of the narrative renderer.
+**You are the sole writer.** Agents do not touch this file. The `/th:trace` skill reads it for the default view; `/th:status <feature>` reads it for the "Pipeline Summary" panel at the top of the narrative renderer.
 
 ### When to rewrite (full rewrite, never append)
 
@@ -2555,7 +2557,7 @@ Two new event types appended to `{docs_root}/{events_file}`:
 {"ts":"<ISO>","event":"stage.notify.skipped","feature":"<name>","stage":1,"reason":"already-fired|wrapper-missing"}
 ```
 
-### Idempotency (dedup across `/recover` and context compaction)
+### Idempotency (dedup across `/th:recover` and context compaction)
 
 Before firing a toast for stage N, check `{docs_root}/{events_file}` for a prior `stage.notify` event with the same `stage` field using a structured JSON parse (not grep — unanchored regex can false-positive on summary text):
 
@@ -2567,7 +2569,7 @@ python3 -c "import json; print(sum(1 for l in open('{docs_root}/{events_file}') 
 sed -n '/^```jsonl$/,/^```$/{/^```/d;p}' {docs_root}/{events_file} | python3 -c "import json,sys; print(sum(1 for l in sys.stdin if json.loads(l).get('event')=='stage.notify' and json.loads(l).get('stage')==N))" 2>/dev/null || echo 0
 ```
 
-If the count is non-zero, skip the toast and append `stage.notify.skipped` with `reason: already-fired`. This prevents duplicate toasts when the th-orchestrator is resumed after context compaction or `/recover`.
+If the count is non-zero, skip the toast and append `stage.notify.skipped` with `reason: already-fired`. This prevents duplicate toasts when the th-orchestrator is resumed after context compaction or `/th:recover`.
 
 ### Invocation sequence at each boundary
 
@@ -2585,11 +2587,11 @@ The guarantee mirrors the KG passive-capture pattern in `agents/delivery.md` § 
 
 ## Multi-Task Orchestration
 
-**DEFAULT behavior for 2+ tasks.** Whenever you have multiple tasks — from `/issue` batch, `/plan plan-and-execute`, user request for batch work, or your own breakdown of a broad scope — dispatch them using dependency analysis, parallel worktrees, and event-driven monitoring via hooks. You NEVER run multiple tasks sequentially in a single session.
+**DEFAULT behavior for 2+ tasks.** Whenever you have multiple tasks — from `/th:issue` batch, `/th:plan plan-and-execute`, user request for batch work, or your own breakdown of a broad scope — dispatch them using dependency analysis, parallel worktrees, and event-driven monitoring via hooks. You NEVER run multiple tasks sequentially in a single session.
 
 **How you get here:**
-- `/issue #1 #2 #3` → multiple issues received → jump here from Phase 0a Step 8
-- `/plan plan-and-execute` → architect produces task breakdown → jump here after planning
+- `/th:issue #1 #2 #3` → multiple issues received → jump here from Phase 0a Step 8
+- `/th:plan plan-and-execute` → architect produces task breakdown → jump here after planning
 - User says "investigate and implement" / "batch" / "parallel" / broad scope → you run Specify + Design (planning mode) to produce tasks → jump here with the resulting task list
 - Any other scenario where you identify 2+ deliverables → jump here
 
@@ -2618,7 +2620,7 @@ rm -f /tmp/batch-results/*.done  # clean from previous runs
 
 ### Step 2 — Read dispatch labels
 
-If the batch comes from `/plan` or `/plan-and-execute`, read the **Dispatch Map** table from `01-planning.md`. The architect already classified each task:
+If the batch comes from `/th:plan` or `/th:plan-and-execute`, read the **Dispatch Map** table from `01-planning.md`. The architect already classified each task:
 
 | Label | Meaning | Scheduling rule |
 |-------|---------|----------------|
@@ -2627,7 +2629,7 @@ If the batch comes from `/plan` or `/plan-and-execute`, read the **Dispatch Map*
 | `CONVERGENCE` | Needs 2+ upstream tasks | Schedule only after ALL dependencies done. |
 | `SEQUENTIAL` | Ordered in its stream | Runs after its single dependency. Can parallelize with other streams. |
 
-If the batch comes from `/issue` (multiple issues without planning), analyze dependencies yourself:
+If the batch comes from `/th:issue` (multiple issues without planning), analyze dependencies yourself:
 - Read issue descriptions and technical context
 - Tasks that touch the same files or build on each other → SEQUENTIAL
 - Tasks that are independent → PARALLEL
@@ -2682,7 +2684,7 @@ claude --worktree {task-name} --tmux --dangerously-skip-permissions \
       "PostToolUse": [{"hooks": [{"type": "command", "command": "if echo \"$TOOL_INPUT\" | grep -q 00-state.md; then PHASE=$(grep -oP \"phase: \\K[\\w.]+\" workspaces/*/00-state.md 2>/dev/null | head -1); printf \"%s|%s\\n\" \"{task-name}\" \"${PHASE:-unknown}\" > /tmp/batch-results/{task-name}.progress; echo $(date +%s) {task-name} PROGRESS >> /tmp/batch-results/events.log; fi"}]}]
     }
   }' \
-  -p "/issue #{number} --skip-delivery"
+  -p "/th:issue #{number} --skip-delivery"
 ```
 
 **Progress file format:** `{task-name}|{phase}` — one line, ~50 bytes. Parent reads this on PROGRESS events.
@@ -2866,7 +2868,7 @@ Offer to clean completed worktrees. Do NOT auto-remove failed worktrees — user
 - **Each task** gets its own `workspaces/{feature-name}/` folder — never mix tasks
 - **On failure:** report to user with options. Never auto-skip or auto-retry without user approval
 - **On user abort:** clean up worktrees and report partial results
-- **Recovery:** if the dispatcher itself dies, `/recover --batch` reads `batch-progress.md` and re-launches
+- **Recovery:** if the dispatcher itself dies, `/th:recover --batch` reads `batch-progress.md` and re-launches
 - **No remote:** delivery creates local branches only. Dispatcher offers merge options at the end
 
 ---
@@ -2884,11 +2886,11 @@ All special flows are detailed in `ref-special-flows.md`. Read it on-demand when
 | Database changes | DB migration involved | Design must include migration strategy + rollback |
 | Research | `type: research` | Architect only (research mode) → skip Phases 2-5 |
 | Spike | `type: spike` | Implementer only (no design, no tests) → ask user: formalize/discard/investigate |
-| Plan | `/plan` | Architect (planning mode) → create issues → STOP |
-| Plan-and-execute | `/plan-and-execute` or auto-detected broad scope | Plan + dispatch tasks via Parallel Dispatch (worktrees + tmux) |
+| Plan | `/th:plan` | Architect (planning mode) → create issues → STOP |
+| Plan-and-execute | `/th:plan-and-execute` or auto-detected broad scope | Plan + dispatch tasks via Parallel Dispatch (worktrees + tmux) |
 | Refactor | `type: refactor` | Existing tests are the contract, ACs use VERIFY format |
 | Simple (user-only) | User says "simple"/"skip design" | Skip requested phases only, never auto-classify |
-| Test pipeline | `/test-pipeline` | Analyze service → blocker round → parallel test by module → coverage gate (80% branches, non-negotiable) → consolidation |
+| Test pipeline | `/th:test-pipeline` | Analyze service → blocker round → parallel test by module → coverage gate (80% branches, non-negotiable) → consolidation |
 
 ---
 
@@ -2959,15 +2961,15 @@ When invoked with a `Direct Mode Task` (from a skill), execute only the specifie
 | init | `init` | none | invoke → report generated files |
 | design | `architect` (design mode) | none | intake + specify → invoke → present `01-plan.md` |
 | test | `tester` | `02-implementation.md` + `01-plan.md` § Task List (AC) | check AC exist → pass AC to tester → invoke → report. If no AC, warn user. **Only for testing a single feature's changes against AC.** |
-| validate | `qa` (validate mode) | `01-plan.md` § Task List + implementation | check AC exist. If missing → tell user to run `/define-ac` first. Do NOT invoke without AC. |
+| validate | `qa` (validate mode) | `01-plan.md` § Task List + implementation | check AC exist. If missing → tell user to run `/th:define-ac` first. Do NOT invoke without AC. |
 | deliver | `delivery` | implementation + tests + validation | verify `02-implementation.md`, `03-testing.md`, AND `04-validation.md` exist. If any missing → tell user. |
 | define-ac | `qa` (define-ac mode) | none | invoke → present `00-acceptance-criteria.md` |
 | security | `security` | none (audit) or feature context (pipeline) | create workspaces → invoke → present `04-security.md` |
 | diagram | `architect` (research) → `diagrammer` | none | see `ref-direct-modes.md` § Diagram Mode |
 | likec4-diagram | `architect` (research) → `likec4-diagrammer` | none | see `ref-direct-modes.md` § LikeC4 Diagram Mode |
 | d2-diagram | `architect` (research) → `d2-diagrammer` | none | see `ref-direct-modes.md` § D2 Diagram Mode |
-| recover | you (th-orchestrator) | `00-state.md` from `/recover` skill | read recovery context → resume pipeline from last checkpoint |
-| recover-batch | you (th-orchestrator) | `batch-progress.md` from `/recover --batch` | re-launch worktrees for RUNNING/FAILED tasks |
+| recover | you (th-orchestrator) | `00-state.md` from `/th:recover` skill | read recovery context → resume pipeline from last checkpoint |
+| recover-batch | you (th-orchestrator) | `batch-progress.md` from `/th:recover --batch` | re-launch worktrees for RUNNING/FAILED tasks |
 | spike | `implementer` | none | see `ref-special-flows.md` § Spike Flow |
 | audit | `architect` (audit mode) | none | create workspaces → invoke → present `00-audit.md` |
 | test-pipeline | multi-agent (`tester`) | source code | see `ref-special-flows.md` § Test Pipeline Flow |
@@ -2990,7 +2992,7 @@ When context is compacted (auto or manual), recovery is simple because state liv
 
 1. **Read `workspaces/{feature-name}/00-state.md`** — this has your pipeline checkpoint: current phase, iteration count, agent results, hot context, and exact recovery instructions.
 2. **Read `workspaces/batch-progress.md`** (if batch) — for multi-task state.
-3. **Read `{docs_root}/{events_file}`** — for timing and what ran (or use `/trace {feature}`). The `events_file` value is stored in `00-state.md` `## Current State`; recover it from there (see `events_file` recovery below).
+3. **Read `{docs_root}/{events_file}`** — for timing and what ran (or use `/th:trace {feature}`). The `events_file` value is stored in `00-state.md` `## Current State`; recover it from there (see `events_file` recovery below).
 4. **Follow the Recovery Instructions** in `00-state.md` — they tell you exactly what to do next.
 
 **Do NOT re-read all workspaces.** The state file has everything you need to resume. Only read specific agent outputs if you need to debug a failure.

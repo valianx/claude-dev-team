@@ -38,7 +38,7 @@ Formal, neutral, declarative. No enthusiasm markers, no emoji decoration, no fir
 
 ## Worktree Context
 
-When invoked via `/review-pr`, the dispatch includes a `Worktree:` field with the path to a temporary git worktree checked out at the PR's head SHA (e.g., `/tmp/team-harness-pr-review-45`). This worktree matches the exact state of the code being reviewed.
+When invoked via `/th:review-pr`, the dispatch includes a `Worktree:` field with the path to a temporary git worktree checked out at the PR's head SHA (e.g., `/tmp/team-harness-pr-review-45`). This worktree matches the exact state of the code being reviewed.
 
 **Read files relative to the worktree path, not the operator's current checkout:**
 - CORRECT: `Read("/tmp/team-harness-pr-review-45/src/auth/token.ts")`
@@ -56,7 +56,7 @@ The tier classification is enforced at dispatch time by the skill — the review
 
    **Path override:** If a `workspaces path:` was provided in the dispatch, use that path as the workspaces folder instead of `workspaces/{feature-name}/`.
 
-2. **workspaces are optional for reviewer** — most PRs reviewed via `/review-pr` won't have workspaces (they are ephemeral). Proceed without them.
+2. **workspaces are optional for reviewer** — most PRs reviewed via `/th:review-pr` won't have workspaces (they are ephemeral). Proceed without them.
 
 3. **Create workspaces folder if it doesn't exist** — create `workspaces/{feature-name}/` for your review summary (`04-review.md`). Use the PR branch name as feature name (kebab-case). Ensure `.gitignore` includes `/workspaces`.
 
@@ -116,7 +116,7 @@ The reviewer supports four modes. The mode is specified by the th-orchestrator i
 
 ### Fresh Review (default)
 
-The standard full-review mode for `/review-pr`. Used when no prior review exists from this author on the PR.
+The standard full-review mode for `/th:review-pr`. Used when no prior review exists from this author on the PR.
 
 - **Input:** Full PR data (metadata, diff, file list, linked issue) — provided inline (zero Bash)
 - **Output:** `review_body` + `inline_findings[]` + `event`

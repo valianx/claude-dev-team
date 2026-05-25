@@ -83,11 +83,11 @@ Batch Status
 | 4 | refresh-flow | 3 | 2-implement | RUNNING | LIVE | feature/104-refresh | — |
 | 5 | middleware | 3 | — | RUNNING | DEAD | feature/105-mw | — |
 
-Progress: 2/5 DONE | 2 LIVE | 1 DEAD (needs /recover --batch)
+Progress: 2/5 DONE | 2 LIVE | 1 DEAD (needs /th:recover --batch)
 ```
 
 Highlight:
-- `DEAD` process — needs recovery, suggest `/recover --batch`
+- `DEAD` process — needs recovery, suggest `/th:recover --batch`
 - `iterating` status — needs attention
 - `complete` / `DONE` status — done
 - Stale pipelines (last updated > 1h ago with status != complete) — mark as "stale?"
@@ -98,7 +98,7 @@ Highlight:
 
 The `Status` column in the no-args table uses a 7-value enum derived by cross-referencing `phase`, `status`, and `autonomous` fields from `00-state.md`. This lets users distinguish "waiting at a human gate" from "actively iterating" from "autonomous-running" at a glance.
 
-| `/status` shows | Derived from `00-state.md` |
+| `/th:status` shows | Derived from `00-state.md` |
 |---|---|
 | `waiting_gate_1` | `status: waiting` AND `phase: 1.6` (STAGE-GATE-1 emitted, no release yet) |
 | `waiting_gate_2` | `status: waiting` AND `phase: 3.6` AND `autonomous: false` (STAGE-GATE-2 between rounds) |
@@ -171,11 +171,11 @@ The detailed mode renders a structured narrative for one feature. **It is read-o
 
    If `00-pipeline-summary.md` is absent: skip this panel silently and continue to step 3 (pipeline ran before observability was wired up, or trace not yet initialized). Do NOT emit a noise placeholder — the deeper narrative below is still useful.
 
-   For the canonical observability views, point the reader to `/trace`:
+   For the canonical observability views, point the reader to `/th:trace`:
    ```
-   For tool effectiveness:  /trace {feature-name} --tools
-   For failures only:       /trace {feature-name} --fails
-   For raw events:          /trace {feature-name} --jsonl
+   For tool effectiveness:  /th:trace {feature-name} --tools
+   For failures only:       /th:trace {feature-name} --fails
+   For raw events:          /th:trace {feature-name} --jsonl
    ```
 
 3. **Read `00-state.md`.** Render in this sequence:
