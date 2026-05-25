@@ -133,6 +133,7 @@ suite_still_passing: true | false
 context7_consult: hit:N miss:N skipped:M
 memory_consult: search_nodes:N open_nodes:N
 kg_save_candidates: [...]
+tools: read:N write:N edit:N bash:N grep:N glob:N context7:N mcp_memory:N
 issues: {blockers — e.g., "bug-not-reproducible" — or "none"}
 ```
 
@@ -681,6 +682,7 @@ regression_test_status: failing | passing | skipped  # pre-fix-regression: 'fail
 context7_consult: hit:N miss:N skipped:M
 memory_consult: search_nodes:N open_nodes:N
 kg_save_candidates: [entity-name-1, entity-name-2]
+tools: read:N write:N edit:N bash:N grep:N glob:N context7:N mcp_memory:N
 issues: {list of failing tests, or "none"}
 ```
 

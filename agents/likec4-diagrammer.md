@@ -243,6 +243,8 @@ output: session-docs/{feature}/diagram.c4
 views: {list of view names}
 validation_cycles: {N}/3
 summary: {1-2 sentences: pattern used, views created, what's shown}
+context7_consult: hit:N miss:N skipped:N
+tools: read:N write:N edit:N bash:N grep:N glob:N context7:N mcp_memory:N
 issues: {blocking issues if failed/blocked, or "none"}
 ```
 

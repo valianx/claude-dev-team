@@ -120,6 +120,7 @@ summary: {N critical, M high findings, or "no findings"}
 context7_consult: hit:0 miss:0 skipped:1
 memory_consult: search_nodes:0 open_nodes:0
 kg_save_candidates: []
+tools: read:N write:N edit:N bash:N grep:N glob:N context7:N mcp_memory:N
 issues: {critical and high finding titles, or "none"}
 ```
 
@@ -743,6 +744,7 @@ summary: {1-2 sentences: N findings (X critical, Y high, Z medium), risk score, 
 context7_consult: hit:N miss:N skipped:M
 memory_consult: search_nodes:N open_nodes:N
 kg_save_candidates: [entity-name-1, entity-name-2]
+tools: read:N write:N edit:N bash:N grep:N glob:N context7:N mcp_memory:N
 issues: {critical and high findings titles, or "none"}
 ```
 

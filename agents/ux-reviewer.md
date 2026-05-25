@@ -176,4 +176,6 @@ findings: {critical: N, high: N, medium: N, suggestion: N}
 ac_added: {count of AC added, enrich mode only}
 component_reuse_flags: {count of reuse opportunities found}
 summary: {1-2 sentences}
+context7_consult: hit:N miss:N skipped:N
+tools: read:N write:N edit:N bash:N grep:N glob:N context7:N mcp_memory:N
 ```

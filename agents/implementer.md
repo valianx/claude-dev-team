@@ -363,6 +363,7 @@ status: success | failed | blocked
 output: session-docs/{feature-name}/02-implementation.md
 summary: {1-2 sentences: N files created/modified, key patterns used, any deviations}
 context7_consult: hit:N miss:N skipped:M
+tools: read:N write:N edit:N bash:N grep:N glob:N context7:N mcp_memory:N
 regression_test_passes: true | false   # type: fix | hotfix only; omit the line otherwise
 follow_ups_spotted: {N}                 # type: fix | hotfix only; omit the line otherwise
 issues: {list of blockers, or "none"}

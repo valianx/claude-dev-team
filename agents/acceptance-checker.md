@@ -227,6 +227,8 @@ status: success | failed | blocked
 verdict: pass | concerns | fail
 output: session-docs/{feature-name}/04-validation.md § Drift Analysis
 summary: {1-2 sentences: verdict + most relevant finding, or "no drift detected"}
+context7_consult: hit:N miss:N skipped:N
+tools: read:N write:N edit:N bash:N grep:N glob:N context7:N mcp_memory:N
 issues: {list of failing items, or "none"}
 ```
 

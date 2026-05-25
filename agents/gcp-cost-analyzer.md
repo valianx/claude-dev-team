@@ -817,6 +817,8 @@ agent: gcp-cost-analyzer
 status: success | failed | blocked
 output: session-docs/{feature-name}/00-gcp-costs.md
 summary: {1-2 sentences: N projects analyzed, total monthly spend ${N}, potential savings ${N}/mo, top finding}
+context7_consult: hit:N miss:N skipped:N
+tools: read:N write:N edit:N bash:N grep:N glob:N context7:N mcp_memory:N
 issues: {critical blockers or "none"}
 ```
 

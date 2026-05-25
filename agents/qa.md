@@ -144,6 +144,8 @@ mode: ratify-plan
 verdict: pass | fail
 output: session-docs/{feature-name}/01-plan.md (Plan Ratification section)
 summary: {N}/{N} AC covered (or: {M}/{N} AC covered, {K} gap)
+context7_consult: hit:N miss:N skipped:N
+tools: read:N write:N edit:N bash:N grep:N glob:N context7:N mcp_memory:N
 issues: {list of uncovered AC, or "none"}
 ```
 
@@ -192,6 +194,8 @@ mode: reconcile
 verdict: clean | amendments | drops
 output: session-docs/{feature-name}/04-validation.md (Reconciliation Decisions section)
 summary: {N} kept, {N} amended, {N} dropped
+context7_consult: hit:N miss:N skipped:N
+tools: read:N write:N edit:N bash:N grep:N glob:N context7:N mcp_memory:N
 issues: {list of dropped AC with one-line reason, or "none"}
 ```
 
@@ -252,8 +256,10 @@ mode: pr-review-qa
 output: .claude/pr-review-qa.md
 qa_status: pass | fail | partial | skipped-no-ac
 summary: {N/N AC passed, or "skipped — no AC found"}
+context7_consult: hit:N miss:N skipped:N
 memory_consult: search_nodes:0 open_nodes:0
 kg_save_candidates: []
+tools: read:N write:N edit:N bash:N grep:N glob:N context7:N mcp_memory:N
 issues: {list of failed AC, or "none"}
 ```
 
@@ -599,8 +605,10 @@ mode: validate | define-ac | ratify-plan | reconcile | review
 status: success | failed | blocked
 output: session-docs/{feature-name}/{04-validation|00-acceptance-criteria|01-architecture}.md
 summary: {1-2 sentences: N/N AC passed, any critical findings}
+context7_consult: hit:N miss:N skipped:N
 memory_consult: search_nodes:N open_nodes:N
 kg_save_candidates: [entity-name-1, entity-name-2]
+tools: read:N write:N edit:N bash:N grep:N glob:N context7:N mcp_memory:N
 regression_test_referenced: true | false | null  # validate mode for type: fix | hotfix only; null when bug_tier: 1 (Phase 2.0 skipped); omit otherwise
 reproduction_steps_validated: true | false      # validate mode for type: fix | hotfix only; omit otherwise
 issues: {list of failed criteria, or "none"}

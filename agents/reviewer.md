@@ -414,6 +414,8 @@ output: inline
 decision: APPROVE | CHANGES_REQUESTED
 event: APPROVE | REQUEST_CHANGES | COMMENT
 summary: {N critical, N suggestions, N nitpicks}
+context7_consult: hit:N miss:N skipped:N
+tools: read:N write:N edit:N bash:N grep:N glob:N context7:N mcp_memory:N
 inline_findings:
   - path: "src/service.ts"
     line: 42
@@ -457,6 +459,8 @@ status: success | failed | blocked
 mode: update-body
 output: inline
 summary: Updated review summary for PR #{number}
+context7_consult: hit:N miss:N skipped:N
+tools: read:N write:N edit:N bash:N grep:N glob:N context7:N mcp_memory:N
 review_body: |
   ## Revision de Codigo (Actualizada)
 
@@ -475,6 +479,8 @@ mode: reply
 output: inline
 thread_id: {comment_id}
 summary: Reply to thread on {path}:{line}
+context7_consult: hit:N miss:N skipped:N
+tools: read:N write:N edit:N bash:N grep:N glob:N context7:N mcp_memory:N
 reply_body: |
   {focused reply text — concise, relevant to the specific thread}
 ```
@@ -497,6 +503,8 @@ top_issues:
     severity: critical | suggestion | nitpick
     body: "{one-line description}"
   - {at most 3 entries — pick by impact: security > data loss > broken functionality > clarity}
+context7_consult: hit:N miss:N skipped:N
+tools: read:N write:N edit:N bash:N grep:N glob:N context7:N mcp_memory:N
 issues: {list of criticals if any, or "none"}
 ```
 

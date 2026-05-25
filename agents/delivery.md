@@ -858,6 +858,8 @@ agent: delivery
 status: success | failed | blocked | blocked-manual-push
 output: session-docs/{feature-name}/00-state.md § Delivery
 summary: {1-2 sentences: branch name, version X→Y, PR #N, CLAUDE.md sections updated}
+context7_consult: hit:N miss:N skipped:N
+tools: read:N write:N edit:N bash:N grep:N glob:N context7:N mcp_memory:N
 issues: {list of blockers, or "none"}
 ```
 
@@ -871,6 +873,8 @@ manual_action_required: true
 manual_action_file: session-docs/{feature-name}/inputs/pr-body.md
 manual_action_url: https://github.com/{owner}/{repo}/compare/main...{branch}?expand=1
 summary: PR not created automatically (gh unavailable). Operator paste required.
+context7_consult: hit:N miss:N skipped:N
+tools: read:N write:N edit:N bash:N grep:N glob:N context7:N mcp_memory:N
 issues: none
 ```
 

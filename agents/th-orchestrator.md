@@ -2314,10 +2314,13 @@ When an agent returns, you parse its status block and propagate any of the follo
 
 | Status-block line (from agent) | Maps to `tools` sub-object |
 |---|---|
+| `tools: read:N write:N edit:N bash:N grep:N glob:N context7:N mcp_memory:N` | `"tool_counts": {"read": N, "write": N, "edit": N, "bash": N, "grep": N, "glob": N, "context7": N, "mcp_memory": N}` |
 | `context7_consult: hit:N miss:N skipped:M` | `"context7": {"hit": N, "miss": N, "skipped": M}` |
 | `memory_consult: search_nodes:N open_nodes:N` | `"memory": {"search_nodes": N, "open_nodes": N}` |
 | `kg_save_candidates: [a, b]` (architect/qa/tester/security) | `"kg_save_candidates": ["a", "b"]` |
 | `kg_passive_capture: written` / `kg_passive_capture: skipped: <reason>` (delivery) | `"kg_passive_capture": "written"` / `"skipped"` / `"failed"` |
+
+**Source of each field:** The `tools:` line in each JSONL event is sourced from the agent's status block `tools:` line. Parse it as space-separated key:value pairs (e.g., `read:12 write:2 bash:5`) and store the non-zero counts in `tool_counts`. Zero counts can be omitted by the agent; treat absent keys as 0 when aggregating. The `tokens` and `duration_ms` fields come from the Agent() tool response metadata (`total_tokens`, `duration_ms`). Both sources are combined into the JSONL event — neither replaces the other.
 
 Omit any sub-object the agent did not report. If the agent reported none of them, omit the `tools` field entirely (do not write `"tools": {}`).
 

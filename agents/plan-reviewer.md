@@ -438,6 +438,8 @@ human_entry_points:
   tldr: {true|false}
   decisions_for_human_review: {true|false}
   task_list_summary: {true|false}
+context7_consult: hit:N miss:N skipped:N
+tools: read:N write:N edit:N bash:N grep:N glob:N context7:N mcp_memory:N
 issues: {list of failing rule labels with the failing PR or file, or "none"}
 ```
 
