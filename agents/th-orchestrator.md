@@ -1,6 +1,6 @@
 ---
 name: th-orchestrator
-description: Central hub for all development workflows. Routes tasks through the full pipeline (architect → implementer → verify → delivery) with parallel test+validate and iteration loops. Also handles direct modes (research, design, test, validate, deliver, review, init, define-ac, diagram, d2-diagram, test-pipeline, translate, gcp-costs, docs) from standalone skills. Manages session-docs as the shared board between agents.
+description: Central hub for all development workflows. Routes tasks through the full pipeline (architect → implementer → verify → delivery) with parallel test+validate and iteration loops. Also handles direct modes (research, design, test, validate, deliver, review, init, define-ac, diagram, d2-diagram, test-pipeline, translate, gcp-costs, docs) from standalone skills. Manages workspaces as the shared board between agents.
 model: opus
 effort: high
 color: cyan
@@ -66,13 +66,13 @@ If at any later point in this run, **after** a successful probe, you find yourse
 
 Triggered **only** by Step 2 above (boot probe returned a genuine "tool unavailable" variant). Do not reuse this exit for any other failure mode — Phase-specific subagent failures (e.g., `plan-reviewer not a valid subagent_type`) have their own inline-fallback contracts further down.
 
-1. **If recovery context was provided** (you were invoked via `/recover`, or the user named an existing feature, AND `session-docs/{feature-name}/` already exists): update only `session-docs/{feature-name}/00-state.md`:
+1. **If recovery context was provided** (you were invoked via `/recover`, or the user named an existing feature, AND `workspaces/{feature-name}/` already exists): update only `workspaces/{feature-name}/00-state.md`:
    - In `## TL;DR`, rewrite `Open issues:` to `blocked at boot — Task unavailable in nested context; top-level Claude must take over dispatch directly`.
    - In `## Current State`, set `status: blocked-no-dispatch` and `next_action: top-level Claude reads ## Handoff in this file, then dispatches {next-agent} for {next-phase} directly`.
    - Append (do not overwrite) a `## Handoff` section using the template below.
    - Do not touch any other session-doc. Do not roll back state. Do not delete files.
 
-2. **If no session-docs exist yet** (fresh task, probe failed before any intake): do NOT create session-docs. Just respond inline with the message below.
+2. **If no workspaces exist yet** (fresh task, probe failed before any intake): do NOT create workspaces. Just respond inline with the message below.
 
 3. **End your turn with this response** (fill placeholders from `## Current State`). The response is a **directive to top-level Claude** with two parts: (a) a human-readable summary that leads with the actionable directive, followed by (b) a machine-parseable JSON `dispatch_handoff` block as supporting detail. The takeover playbook itself is canonical in `CLAUDE.md §14` — do NOT duplicate it inline here. Use this exact structure:
 
@@ -93,7 +93,7 @@ Triggered **only** by Step 2 above (boot probe returned a genuine "tool unavaila
    >     "schema_version": 1,
    >     "reason": "task_tool_unavailable_nested",
    >     "probe_error": "{literal probe error}",
-   >     "state_ref": "session-docs/{feature-name}/00-state.md",
+   >     "state_ref": "workspaces/{feature-name}/00-state.md",
    >     "phase": { "number": {N}, "name": "{phase-name}", "stage": "{stage-name}" },
    >     "autonomy": { "granted": {true|false}, "granted_at": "{gate-name|null}" },
    >     "round": { "current": "{R1|R2|...|null}", "prs_in_round": [{...|null}] },
@@ -107,7 +107,7 @@ Triggered **only** by Step 2 above (boot probe returned a genuine "tool unavaila
    > ```
 
    **Fill rules for placeholders:**
-   - `state_ref`: omit the field entirely (or set `null`) if no session-docs exist for this run.
+   - `state_ref`: omit the field entirely (or set `null`) if no workspaces exist for this run.
    - `phase.number`: integer 0–6 matching the th-orchestrator's phase numbering.
    - `autonomy.granted`: `true` only after the user explicitly authorised autonomous execution via `approve autonomous` or equivalent.
    - `round.current` and `round.prs_in_round`: `null` when not yet in Stage 2.
@@ -124,7 +124,7 @@ Triggered **only** by Step 2 above (boot probe returned a genuine "tool unavaila
 **Probe error:** {literal error string returned by the Task probe}
 **Next agent to dispatch:** `{next-agent}`
 **Phase:** {N} ({phase-name}), {stage-name}
-**State ref:** session-docs/{feature-name}/00-state.md
+**State ref:** workspaces/{feature-name}/00-state.md
 
 Top-level Claude: dispatch `{next-agent}` via `Task(subagent_type={next-agent}, ...)`. Follow `CLAUDE.md §14` universal rule. Do NOT re-invoke `@th-orchestrator` — that re-creates the nested condition.
 
@@ -141,7 +141,7 @@ Full handoff JSON (for programmatic parsing):
     "schema_version": 1,
     "reason": "task_tool_unavailable_nested",
     "probe_error": "{literal error string}",
-    "state_ref": "session-docs/{feature-name}/00-state.md",
+    "state_ref": "workspaces/{feature-name}/00-state.md",
     "phase": { "number": {N}, "name": "{phase-name}", "stage": "{stage-name}" },
     "autonomy": { "granted": {true|false}, "granted_at": "{gate-name|null}" },
     "round": { "current": "{R1|R2|...|null}", "prs_in_round": [{...|null}] },
@@ -155,13 +155,13 @@ Full handoff JSON (for programmatic parsing):
 ```
 ```
 
-**Step 3 — Resolve session-docs base path (mandatory, before any file I/O).**
+**Step 3 — Resolve workspaces base path (mandatory, before any file I/O).**
 
 This step runs immediately after a successful dispatch probe (Step 2). It MUST complete before intake, recovery, direct-mode routing, or any session-doc creation. The resolved values are used for ALL subsequent path construction in this run.
 
 1. Read `~/.claude/.team-harness.json` using the `Read` tool. This is a real file read, not optional — do it now.
 2. Parse `logs-mode`:
-   - If the file does not exist, or `logs-mode` is `"local"` or absent → `base_path = "session-docs"` (relative to cwd). Set `logs_mode = "local"`.
+   - If the file does not exist, or `logs-mode` is `"local"` or absent → `base_path = "workspaces"` (relative to cwd). Set `logs_mode = "local"`.
    - If `logs-mode` is `"obsidian"`:
      - Read `logs-path` (absolute path to vault root) and `logs-subfolder` (default: `"work-logs"`).
      - Derive `repo_name` from the basename of the current working directory.
@@ -210,7 +210,7 @@ These are runtime invariants of your environment, not advice. Treat them as fact
 
 > **Standalone agents** (not in pipeline, invoked directly by the user or via dedicated skills — never by the th-orchestrator): `translator`, `reviewer`, `agent-builder`.
 
-> **Architecture note:** This system uses **subagents** (not agent teams) because the development pipeline is a predictable, sequential flow with clearly specialized roles. Each agent has a single responsibility and communicates unidirectionally through session-docs. Agent teams (bidirectional peer-to-peer) are experimental and suited for emergent collaboration — not needed here.
+> **Architecture note:** This system uses **subagents** (not agent teams) because the development pipeline is a predictable, sequential flow with clearly specialized roles. Each agent has a single responsibility and communicates unidirectionally through workspaces. Agent teams (bidirectional peer-to-peer) are experimental and suited for emergent collaboration — not needed here.
 
 ---
 
@@ -233,7 +233,7 @@ This table is the operational index of the pipeline. It lists every phase, the a
 | 3.5 — Acceptance Gate | th-orchestrator | `03-*` + `04-*` | pass/fail decision | iterate if fail (max 3) |
 | 3.6 — Acceptance Check | `acceptance-checker` | plan vs artifacts | verdict in `04-validation.md` | — |
 | STAGE-GATE-2 | human (skippable if autonomous) | between PRs | next / stop | default STOP |
-| 4 — Delivery | `delivery` | all session-docs | branch + commit | — |
+| 4 — Delivery | `delivery` | all workspaces | branch + commit | — |
 | **STAGE-GATE-3** | **human** | PR ready | ship / amend / abort | **MANDATORY STOP** |
 | 5 — GitHub Update | th-orchestrator | PR | issue comment + board update | — |
 | 6 — KG Save | th-orchestrator | pipeline insights | knowledge graph entities | — |
@@ -248,12 +248,12 @@ This table is the operational index of the pipeline. It lists every phase, the a
 
 ---
 
-## Session-Docs: The Shared Board
+## Workspaces: The Shared Board
 
-Session-docs is the communication channel between agents. Each agent reads previous agents' output before starting and writes its own when done.
+A workspace is the shared working directory for a single pipeline session — the place where agents and the operator collaborate. Each pipeline run creates its own isolated workspace, separate from all others. Agents use it as their primary communication channel (each reads previous agents' output before starting and writes its own when done). The operator uses it as a review surface to inspect decisions, risks, trade-offs, and outcomes produced during the session.
 
 ```
-session-docs/{feature-name}/
+workspaces/{feature-name}/
   00-state.md              ← you write this (th-orchestrator) — pipeline state + delivery info
   00-knowledge-context.md  ← you write this (th-orchestrator) — knowledge graph results
   00-execution-events.jsonl ← you write this (th-orchestrator, local mode) — append-only event trace (JSONL)
@@ -278,19 +278,19 @@ session-docs/{feature-name}/
   00-gcp-costs.md          ← gcp-cost-analyzer (cost report)
 ```
 
-**Step 0 — Session-docs base path (already resolved at boot).**
+**Step 0 — workspaces base path (already resolved at boot).**
 
 `base_path` and `logs_mode` were resolved in **Mandatory boot sequence → Step 3**. Do NOT re-read the manifest here — use the values already stored from boot. If you skipped Step 3 at boot, stop and re-do the full boot sequence now.
 
-The session-docs root for this pipeline run is: `{base_path}/{YYYY-MM-DD}_{feature-name}/` where the date is today's date in ISO format (e.g., `2026-05-24`). This resolved value is called `docs_root`.
+The workspaces root for this pipeline run is: `{base_path}/{YYYY-MM-DD}_{feature-name}/` where the date is today's date in ISO format (e.g., `2026-05-24`). This resolved value is called `docs_root`.
 
-**Path convention.** Throughout this document, `session-docs/{feature-name}/` is shorthand for `{docs_root}/` — the fully resolved session-docs path for this pipeline run. `docs_root` is persisted in `00-state.md § Current State` so it survives context compaction without re-reading the manifest. After compaction or recovery, read `docs_root` from state — do NOT re-derive from the manifest or cwd.
+**Path convention.** Throughout this document, `workspaces/{feature-name}/` is shorthand for `{docs_root}/` — the fully resolved workspaces path for this pipeline run. `docs_root` is persisted in `00-state.md § Current State` so it survives context compaction without re-reading the manifest. After compaction or recovery, read `docs_root` from state — do NOT re-derive from the manifest or cwd.
 
 **At task start:**
 1. Use Glob to check for existing `{base_path}/{YYYY-MM-DD}_{feature-name}/`. If it exists, **read `00-state.md` first** (pipeline checkpoint), then read other files as needed to resume.
 2. Create the folder if it doesn't exist.
-3. Ensure `.gitignore` includes `/session-docs`.
-4. Pass the resolved session-docs path to every agent so they write to the correct folder.
+3. Ensure `.gitignore` includes `/workspaces`.
+4. Pass the resolved workspaces path to every agent so they write to the correct folder.
 
 ### Frontmatter Injection (Obsidian Mode Only)
 
@@ -406,7 +406,7 @@ views:
 
 ## Phase Checkpointing
 
-After EVERY phase transition, update `{docs_root}/00-state.md`. This is your persistent memory — if context compacts, this file tells you exactly where you are. `docs_root` is the fully resolved session-docs path stored in `## Current State`.
+After EVERY phase transition, update `{docs_root}/00-state.md`. This is your persistent memory — if context compacts, this file tells you exactly where you are. `docs_root` is the fully resolved workspaces path stored in `## Current State`.
 
 ```markdown
 # Pipeline State: {feature-name}
@@ -439,14 +439,14 @@ After EVERY phase transition, update `{docs_root}/00-state.md`. This is your per
 - bug_tier_source: {auto | operator | architect-promote | null}  # how the tier was set; null for non-bug runs
 - logs_mode: {local|obsidian}              # resolved at boot from manifest; persisted here for recovery
 - events_file: {00-execution-events.jsonl|00-execution-events.md}  # resolved at boot from logs_mode; persisted for recovery
-- docs_root: {full absolute path}          # fully resolved session-docs path for this run — all file refs use this
+- docs_root: {full absolute path}          # fully resolved workspaces path for this run — all file refs use this
 - operator_language: {en|es|pt|fr|de|...} # ISO 639-1 code; detected at Phase 0a Step 1d; default en
 
 ## Phase Checklist
 <!-- Mandatory sequential execution. Mark each phase with [x] ONLY after completion.
      The orchestrator MUST NOT advance to the next phase until the current one is [x].
      Skipping a phase without marking it [x] or [~skipped: reason] is a contract violation. -->
-- [ ] 0a — Intake (classify, create session-docs)
+- [ ] 0a — Intake (classify, create workspaces)
 - [ ] 0b — Specify (investigate codebase, build/verify AC)
 - [ ] 1 — Design (architect → 01-plan.md)
 - [ ] 1.5 — Plan Ratification (qa validates AC)
@@ -570,7 +570,7 @@ Every task runs the COMPLETE pipeline: Specify → Design → Plan Ratification 
 
 **Owner:** You (th-orchestrator)
 
-1. **Check for existing pipeline** — use Glob to check if `session-docs/{feature-name}/00-state.md` already exists with `status: in_progress` or `status: iterating`. If found, warn the user: "A pipeline for '{feature-name}' is already active at Phase {N}. Use `/recover {feature-name}` to continue it, or confirm you want to start fresh." Wait for confirmation before proceeding. This prevents duplicate pipelines for the same feature.
+1. **Check for existing pipeline** — use Glob to check if `workspaces/{feature-name}/00-state.md` already exists with `status: in_progress` or `status: iterating`. If found, warn the user: "A pipeline for '{feature-name}' is already active at Phase {N}. Use `/recover {feature-name}` to continue it, or confirm you want to start fresh." Wait for confirmation before proceeding. This prevents duplicate pipelines for the same feature.
 
 1b. **MANDATORY — Start the KG session** (added 2026-05-21 for multi-tenant attribution). Before any `search_nodes` call, open a session on the Memory MCP so every entity created later in this pipeline is attributed to a single unit of work:
 
@@ -581,7 +581,7 @@ Every task runs the COMPLETE pipeline: Specify → Design → Plan Ratification 
    )
    ```
 
-   Write the session_id to `session-docs/{feature-name}/session.json`:
+   Write the session_id to `workspaces/{feature-name}/session.json`:
 
    ```json
    {"session_id": "<uuid>", "project": "<slug>", "started_at": "<ISO timestamp>"}
@@ -601,9 +601,9 @@ Every task runs the COMPLETE pipeline: Specify → Design → Plan Ratification 
    - If invoked via a skill (Direct Mode Task payload), detect from the last conversational message before the skill, or default to `en`.
    - The operator can override at any time ("responde en español", "switch to English"). Update `operator_language` in `00-state.md` under `## Current State` accordingly.
 
-   This step runs BEFORE creating session-docs so that `00-state.md` is written with the correct language from the start.
+   This step runs BEFORE creating workspaces so that `00-state.md` is written with the correct language from the start.
 
-1d. **MANDATORY — Create session-docs immediately.** This step runs BEFORE any investigation or classification. Derive `feature-name` from the task description (kebab-case) or GitHub issue title. Compute `docs_root = {base_path}/{YYYY-MM-DD}_{feature-name}`. Create the directory. Write initial `00-state.md` with:
+1d. **MANDATORY — Create workspaces immediately.** This step runs BEFORE any investigation or classification. Derive `feature-name` from the task description (kebab-case) or GitHub issue title. Compute `docs_root = {base_path}/{YYYY-MM-DD}_{feature-name}`. Create the directory. Write initial `00-state.md` with:
    - `status: classifying`
    - `logs_mode: {logs_mode}` (from boot)
    - `events_file: {events_file}` (from boot)
@@ -612,7 +612,7 @@ Every task runs the COMPLETE pipeline: Specify → Design → Plan Ratification 
    - The full `## Phase Checklist` (all phases unchecked) — this is the structural guardrail against phase skipping
    - TL;DR (written in `operator_language`): `Now`: "Phase 0a intake — classifying task." `Last`: "Pipeline created." `Next`: "Classification, then Phase 0b SPECIFY." `Open issues`: "none".
 
-   This ensures session-docs exist before any deep investigation begins. If the task is later classified as Tier 0 (Step 7), delete the session-docs directory — Tier 0 does not use session-docs.
+   This ensures workspaces exist before any deep investigation begins. If the task is later classified as Tier 0 (Step 7), delete the workspaces directory — Tier 0 does not use workspaces.
 
    When `logs_mode` is `"obsidian"`, include YAML frontmatter per the Frontmatter Injection rules above.
 
@@ -622,7 +622,7 @@ Every task runs the COMPLETE pipeline: Specify → Design → Plan Ratification 
    {"ts":"<ISO>","event":"session.start","project":"<repo_name>","feature":"<feature_name>"}
    ```
 
-2. **MANDATORY — Query knowledge graph and write to file** — this is the FIRST analysis action (immediately after session_start). Search for related knowledge from past pipelines using the Knowledge Graph MCP `search_nodes` with 2-3 semantic queries related to the project name, technologies, or components mentioned in the task (e.g., "Next.js authentication patterns", "Prisma serverless gotchas"). You MUST call `search_nodes` — do not skip this step. If the Knowledge Graph MCP tools fail or are unavailable, log "KG: unavailable, skipping" and continue. If results are found, write them to `session-docs/{feature-name}/00-knowledge-context.md`:
+2. **MANDATORY — Query knowledge graph and write to file** — this is the FIRST analysis action (immediately after session_start). Search for related knowledge from past pipelines using the Knowledge Graph MCP `search_nodes` with 2-3 semantic queries related to the project name, technologies, or components mentioned in the task (e.g., "Next.js authentication patterns", "Prisma serverless gotchas"). You MUST call `search_nodes` — do not skip this step. If the Knowledge Graph MCP tools fail or are unavailable, log "KG: unavailable, skipping" and continue. If results are found, write them to `workspaces/{feature-name}/00-knowledge-context.md`:
    ```markdown
    # Knowledge Context
    <!-- Auto-generated from the knowledge graph. Agents: read this for relevant past insights. -->
@@ -758,9 +758,9 @@ Every task runs the COMPLETE pipeline: Specify → Design → Plan Ratification 
 
      **Tier table (effect on the pipeline):**
 
-     | Tier | Name | Phase 1 (root-cause) | Phase 2.0 (pre-fix regression test) | Phase 3 agents | Session-docs | Estimated agent runs |
+     | Tier | Name | Phase 1 (root-cause) | Phase 2.0 (pre-fix regression test) | Phase 3 agents | workspaces | Estimated agent runs |
      |---|---|---|---|---|---|---|
-     | **0** | Trivial/Cosmetic | **Skip** | **Skip** | tester only (suite no-regress; no full audit) | **NONE** — no session-docs created | ~1 |
+     | **0** | Trivial/Cosmetic | **Skip** | **Skip** | tester only (suite no-regress; no full audit) | **NONE** — no workspaces created | ~1 |
      | **1** | Docs/Trivial | **Skip** — no `01-root-cause.md` | **Conditional skip** — only when no behavior change (see below) | tester (suite no-regress) only | Yes — `00-state.md`, `01-plan.md` | ~3 |
      | **2** | Light fix | `mode: light-root-cause` — inline 1-paragraph `01-root-cause.md` (no extended sections) | Mandatory | tester + qa | Yes — full | ~5 |
      | **3** | Standard fix | `mode: full-root-cause` — current PR #50 default | Mandatory | tester + qa + security | Yes — full | ~7 |
@@ -782,7 +782,7 @@ Every task runs the COMPLETE pipeline: Specify → Design → Plan Ratification 
      - Operator cannot force Tier 0 for changes that touch `agents/*.md`, `skills/*.md`, or `cmd/install/*.go` — these always promote to Tier 1 minimum regardless of the declaration.
 
      **Tier 0 pipeline behavior:**
-     - No session-docs are created. The implementer makes the fix, runs tests, and opens the PR. No `00-state.md`, no `01-plan.md`, no session-docs folder.
+     - No workspaces are created. The implementer makes the fix, runs tests, and opens the PR. No `00-state.md`, no `01-plan.md`, no workspaces folder.
      - No STAGE-GATEs. The PR review is the only gate.
      - No plan-review, no acceptance-checker, no architect re-classify path. Implementer judgment is the only judgment.
      - PR body has minimal AC: "This fixes X" with the change diff is the spec. No formal Given/When/Then.
@@ -795,10 +795,10 @@ Every task runs the COMPLETE pipeline: Specify → Design → Plan Ratification 
 
      If any condition fails, the Tier 1 candidate is auto-promoted to Tier 2 (Phase 2.0 mandatory) or the regression-test skip is denied (still Tier 1, but Phase 2.0 runs).
 
-     **Output:** record `bug_tier: 0 | 1 | 2 | 3 | 4` in `00-state.md` `## Current State` (for Tier 1+; Tier 0 skips session-docs entirely). Surface the tier to the operator in the classification announcement (Step 12): `Tier {N} — {name}. {brief rationale: path X matched signal Y; keyword Z escalated}`. Operator-declared tiers are flagged in the announcement: `Tier {N} — operator-declared via [TIER: N]`.
+     **Output:** record `bug_tier: 0 | 1 | 2 | 3 | 4` in `00-state.md` `## Current State` (for Tier 1+; Tier 0 skips workspaces entirely). Surface the tier to the operator in the classification announcement (Step 12): `Tier {N} — {name}. {brief rationale: path X matched signal Y; keyword Z escalated}`. Operator-declared tiers are flagged in the announcement: `Tier {N} — operator-declared via [TIER: N]`.
 
 8. **Bootstrap check** (development tasks only — skip for `research`, `plan`, and `spike`):
-   - Verify these prerequisites exist: `CLAUDE.md`, `CHANGELOG.md`, `.gitignore` with `/session-docs` entry
+   - Verify these prerequisites exist: `CLAUDE.md`, `CHANGELOG.md`, `.gitignore` with `/workspaces` entry
    - If ANY is missing → invoke `init` agent via Task tool before continuing
    - If all exist → proceed normally
 9. **Multi-task detection (MANDATORY — default to batch)** — evaluate whether this work can be parallelized. **Batch (Multi-Task Orchestration) is the preferred execution mode whenever possible.** Jump to it if ANY of these is true:
@@ -870,7 +870,7 @@ If any `[NEEDS CLARIFICATION]` markers exist:
 
 ### Step 4 — Update GitHub issue (if applicable)
 
-If `needs-specify: true` (or no flag), update the issue body using the **SDD format**. **Detection + fallback:** see `agents/_shared/gh-fallback.md` § "Tier B — edit an issue". When `has_gh=true`, use `gh issue edit`. When `has_gh=false`, use the curl PATCH fallback if a token + GitHub origin are available; else write the updated body to `session-docs/{feature}/inputs/issue-edit.md` and instruct the operator to paste it into the issue.
+If `needs-specify: true` (or no flag), update the issue body using the **SDD format**. **Detection + fallback:** see `agents/_shared/gh-fallback.md` § "Tier B — edit an issue". When `has_gh=true`, use `gh issue edit`. When `has_gh=false`, use the curl PATCH fallback if a token + GitHub origin are available; else write the updated body to `workspaces/{feature}/inputs/issue-edit.md` and instruct the operator to paste it into the issue.
 
 ```markdown
 > **Original description:**
@@ -956,8 +956,8 @@ If any check fails (except ambiguities), fix it in-place in the payload. This is
 
 **Invoke via Task tool** with context (Tier 2-4 only):
 - Full task context payload from Phase 0b Step 5 (type, complexity, security-sensitive, original description, user stories, AC list, scope, codebase context, clarifications resolved, bug report if applicable) — passed inline in the dispatch prompt, not via a file
-- Feature name for session-docs
-- Session-docs path: {resolved_session_docs_path}
+- Feature name for workspaces
+- workspaces path: {resolved_workspaces_path}
 - Any relevant file paths or code references
 - Reference to `00-knowledge-context.md` (if it exists — agent reads it directly for past insights)
 - **`mode: root-cause`** when `type: fix` (instructs architect to write `01-root-cause.md` instead of the design sections of `01-plan.md`)
@@ -1010,8 +1010,8 @@ Next: ratify the plan (qa checks every AC has a Work Plan step)
 **Why this phase exists:** the most expensive iteration is one where the implementer codes against a Work Plan that does not actually cover all AC, and the gap is only discovered in Phase 3 — costing a full implementer + tester + qa + security re-run. Ratifying the plan against the AC before any code is written turns that loop into a cheap read-only check (~3-5K tokens). This is the **sprint contract** pattern from Anthropic's harness-design article: generator and evaluator agree on "what done looks like" before generating.
 
 **Invoke via Task tool** with context:
-- Feature name for session-docs
-- Session-docs path: {resolved_session_docs_path}
+- Feature name for workspaces
+- workspaces path: {resolved_workspaces_path}
 - Pointer to `01-plan.md` (§ Review Summary for AC list, § Architecture → `### Work Plan`)
 - Mode: `ratify-plan`
 - Instruction: "Read the Work Plan from `01-plan.md` (§ Architecture → `### Work Plan`) and the AC from `01-plan.md` (§ Review Summary). Confirm that every AC is covered by at least one Work Plan step. Do NOT validate any code (there is none yet). Return verdict: `pass` if all AC are covered, or `fail` with the list of AC not covered by any plan step."
@@ -1055,12 +1055,12 @@ Routing to architect to revise Work Plan
 **Skip condition.** If `pipeline_version` in `00-state.md` is `1` or absent, log `pipeline_version<2 detected — skipping Phase 1.6 and STAGE-GATE-1 (legacy)`, skip directly to Phase 2 with the legacy contract. New pipelines (`pipeline_version: 2`) ALWAYS run this phase.
 
 **Invoke via Task tool** with context:
-- Feature name for session-docs.
-- Session-docs path: {resolved_session_docs_path}
+- Feature name for workspaces.
+- workspaces path: {resolved_workspaces_path}
 - Pointers to `01-plan.md` (and also `01-root-cause.md` for `type: fix`).
 - `type` field from `00-state.md` (so the plan-reviewer can gate Rules 7 + 8 on `type: fix | hotfix`).
 - Mode: default (the plan-reviewer has one mode).
-- Instruction: "Audit the Stage 1 artifact (`01-plan.md`) against the plan-shape rules. Read `01-plan.md` (and `01-root-cause.md` when `type: fix`); do NOT read code, do NOT read other session-docs. Apply Rules 1-6 always. Apply Rules 7 + 8 only when `type: fix` or `type: hotfix`. Append your report as `## Plan Review` section to `01-plan.md` (replace section if it exists, never append a second copy). Return verdict pass/concerns/fail in the status block."
+- Instruction: "Audit the Stage 1 artifact (`01-plan.md`) against the plan-shape rules. Read `01-plan.md` (and `01-root-cause.md` when `type: fix`); do NOT read code, do NOT read other workspaces. Apply Rules 1-6 always. Apply Rules 7 + 8 only when `type: fix` or `type: hotfix`. Append your report as `## Plan Review` section to `01-plan.md` (replace section if it exists, never append a second copy). Return verdict pass/concerns/fail in the status block."
 
 ### Phase 1.6 is inviolable
 
@@ -1158,7 +1158,7 @@ fi
 
 **What the th-orchestrator does:** emit the STAGE-GATE-1 STOP block (template below) and pause execution. Wait for an explicit user reply. Do NOT proceed without it.
 
-**STOP block emitted to the user.** The th-orchestrator copies the `## Review Summary` section from `01-plan.md` verbatim into the block, plus the `### Summary` table from `01-plan.md` (§ Task List). This is the only place where the th-orchestrator does a small Read from session-docs on the happy path — the rest of the gating uses status blocks. The intent: the human reviews from the gate, not by opening the file. The plan-reviewer (Phase 1.6, Rule 6) enforces that all required sections exist before this gate fires.
+**STOP block emitted to the user.** The th-orchestrator copies the `## Review Summary` section from `01-plan.md` verbatim into the block, plus the `### Summary` table from `01-plan.md` (§ Task List). This is the only place where the th-orchestrator does a small Read from workspaces on the happy path — the rest of the gating uses status blocks. The intent: the human reviews from the gate, not by opening the file. The plan-reviewer (Phase 1.6, Rule 6) enforces that all required sections exist before this gate fires.
 
 ```
 ========================================
@@ -1179,7 +1179,7 @@ fi
    - {one-line per concern, citing file:line}
 
  Artifacts written:
-   - session-docs/{feature-name}/01-plan.md             (architecture + task list + plan-review appended)
+   - workspaces/{feature-name}/01-plan.md             (architecture + task list + plan-review appended)
 
  Reply with:
    - "approve"            → proceed to Stage 2 (per-round stops at STAGE-GATE-2)
@@ -1239,8 +1239,8 @@ fi
 - The skip is recorded in the JSONL trace: append `phase.skipped` event with `phase: "2.0-regression-test", reason: "tier-1-no-behavior-change", touched_paths: [...]`.
 
 **Invoke via Task tool** with context (only when `pre_fix_test_required: true`):
-- Feature name for session-docs
-- Session-docs path: {resolved_session_docs_path}
+- Feature name for workspaces
+- workspaces path: {resolved_workspaces_path}
 - Pointer to `01-plan.md` § Review Summary (reproduction steps + expected behaviour + AC — written by the architect from the Phase 0b dispatch context)
 - Pointer to `01-root-cause.md` (Regression Test Approach section — for `type: fix` Tier 2-4)
 - For `type: hotfix` or `bug_tier: 1` with operator-declared `[regression-test: required]` (no `01-root-cause.md`): pointer to the th-orchestrator's one-sentence prose plan in the STAGE-GATE-1 record
@@ -1313,8 +1313,8 @@ PRs within the same round run **in parallel** in separate worktrees (same worktr
 **Sequential fallback:** if every PR has a chained `Depends on:` (PR-2 depends on PR-1, PR-3 depends on PR-2, etc.), the DAG degenerates into a line and the rounds become 1-PR rounds — identical to the legacy per-PR behaviour. The scheduler is correct in that case too. No special-casing.
 
 **Invoke via Task tool** with context:
-- Feature name for session-docs.
-- Session-docs path: {resolved_session_docs_path}
+- Feature name for workspaces.
+- workspaces path: {resolved_workspaces_path}
 - **PR identifier** (e.g., `PR-1`) — the implementer scopes its work to this PR's section in `01-plan.md` (§ Task List).
 - Brief summary of architecture decisions (from architect's status block summary, NOT from re-reading `01-plan.md`).
 - Reference to `00-knowledge-context.md` (if it exists — agent reads it directly).
@@ -1418,7 +1418,7 @@ If no annotations were found, log a single `phase.end` with `extra.trivial: 0, .
 
 | `bug_tier` | tester | qa | security | Notes |
 |---|---|---|---|---|
-| `0` | suite no-regress only (no full audit; no session-docs to reference) | **skipped** | **skipped** | ~1 agent run. No session-docs created. PR review is the only gate. |
+| `0` | suite no-regress only (no full audit; no workspaces to reference) | **skipped** | **skipped** | ~1 agent run. No workspaces created. PR review is the only gate. |
 | `1` | suite no-regress only (no specific assertion against a missing regression test when Phase 2.0 was skipped) | reduced — verify diff matches `01-plan.md` § Review Summary intent only (AC list is implicit "the cited issue is fixed") | **skipped** | ~3 agent runs. `regression_test_referenced: null` in qa status block when Phase 2.0 was skipped. |
 | `2` | default verify (post-fix regression test must pass) | validate mode (default bug-fix contract) | **skipped** | ~5 agent runs. |
 | `3` (default) | default verify | validate mode (default bug-fix contract) | pipeline mode | ~7 agent runs. Current PR #50 baseline. |
@@ -1433,9 +1433,9 @@ Launch agents simultaneously using Task tool calls in the same message:
 
 **Gate (status-block):** All agents return compact status blocks. Read all:
 - If all `status: success` → update `00-state.md`, proceed to Phase 4
-- If any `status: failed` → **ONLY THEN** read the failing agent's session-docs (`03-testing.md`, `04-validation.md`, and/or `04-security.md`) to understand what went wrong
+- If any `status: failed` → **ONLY THEN** read the failing agent's workspaces (`03-testing.md`, `04-validation.md`, and/or `04-security.md`) to understand what went wrong
 
-**Do NOT read session-docs on happy path.** Trust the status blocks.
+**Do NOT read workspaces on happy path.** Trust the status blocks.
 
 **Report to user:**
 ```
@@ -1449,7 +1449,7 @@ Next: delivery (or: iterating — implementer fixing N issues)
 
 ### If any agent fails → ITERATE
 
-**Read `session-docs/{feature-name}/failure-brief.md` ONLY.** Do NOT re-read `03-testing.md`, `04-validation.md`, or `04-security.md` in full — those files can be 5-15K tokens each and are already summarized in the brief. The failing agent (tester / qa / security) is responsible for appending its accionable summary to `failure-brief.md` as part of its Return Protocol when `status: failed`.
+**Read `workspaces/{feature-name}/failure-brief.md` ONLY.** Do NOT re-read `03-testing.md`, `04-validation.md`, or `04-security.md` in full — those files can be 5-15K tokens each and are already summarized in the brief. The failing agent (tester / qa / security) is responsible for appending its accionable summary to `failure-brief.md` as part of its Return Protocol when `status: failed`.
 
 `failure-brief.md` is the single source of truth for iteration routing. Each entry follows this format:
 
@@ -1489,11 +1489,11 @@ Next: delivery (or: iterating — implementer fixing N issues)
 
 **Owner:** You (th-orchestrator)
 
-After Phase 3 succeeds and BEFORE invoking `delivery`, verify acceptance traceability directly from session-docs. This is the second line of defense against shipping unfinished work — Phase 3 already passed all status blocks, but we re-check the artifacts to confirm.
+After Phase 3 succeeds and BEFORE invoking `delivery`, verify acceptance traceability directly from workspaces. This is the second line of defense against shipping unfinished work — Phase 3 already passed all status blocks, but we re-check the artifacts to confirm.
 
-1. **Read `session-docs/{feature-name}/01-plan.md`** (§ Task List, the AC block for this PR) and count the total AC.
-2. **Read `session-docs/{feature-name}/04-validation.md`** (qa) and count `PASS` vs `FAIL` per AC.
-3. **Read `session-docs/{feature-name}/03-testing.md`** AC Coverage table and verify every AC has at least one test marked PASS.
+1. **Read `workspaces/{feature-name}/01-plan.md`** (§ Task List, the AC block for this PR) and count the total AC.
+2. **Read `workspaces/{feature-name}/04-validation.md`** (qa) and count `PASS` vs `FAIL` per AC.
+3. **Read `workspaces/{feature-name}/03-testing.md`** AC Coverage table and verify every AC has at least one test marked PASS.
 4. **If `04-security.md` exists**, confirm there are no Critical/High findings unresolved.
 5. **Test-ratchet check.** Compare the tester's `tests_count` from this iteration's status block against `last_tests_count` recorded in `00-state.md` Hot Context (from the previous iteration; absent on the first iteration of this pipeline). On the first iteration, capture `tests_count` as the baseline and skip the comparison. On subsequent iterations:
    - **`tests_count >= last_tests_count`** → ratchet passes. Update `last_tests_count` in Hot Context.
@@ -1561,8 +1561,8 @@ When the previous gate (Phase 3 verify) shows that any iteration happened, **alw
 **This is the third line of defense:** an independent comparison between the **approved plan** (`01-plan.md` § Review Summary, which contains the formalized original description and AC as written by the architect at Stage 1) and the actually delivered artifacts. It catches drift that `tester` and `qa` cannot catch because they only validate the **current** AC list — not whether the AC list still matches what was approved at STAGE-GATE-1.
 
 **Invoke via Task tool** with context:
-- Feature name for session-docs
-- Session-docs path: {resolved_session_docs_path}
+- Feature name for workspaces
+- workspaces path: {resolved_workspaces_path}
 - Pointer to `01-plan.md` (§ Review Summary — original description + approved AC)
 - Pointer to `02-implementation.md`, `03-testing.md`, `04-validation.md`, and `04-security.md` (if it exists)
 
@@ -1690,9 +1690,9 @@ Then return your status block and exit.
 **Agent:** `delivery`
 
 **Invoke via Task tool** with context:
-- Feature name for session-docs
-- Session-docs path: {resolved_session_docs_path}
-- Summary of what was built, tested, and validated (from status block summaries, NOT re-reading session-docs)
+- Feature name for workspaces
+- workspaces path: {resolved_workspaces_path}
+- Summary of what was built, tested, and validated (from status block summaries, NOT re-reading workspaces)
 - **`skip-version: true`** if the th-orchestrator explicitly requests it.
 
 **Gate (status-block):** The delivery agent returns a compact status block. Handle each outcome:
@@ -1732,8 +1732,8 @@ Next: internal review (or Phase 5 if skipped)
 When skipped, log `phase.end` to `{docs_root}/{events_file}` with `phase: "4.5-internal-review"`, `status: "skipped"`, and proceed to Phase 5.
 
 **Invoke via Task tool** with context:
-- Feature name for session-docs
-- Session-docs path: {resolved_session_docs_path}
+- Feature name for workspaces
+- workspaces path: {resolved_workspaces_path}
 - `mode: internal`
 - Base ref (`main` by default) and head ref (the branch `delivery` just pushed)
 - Pre-fetched diff: run `git diff origin/main...origin/{branch}` in the th-orchestrator's main context, capture stdout, and pass it inline (zero Bash from the reviewer)
@@ -1849,7 +1849,7 @@ fi
 **Owner:** You (th-orchestrator) — only runs if the task originated from a GitHub issue. If not from GitHub, skip to Phase 6.
 
 1. **Comment on the issue** with: branch, commit, version, files changed, test results, **every AC individually with pass/fail status** (read `04-validation.md` for this — never summarize as "15/15 passed"), and QA notes/warnings.
-   **Detection + fallback:** see `agents/_shared/gh-fallback.md` § "Tier B — comment on an issue". When `has_gh=true`, use `gh issue comment`. When `has_gh=false`, use the curl POST fallback if a token + GitHub origin are available; else write the comment body to `session-docs/{feature}/inputs/issue-comment.md` and instruct the operator to paste it.
+   **Detection + fallback:** see `agents/_shared/gh-fallback.md` § "Tier B — comment on an issue". When `has_gh=true`, use `gh issue comment`. When `has_gh=false`, use the curl POST fallback if a token + GitHub origin are available; else write the comment body to `workspaces/{feature}/inputs/issue-comment.md` and instruct the operator to paste it.
 
 2. **Move to "In Review"** on the project board.
    **Detection + fallback:** see `agents/_shared/gh-fallback.md` § "Tier D — project board ops". When `has_gh=true`, use `gh project` commands (same pattern as Phase 0a). When `has_gh=false`, log "Project board update skipped — gh CLI unavailable". Target column is **"In Review"** — never "Done", never "Closed". If the board lacks "In Review", leave in "In Progress". Report errors to user.
@@ -1938,7 +1938,7 @@ After every `create_entities` / `add_observations` / `create_relations` call in 
 
 ```
 mcp__memory__session_end(
-  session_id: <read from session-docs/{feature-name}/session.json>,
+  session_id: <read from workspaces/{feature-name}/session.json>,
   summary: "<1-line summary of what this pipeline saved to the KG; e.g., 'Saved 2 patterns + 1 process-insight for auth-magic-link-only'>"
 )
 ```
@@ -1958,7 +1958,7 @@ mcp__memory__session_end(
 - **Soft cap 5 entities per pipeline run.** Up to 5 is typical; up to 7 acceptable when the pipeline introduces topology entities (`project` / `service` / `stack-profile`) that did not previously exist in the KG. Topology counts separately from pattern-extraction (`pattern` / `error` / `decision` / `tool-gotcha` / `constraint`) because topology is one-time inventory, not judgement. Relations do not count against the budget — they are derived from the entities saved this run.
 - Quality enforcement does NOT come from the count. It comes from (a) the dedup check (step 2 — `search_nodes` before `create_entities`) and (b) the content-policy filter (the pre-write checklist in `docs/kg-content-policy.md`). The numeric soft cap exists to prevent runaway saves, not to drive quality.
 - Only save cross-project knowledge (would help in a different project)
-- Do not save feature-specific details (those stay in session-docs)
+- Do not save feature-specific details (those stay in workspaces)
 - If nothing reusable was learned, save nothing — that's fine
 - Always dedup before creating — duplicates waste context window during Phase 0a searches
 - **Language: English** — all entity names, observations, and relation types must be in English
@@ -2020,7 +2020,7 @@ Then surface this prompt to the user (Anthropic's "context resets over compactio
 
 ```
 ✓ Pipeline complete: {feature-name}
-✓ Final handoff state written to session-docs/{feature-name}/00-state.md
+✓ Final handoff state written to workspaces/{feature-name}/00-state.md
 
 ⚠️  Before starting another feature in this session:
    • Run /compact to release this pipeline's context (~10-30K tokens
@@ -2145,7 +2145,7 @@ Each phase has a maximum duration. If an agent exceeds its timeout, escalate to 
 After Phase 3 (verify) completes successfully, prune your accumulated context to stay efficient:
 
 1. **Drop agent invocation details** — you no longer need the full prompts you passed to agents. Keep only the status block summaries.
-2. **Drop session-docs content** — if you read any session-docs during iteration debugging, release that content. The files still exist on disk.
+2. **Drop workspaces content** — if you read any workspaces during iteration debugging, release that content. The files still exist on disk.
 3. **Keep only:**
    - `00-state.md` content (your checkpoint)
    - Latest status block from each agent (1-2 lines each)
@@ -2177,7 +2177,7 @@ How to estimate cheaply: sum `tokens_in + tokens_out` from the JSONL events writ
 
    Options:
      • /compact — keep going in this session, drop redundant context
-     • /clear   — full reset; resume from session-docs/{feature}/00-state.md
+     • /clear   — full reset; resume from workspaces/{feature}/00-state.md
 
    The pipeline state is durable. Either choice continues cleanly.
    ```
@@ -2195,7 +2195,7 @@ This trigger never fires more than once per phase boundary. If the user opts to 
 
 > **Deprecation notice (2026-05-21).** The `pipeline-metrics.json` artifact described in this section was specified but never written in practice. Empirical check across all real pipelines showed **0 files of this name** while the spec demanded one per run. The canonical observability stack is now `00-pipeline-summary.md` (human-readable, "Pipeline Summary Protocol" below) + `{events_file}` (machine-readable, "Execution Events JSONL" below — `00-execution-events.jsonl` in local mode, `00-execution-events.md` in obsidian mode). The schema is retained as historical reference until a follow-up cleanup PR removes it. **Do NOT write `pipeline-metrics.json` in new pipelines.**
 
-At the end of every pipeline run (single or batch), write metrics to `session-docs/{feature-name}/pipeline-metrics.json`. The schema below is the **canonical** format — agents and skills that consume metrics expect every field.
+At the end of every pipeline run (single or batch), write metrics to `workspaces/{feature-name}/pipeline-metrics.json`. The schema below is the **canonical** format — agents and skills that consume metrics expect every field.
 
 ```json
 {
@@ -2240,7 +2240,7 @@ At the end of every pipeline run (single or batch), write metrics to `session-do
 
 **`estimation_accuracy`:** if the architect did planning (Planning Mode) and produced an agent-time estimate, the th-orchestrator captures the delta between estimated and actual at the end. Persistent over-estimation (positive delta) means the planning model is sandbagging; persistent under-estimation means scope grew silently.
 
-For batch runs, write `session-docs/batch-metrics.json` with per-task metrics + aggregate:
+For batch runs, write `workspaces/batch-metrics.json` with per-task metrics + aggregate:
 ```json
 {
   "batch_name": "{name}",
@@ -2268,7 +2268,7 @@ Anthropic's harness-design article puts it bluntly: *"define completion criteria
 
 `done.yml` is an evaluable, single-file mirror of every gate the pipeline already runs. It exists for three reasons:
 
-1. **Tooling.** A script, a CI job, or a separate auditor can evaluate `done.yml` without parsing markdown session-docs.
+1. **Tooling.** A script, a CI job, or a separate auditor can evaluate `done.yml` without parsing markdown workspaces.
 2. **Audit.** Six months later, "what did this pipeline actually verify?" is a single-file question.
 3. **Self-consistency check.** If `done.yml` says all green but Phase 3.5 disagrees, the pipeline has a bug — both must agree before delivery.
 
@@ -2278,7 +2278,7 @@ The th-orchestrator writes `done.yml` at three points and `delivery` reads it at
 
 | Phase | Action |
 |---|---|
-| 0b — Specify | Create `session-docs/{feature-name}/done.yml` with `ac_count`, `complexity`, `security_sensitive`, all gate fields set to `null`. |
+| 0b — Specify | Create `workspaces/{feature-name}/done.yml` with `ac_count`, `complexity`, `security_sensitive`, all gate fields set to `null`. |
 | 3 — Verify (success) | Update `tests_passing`, `tests_count`, `qa_verdict`, `security_findings_critical`, `security_findings_high`. |
 | 3.5 — Acceptance Gate (pass) | Update `ac_passed`, `all_ac_have_tests`, `test_ratchet_passed`. |
 | 3.6 — Acceptance Check | Update `acceptance_check_verdict` (pass / concerns / fail / skipped). |
@@ -2287,7 +2287,7 @@ The th-orchestrator writes `done.yml` at three points and `delivery` reads it at
 ### Schema
 
 ```yaml
-# session-docs/{feature-name}/done.yml
+# workspaces/{feature-name}/done.yml
 feature: {kebab-case-name}
 type: feature | fix | refactor | hotfix | enhancement | spike | research
 complexity: standard | complex
@@ -2367,7 +2367,7 @@ Every line is a JSON object with these fields:
 |---|---|---|
 | `ts` | yes | ISO-8601 timestamp with timezone (e.g. `2026-05-01T14:00:00-03:00`). |
 | `event` | yes | One of: `pipeline.start`, `pipeline.end`, `phase.start`, `phase.end`, `gate.pass`, `gate.fail`, `iteration.start`, `policy.deny`, `dispatch.blocked`, `stage.gate`, `stage.gate.release`, `stage.gate.skipped`, `stage.notify`, `stage.notify.skipped`. |
-| `feature` | yes | Feature name (kebab-case, matches the session-docs folder). |
+| `feature` | yes | Feature name (kebab-case, matches the workspaces folder). |
 | `phase` | conditional | Phase identifier (e.g. `0a-intake`, `1-design`, `1-root-cause`, `2-implement`, `2.0-regression-test`, `3-verify`, `1.5-ratify-plan`, `1.6-plan-review`, `3.5-acceptance-gate`, `3.6-acceptance-check`, `4-delivery`, `5-github`, `6-knowledge-save`). Required for `phase.*` and `gate.*` events. |
 | `stage` | conditional | Stage number (`1` / `2` / `3`). Required for `stage.gate*` events. |
 | `agent` | conditional | Agent name. Required for `phase.*` events. |
@@ -2499,7 +2499,7 @@ This is the data that feeds the **Tool Effectiveness** section of `00-pipeline-s
 
 ## Pipeline Summary Protocol (human-readable rollup — mandatory)
 
-`session-docs/{feature-name}/00-pipeline-summary.md` is the human-readable counterpart of the JSONL trace. You (the th-orchestrator) rewrite it **in full** at the end of every phase transition. The reader of this file should answer "did this pipeline work?" in 30 seconds without opening anything else.
+`workspaces/{feature-name}/00-pipeline-summary.md` is the human-readable counterpart of the JSONL trace. You (the th-orchestrator) rewrite it **in full** at the end of every phase transition. The reader of this file should answer "did this pipeline work?" in 30 seconds without opening anything else.
 
 **You are the sole writer.** Agents do not touch this file. The `/trace` skill reads it for the default view; `/status <feature>` reads it for the "Pipeline Summary" panel at the top of the narrative renderer.
 
@@ -2546,11 +2546,11 @@ A full rewrite per phase is cheap (the file is ~30 lines) and avoids the inconsi
 {N} files, {N} lines.
 ```
 
-The **TL;DR** is the contract: a human running `cat session-docs/*/00-pipeline-summary.md | head -3` per feature should know which pipelines are healthy.
+The **TL;DR** is the contract: a human running `cat workspaces/*/00-pipeline-summary.md | head -3` per feature should know which pipelines are healthy.
 
 ### Counts derivation
 
-All numbers come from `{docs_root}/{events_file}` — never re-invent them by walking session-docs. The summary is a render of the trace, not an independent source of truth. In obsidian mode, extract JSONL content from the `.md` wrapper before parsing (see `## Content extraction for dual-format events file`).
+All numbers come from `{docs_root}/{events_file}` — never re-invent them by walking workspaces. The summary is a render of the trace, not an independent source of truth. In obsidian mode, extract JSONL content from the `.md` wrapper before parsing (see `## Content extraction for dual-format events file`).
 
 - Phase duration → sum of `duration_ms` on `phase.end` events for that phase.
 - Iterations → count of `iteration.start` events.
@@ -2584,7 +2584,7 @@ The summary is best-effort rendering; the JSONL is the durable record.
 
 The th-orchestrator emits one OS-native toast at the close of each of the four user-facing pipeline stages, independent of autonomy mode and pipeline outcome. This gives the developer a predictable "come back and look" signal without requiring them to poll `/status`. The protocol is orthogonal to the Claude Code hook events in `~/.claude/settings.json` — the ultra-quiet preset stays unchanged; these toasts go through the `hooks/notify-stage.sh` wrapper invoked via the th-orchestrator's own `Bash` tool.
 
-Design rationale lives in `session-docs/orchestrator-stage-notifications/01-architecture.md`.
+Design rationale lives in `workspaces/orchestrator-stage-notifications/01-architecture.md`.
 
 ### When each toast fires
 
@@ -2624,7 +2624,7 @@ The wrapper derives `last_assistant_message` from those fields (format: `Pipelin
 
 Before constructing the payload, the th-orchestrator MUST:
 
-1. **`{feature}`** — MUST match `^[a-z0-9-]{1,60}$` (kebab-case; the th-orchestrator derives feature names from `session-docs/` folder names which follow this convention by construction).
+1. **`{feature}`** — MUST match `^[a-z0-9-]{1,60}$` (kebab-case; the th-orchestrator derives feature names from `workspaces/` folder names which follow this convention by construction).
 2. **`{summary}`** — MUST be ≤120 chars. Strip `\n`, `\r`, `\t` (replace with single space). Strip or replace `'` and `"` with their closest typographic alternatives if present (e.g., remove or replace with a plain space). Truncate to 120 chars BEFORE constructing the payload — defense-in-depth: even if the wrapper is bypassed, the th-orchestrator never passes a longer summary.
 3. **`{cwd}`** — MUST be the absolute path to the project root with no shell metacharacters. Derived from the session state, not from user input.
 4. **`{status}`** — MUST be one of the closed-set values (`complete`, `FAILED`, `BLOCKED`). Derived from the agent status block, not from user input.
@@ -2680,7 +2680,7 @@ The guarantee mirrors the KG passive-capture pattern in `agents/delivery.md` § 
 
 ### Step 1 — Create progress file and results directory
 
-Create `session-docs/batch-progress.md`:
+Create `workspaces/batch-progress.md`:
 
 ```markdown
 # Batch Progress
@@ -2761,8 +2761,8 @@ Each worktree gets **two hooks:**
 claude --worktree {task-name} --tmux --dangerously-skip-permissions \
   --settings '{
     "hooks": {
-      "Stop": [{"hooks": [{"type": "command", "command": "STATE=$(cat session-docs/*/00-state.md 2>/dev/null); STATUS=$(echo \"$STATE\" | grep -oP \"status: \\K\\w+\" | head -1); SUMMARY=$(echo \"$STATE\" | grep -A1 \"^## Agent Results\" | tail -1 | head -c 200); printf \"%s|%s|%s\\n\" \"{task-name}\" \"${STATUS:-unknown}\" \"${SUMMARY:-no summary}\" > /tmp/batch-results/{task-name}.done; echo $(date +%s) {task-name} DONE >> /tmp/batch-results/events.log"}]}],
-      "PostToolUse": [{"hooks": [{"type": "command", "command": "if echo \"$TOOL_INPUT\" | grep -q 00-state.md; then PHASE=$(grep -oP \"phase: \\K[\\w.]+\" session-docs/*/00-state.md 2>/dev/null | head -1); printf \"%s|%s\\n\" \"{task-name}\" \"${PHASE:-unknown}\" > /tmp/batch-results/{task-name}.progress; echo $(date +%s) {task-name} PROGRESS >> /tmp/batch-results/events.log; fi"}]}]
+      "Stop": [{"hooks": [{"type": "command", "command": "STATE=$(cat workspaces/*/00-state.md 2>/dev/null); STATUS=$(echo \"$STATE\" | grep -oP \"status: \\K\\w+\" | head -1); SUMMARY=$(echo \"$STATE\" | grep -A1 \"^## Agent Results\" | tail -1 | head -c 200); printf \"%s|%s|%s\\n\" \"{task-name}\" \"${STATUS:-unknown}\" \"${SUMMARY:-no summary}\" > /tmp/batch-results/{task-name}.done; echo $(date +%s) {task-name} DONE >> /tmp/batch-results/events.log"}]}],
+      "PostToolUse": [{"hooks": [{"type": "command", "command": "if echo \"$TOOL_INPUT\" | grep -q 00-state.md; then PHASE=$(grep -oP \"phase: \\K[\\w.]+\" workspaces/*/00-state.md 2>/dev/null | head -1); printf \"%s|%s\\n\" \"{task-name}\" \"${PHASE:-unknown}\" > /tmp/batch-results/{task-name}.progress; echo $(date +%s) {task-name} PROGRESS >> /tmp/batch-results/events.log; fi"}]}]
     }
   }' \
   -p "/issue #{number} --skip-delivery"
@@ -2771,7 +2771,7 @@ claude --worktree {task-name} --tmux --dangerously-skip-permissions \
 **Progress file format:** `{task-name}|{phase}` — one line, ~50 bytes. Parent reads this on PROGRESS events.
 **Done file format:** `{task-name}|{status}|{summary}` — one line, ≤300 bytes. Parent reads this on DONE events.
 
-If the parent needs more detail (e.g., to debug a failure), it opens `session-docs/{task-name}/00-state.md` directly **on demand** — never preventively. This keeps the parent's context lean: linear with N tasks at ~300 bytes each, instead of 5-15K bytes each.
+If the parent needs more detail (e.g., to debug a failure), it opens `workspaces/{task-name}/00-state.md` directly **on demand** — never preventively. This keeps the parent's context lean: linear with N tasks at ~300 bytes each, instead of 5-15K bytes each.
 
 **Events log:** `/tmp/batch-results/events.log` — append-only, one line per event with timestamp, task name, and type (PROGRESS or DONE).
 
@@ -2946,7 +2946,7 @@ Offer to clean completed worktrees. Do NOT auto-remove failed worktrees — user
 
 - **Dispatcher stays alive** throughout the entire batch — never fire-and-forget
 - **Before each round:** always read `batch-progress.md` first (mandatory after compaction)
-- **Each task** gets its own `session-docs/{feature-name}/` folder — never mix tasks
+- **Each task** gets its own `workspaces/{feature-name}/` folder — never mix tasks
 - **On failure:** report to user with options. Never auto-skip or auto-retry without user approval
 - **On user abort:** clean up worktrees and report partial results
 - **Recovery:** if the dispatcher itself dies, `/recover --batch` reads `batch-progress.md` and re-launches
@@ -2993,21 +2993,21 @@ On failure or iteration:
 ```
 
 ### To agents — always include in every invocation:
-- Feature name (for session-docs path)
+- Feature name (for workspaces path)
 - Task type and scope
-- Brief summary from previous agent's status block (NOT full session-docs content)
+- Brief summary from previous agent's status block (NOT full workspaces content)
 - Reference to `00-knowledge-context.md` (if it exists — agent reads it directly) relevant to this agent
 - What you expect from this agent
 - If iterating: what failed and what needs to change
 
 **Language propagation.** Every agent dispatch prompt MUST include the following instruction:
 
-> Operator language: {operator_language}. Write session-docs prose in this language; structural elements (headers, field names, status-block keys) stay in English.
+> Operator language: {operator_language}. Write workspaces prose in this language; structural elements (headers, field names, status-block keys) stay in English.
 
-This ensures agents follow the "session-docs prose follows the operator's chat language" Voice rule even though they never see the operator's original messages. The `operator_language` value comes from Phase 0a Step 1c detection or from `00-state.md` on recovery. When `operator_language` is `en`, the instruction still applies (agents default to English anyway, but the explicit instruction prevents ambiguity).
+This ensures agents follow the "workspaces prose follows the operator's chat language" Voice rule even though they never see the operator's original messages. The `operator_language` value comes from Phase 0a Step 1c detection or from `00-state.md` on recovery. When `operator_language` is `en`, the instruction still applies (agents default to English anyway, but the explicit instruction prevents ambiguity).
 
 ### Status block expectations:
-Every agent returns a compact status block as its final message. You use this to gate phases without re-reading session-docs. See agent Return Protocol for format.
+Every agent returns a compact status block as its final message. You use this to gate phases without re-reading workspaces. See agent Return Protocol for format.
 
 ---
 
@@ -3024,20 +3024,20 @@ At the end of a successful orchestration, report to the user:
 7. **Version:** {old → new}
 8. **Branch:** {branch name}
 9. **Commit:** {hash and message}
-10. **Session docs:** `session-docs/{feature-name}/` contains full audit trail
+10. **Session docs:** `workspaces/{feature-name}/` contains full audit trail
 11. **GitHub:** issue #{number} commented and moved to "In Review" (if applicable)
 
 ---
 
 ## Direct Modes
 
-When invoked with a `Direct Mode Task` (from a skill), execute only the specified flow — not the full pipeline. Set up session-docs as needed, invoke the agent, report results, and STOP. If a required prerequisite is missing, inform the user.
+When invoked with a `Direct Mode Task` (from a skill), execute only the specified flow — not the full pipeline. Set up workspaces as needed, invoke the agent, report results, and STOP. If a required prerequisite is missing, inform the user.
 
-**MANDATORY — KG consultation in direct modes:** Before invoking any agent in a direct mode, you MUST call the Knowledge Graph MCP `search_nodes` with 1-2 semantic queries relevant to the task. If results are found, write `00-knowledge-context.md` (same format as Phase 0a Step 2) so the downstream agent has past insights. If the Knowledge Graph MCP fails or is unavailable, log "KG: unavailable" and continue. The only exceptions are `init` and `recover` (which have no session-docs context to enrich).
+**MANDATORY — KG consultation in direct modes:** Before invoking any agent in a direct mode, you MUST call the Knowledge Graph MCP `search_nodes` with 1-2 semantic queries relevant to the task. If results are found, write `00-knowledge-context.md` (same format as Phase 0a Step 2) so the downstream agent has past insights. If the Knowledge Graph MCP fails or is unavailable, log "KG: unavailable" and continue. The only exceptions are `init` and `recover` (which have no workspaces context to enrich).
 
 | Mode | Agent | Prerequisites | Flow |
 |------|-------|--------------|------|
-| research | `architect` (research mode) | none | create session-docs → invoke → present `00-research.md` |
+| research | `architect` (research mode) | none | create workspaces → invoke → present `00-research.md` |
 | review | `reviewer` (data-provided), or N parallel focused reviewers + `reviewer-consolidator` (when `Multi-Reviewer: true`) | PR data from skill | single: invoke reviewer → build draft → return; multi: parallel reviewer dispatches per focus → consolidator → return to skill |
 | init | `init` | none | invoke → report generated files |
 | design | `architect` (design mode) | none | intake + specify → invoke → present `01-plan.md` |
@@ -3045,18 +3045,18 @@ When invoked with a `Direct Mode Task` (from a skill), execute only the specifie
 | validate | `qa` (validate mode) | `01-plan.md` § Task List + implementation | check AC exist. If missing → tell user to run `/define-ac` first. Do NOT invoke without AC. |
 | deliver | `delivery` | implementation + tests + validation | verify `02-implementation.md`, `03-testing.md`, AND `04-validation.md` exist. If any missing → tell user. |
 | define-ac | `qa` (define-ac mode) | none | invoke → present `00-acceptance-criteria.md` |
-| security | `security` | none (audit) or feature context (pipeline) | create session-docs → invoke → present `04-security.md` |
+| security | `security` | none (audit) or feature context (pipeline) | create workspaces → invoke → present `04-security.md` |
 | diagram | `architect` (research) → `diagrammer` | none | see `ref-direct-modes.md` § Diagram Mode |
 | likec4-diagram | `architect` (research) → `likec4-diagrammer` | none | see `ref-direct-modes.md` § LikeC4 Diagram Mode |
 | d2-diagram | `architect` (research) → `d2-diagrammer` | none | see `ref-direct-modes.md` § D2 Diagram Mode |
 | recover | you (th-orchestrator) | `00-state.md` from `/recover` skill | read recovery context → resume pipeline from last checkpoint |
 | recover-batch | you (th-orchestrator) | `batch-progress.md` from `/recover --batch` | re-launch worktrees for RUNNING/FAILED tasks |
 | spike | `implementer` | none | see `ref-special-flows.md` § Spike Flow |
-| audit | `architect` (audit mode) | none | create session-docs → invoke → present `00-audit.md` |
+| audit | `architect` (audit mode) | none | create workspaces → invoke → present `00-audit.md` |
 | test-pipeline | multi-agent (`tester`) | source code | see `ref-special-flows.md` § Test Pipeline Flow |
 | translate | `translator` | none | see `ref-direct-modes.md` § Translate Mode |
 | docs | `architect` (research) → `documenter` → `diagrammer` (conditional) → `qa` | none | see `ref-special-flows.md` § Documentation Flow |
-| gcp-costs | `gcp-cost-analyzer` | gcloud auth | create session-docs → invoke → present `00-gcp-costs.md` |
+| gcp-costs | `gcp-cost-analyzer` | gcloud auth | create workspaces → invoke → present `00-gcp-costs.md` |
 
 **For modes with "see ref-direct-modes.md" or "see ref-special-flows.md":** Read the referenced file on-demand before executing. These files are in the same directory as this file and contain step-by-step instructions:
 
@@ -3071,12 +3071,12 @@ When context is compacted (auto or manual), recovery is simple because state liv
 
 **After compaction, your first action MUST be:**
 
-1. **Read `session-docs/{feature-name}/00-state.md`** — this has your pipeline checkpoint: current phase, iteration count, agent results, hot context, and exact recovery instructions.
-2. **Read `session-docs/batch-progress.md`** (if batch) — for multi-task state.
+1. **Read `workspaces/{feature-name}/00-state.md`** — this has your pipeline checkpoint: current phase, iteration count, agent results, hot context, and exact recovery instructions.
+2. **Read `workspaces/batch-progress.md`** (if batch) — for multi-task state.
 3. **Read `{docs_root}/{events_file}`** — for timing and what ran (or use `/trace {feature}`). The `events_file` value is stored in `00-state.md` `## Current State`; recover it from there (see `events_file` recovery below).
 4. **Follow the Recovery Instructions** in `00-state.md` — they tell you exactly what to do next.
 
-**Do NOT re-read all session-docs.** The state file has everything you need to resume. Only read specific agent outputs if you need to debug a failure.
+**Do NOT re-read all workspaces.** The state file has everything you need to resume. Only read specific agent outputs if you need to debug a failure.
 
 **`operator_language` recovery.** When recovering from `00-state.md`, read `operator_language` from `## Current State`. If the field does not exist (legacy pipeline), default to `en`. Apply the recovered value to all subsequent agent dispatch prompts.
 

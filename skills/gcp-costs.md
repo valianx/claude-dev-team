@@ -59,7 +59,7 @@ Examples: `/gcp-costs --quick`, `/gcp-costs --quick project-abc`
 
 - Always invoke the `th-orchestrator` agent — do NOT invoke the `gcp-cost-analyzer` agent directly
 - The th-orchestrator will route to the `gcp-cost-analyzer` agent
-- Output: `session-docs/{feature-name}/00-gcp-costs.md`
+- Output: `workspaces/{feature-name}/00-gcp-costs.md`
 - The agent uses `gcloud` CLI commands (read-only) and optionally BigQuery for billing data
 - **Prerequisites:** user must have `gcloud` installed and authenticated (`gcloud auth login`)
 - **Required IAM roles:** Billing Viewer, Cloud Asset Viewer, Recommender Viewer, Compute Viewer

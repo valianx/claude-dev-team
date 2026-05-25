@@ -19,7 +19,7 @@ This file is read on-demand by the th-orchestrator when executing a direct mode.
 
 **Process:**
 
-1. Glob `session-docs/{feature-name}/`. If the folder does not exist, return a friendly message asking the user to first run `/design` or to confirm the feature name.
+1. Glob `workspaces/{feature-name}/`. If the folder does not exist, return a friendly message asking the user to first run `/design` or to confirm the feature name.
 2. Confirm `01-plan.md` exists. If it is absent but `01-architecture.md` is present, prompt the user: "no `01-plan.md` — this looks like a legacy plan (pipeline_version 1) or an incomplete design. Run `/design {feature}` to produce the merged plan, or invoke `/plan-review` after the architect has emitted `01-plan.md`."
 3. Invoke `plan-reviewer` via Task tool with the standard input contract (feature name + pointer to `01-plan.md`).
 4. Wait for the agent's status block. Read `verdict` and `findings` counts.
@@ -47,7 +47,7 @@ Top issues:
   - {file:line — rule — short description}
   ...
 
-Full report: session-docs/{feature-name}/01-plan.md § Plan Review
+Full report: workspaces/{feature-name}/01-plan.md § Plan Review
 ```
 
 ---
@@ -64,14 +64,14 @@ If the task payload includes `Vault:` (non-null):
 3. If `Folder:` is set, append it to the vault path. Create the folder if it does not exist.
 4. Set output path to `{vault_path}/{folder}/diagram.excalidraw` (Excalidraw files render natively in Obsidian with the Excalidraw plugin).
 
-If no `Vault:` in payload → use default: `session-docs/{feature}/diagram.excalidraw`.
+If no `Vault:` in payload → use default: `workspaces/{feature}/diagram.excalidraw`.
 
 ### Step 1 — Architect analyzes codebase context
 
 Invoke `architect` in **research mode** via Task tool with:
 - The diagram request (what to visualize)
-- Feature name for session-docs
-- Instruction: "Analyze the codebase/system to extract the components, relationships, data flows, and boundaries needed to create a diagram. Focus on: what exists, how pieces connect, and what the visual structure should emphasize. Produce a structured analysis in `session-docs/{feature}/00-research.md` — do NOT produce a diagram."
+- Feature name for workspaces
+- Instruction: "Analyze the codebase/system to extract the components, relationships, data flows, and boundaries needed to create a diagram. Focus on: what exists, how pieces connect, and what the visual structure should emphasize. Produce a structured analysis in `workspaces/{feature}/00-research.md` — do NOT produce a diagram."
 
 Gate: if `status: failed` → report to user and stop.
 
@@ -79,7 +79,7 @@ Gate: if `status: failed` → report to user and stop.
 
 Invoke `diagrammer` via Task tool with:
 - Feature name
-- Path to architect's analysis: `session-docs/{feature}/00-research.md`
+- Path to architect's analysis: `workspaces/{feature}/00-research.md`
 - Path to skill: `.claude/skills/excalidraw-diagram/`
 - Output path: `{resolved output path from Step 0}`
 - **Expected sections:** list the major sections from the architect's analysis
@@ -96,7 +96,7 @@ After the diagrammer returns `status: success`, **read the `.excalidraw` file** 
 
 ### Step 3 — Report to user
 
-Present output file path and summary. If output is in an Obsidian vault, note that the Excalidraw plugin is required to render it. If output is in session-docs, present renderer setup instructions:
+Present output file path and summary. If output is in an Obsidian vault, note that the Excalidraw plugin is required to render it. If output is in workspaces, present renderer setup instructions:
 ```bash
 cd .claude/skills/excalidraw-diagram/references
 uv sync
@@ -117,14 +117,14 @@ If the task payload includes `Vault:` (non-null):
 3. If `Folder:` is set, append it to the vault path. Create the folder if it does not exist.
 4. Set output path to `{vault_path}/{folder}/diagram.c4`.
 
-If no `Vault:` in payload → use default: `session-docs/{feature}/diagram.c4`.
+If no `Vault:` in payload → use default: `workspaces/{feature}/diagram.c4`.
 
 ### Step 1 — Architect analyzes codebase context
 
 Invoke `architect` in **research mode** via Task tool with:
 - The diagram request (what to visualize)
-- Feature name for session-docs
-- Instruction: "Analyze the codebase/system to extract the components, relationships, data flows, and boundaries needed to create a LikeC4 architecture diagram. Focus on: entry points, services, databases, queues, external dependencies, and actors. Produce a structured analysis in `session-docs/{feature}/00-research.md` — do NOT produce a diagram."
+- Feature name for workspaces
+- Instruction: "Analyze the codebase/system to extract the components, relationships, data flows, and boundaries needed to create a LikeC4 architecture diagram. Focus on: entry points, services, databases, queues, external dependencies, and actors. Produce a structured analysis in `workspaces/{feature}/00-research.md` — do NOT produce a diagram."
 
 Gate: if `status: failed` → report to user and stop.
 
@@ -132,7 +132,7 @@ Gate: if `status: failed` → report to user and stop.
 
 Invoke `likec4-diagrammer` via Task tool with:
 - Feature name
-- Path to architect's analysis: `session-docs/{feature}/00-research.md`
+- Path to architect's analysis: `workspaces/{feature}/00-research.md`
 - Path to skill: `.claude/skills/likec4-diagram/`
 - Output path: `{resolved output path from Step 0}`
 
@@ -158,14 +158,14 @@ If the task payload includes `Vault:` (non-null):
 3. If `Folder:` is set, append it to the vault path. Create the folder if it does not exist.
 4. Set output path to `{vault_path}/{folder}/diagram.d2`.
 
-If no `Vault:` in payload → use default: `session-docs/{feature}/diagram.d2`.
+If no `Vault:` in payload → use default: `workspaces/{feature}/diagram.d2`.
 
 ### Step 1 — Architect analyzes codebase context
 
 Invoke `architect` in **research mode** via Task tool with:
 - The diagram request
-- Feature name for session-docs
-- Instruction: "Analyze the codebase/system to extract the components, relationships, data flows, and boundaries needed to create a D2 diagram. Produce a structured analysis in `session-docs/{feature}/00-research.md` — do NOT produce a diagram."
+- Feature name for workspaces
+- Instruction: "Analyze the codebase/system to extract the components, relationships, data flows, and boundaries needed to create a D2 diagram. Produce a structured analysis in `workspaces/{feature}/00-research.md` — do NOT produce a diagram."
 
 Gate: if `status: failed` → report to user and stop.
 
@@ -173,7 +173,7 @@ Gate: if `status: failed` → report to user and stop.
 
 Invoke `d2-diagrammer` via Task tool with:
 - Feature name
-- Path to architect's analysis: `session-docs/{feature}/00-research.md`
+- Path to architect's analysis: `workspaces/{feature}/00-research.md`
 - Path to skill: `.claude/skills/d2-diagram/`
 - Output path: `{resolved output path from Step 0}`
 
@@ -354,7 +354,7 @@ Skip to Step 4 (Parallel dispatch) with existing glossary and i18n setup. Useful
 ### Submode: full (default) — Parallel Pipeline
 
 ```
-Step 1   Setup session-docs
+Step 1   Setup workspaces
 Step 2   Translator (sequential): Discovery + Glossary + i18n Setup  [Phase 0-2]
 Step 3   Evaluate parallelism: split inventory by module
 Step 4   N Translators (parallel worktrees): Extract + Replace        [Phase 3-4]
@@ -362,9 +362,9 @@ Step 5   Translator (sequential): Merge locales + Build verify        [Phase 5]
 Step 6   Report to user
 ```
 
-### Step 1 — Setup session-docs
+### Step 1 — Setup workspaces
 
-1. Create `session-docs/{feature-name}/` if it doesn't exist
+1. Create `workspaces/{feature-name}/` if it doesn't exist
 2. Write initial `00-state.md` with `phase: translate`, `status: in_progress`
 
 ### Step 2 — Discovery + Glossary + i18n Setup (sequential)
@@ -374,7 +374,7 @@ Invoke `translator` in **full mode** via Task tool with:
 - Scope: directory path or "full project"
 - Source language: `es` (Spanish)
 - Target language: `en` (English neutral)
-- Instruction: "Run Phase 0 (Discovery), Phase 1 (Glossary), and Phase 2 (i18n Setup) ONLY. Do NOT proceed to Phase 3 or Phase 4. Save the glossary to `docs/glossary.md`, write the string inventory to `session-docs/{feature}/00-translation.md`, and return. Include in your status block: `framework`, `i18n-library`, `locale-dir`, `key-convention`, `interpolation-syntax`, and `module-split` (proposed directory groupings with string counts)."
+- Instruction: "Run Phase 0 (Discovery), Phase 1 (Glossary), and Phase 2 (i18n Setup) ONLY. Do NOT proceed to Phase 3 or Phase 4. Save the glossary to `docs/glossary.md`, write the string inventory to `workspaces/{feature}/00-translation.md`, and return. Include in your status block: `framework`, `i18n-library`, `locale-dir`, `key-convention`, `interpolation-syntax`, and `module-split` (proposed directory groupings with string counts)."
 
 Gate: if `status: failed` → read `00-translation.md` to diagnose, report to user.
 Gate: if `status: blocked` → relay the blocker.
@@ -460,5 +460,5 @@ Present:
 - Parallelism: N modules in parallel / sequential fallback
 - Glossary location: `docs/glossary.md`
 - Locale files location: `{locale-dir}/en.json`, `{locale-dir}/es.json`
-- Translation report: `session-docs/{feature-name}/00-translation.md`
+- Translation report: `workspaces/{feature-name}/00-translation.md`
 - Next steps: review translations, add language switcher, configure locale detection

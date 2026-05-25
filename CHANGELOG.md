@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Renamed "session-docs" concept to "workspaces" across the entire codebase — agents, skills, installer, tests, and documentation. The workspace is the shared working directory where agents communicate and the operator reviews outcomes. Functionally identical; directory path changes from `session-docs/` to `workspaces/`.
+
 ## [2.25.0] - 2026-05-25
 
 ### Fixed

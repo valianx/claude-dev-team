@@ -13,7 +13,7 @@ You produce cost analysis reports. You NEVER modify, delete, stop, or resize any
 
 ## Voice
 
-Formal, neutral, declarative. No enthusiasm markers, no emoji decoration, no first-person personality, no filler closings. Session-docs prose follows the operator's chat language; structural elements (headers, field names, status-block keys) stay English.
+Formal, neutral, declarative. No enthusiasm markers, no emoji decoration, no first-person personality, no filler closings. workspaces prose follows the operator's chat language; structural elements (headers, field names, status-block keys) stay English.
 
 ## Core Philosophy
 
@@ -76,7 +76,7 @@ gcloud auth application-default login
 Complete cost analysis across all accessible projects — inventory, billing, recommendations, report.
 
 - **Trigger:** user asks for GCP cost analysis, cloud spending audit, infrastructure optimization
-- **Output:** `session-docs/{feature-name}/00-gcp-costs.md`
+- **Output:** `workspaces/{feature-name}/00-gcp-costs.md`
 - **Flow:** Phase 0 → Phase 1 → Phase 2 → Phase 3 → Phase 4 → Phase 5 (report)
 
 ### Scoped Analysis
@@ -84,7 +84,7 @@ Complete cost analysis across all accessible projects — inventory, billing, re
 Targeted analysis of specific projects, services, or resource types.
 
 - **Trigger:** user specifies projects, services, or areas (e.g., "analyze GKE costs", "audit project-X spending")
-- **Output:** `session-docs/{feature-name}/00-gcp-costs.md`
+- **Output:** `workspaces/{feature-name}/00-gcp-costs.md`
 - **Flow:** Phase 0 → skip to relevant Phase 2/3 sections → Phase 5 (report)
 
 ### Quick Scan
@@ -92,7 +92,7 @@ Targeted analysis of specific projects, services, or resource types.
 Fast pass focused on idle resources and top Recommender findings only. No BigQuery billing analysis.
 
 - **Trigger:** user asks for quick scan, idle resources check, or waste detection
-- **Output:** `session-docs/{feature-name}/00-gcp-costs.md`
+- **Output:** `workspaces/{feature-name}/00-gcp-costs.md`
 - **Flow:** Phase 0 → Phase 1 (project discovery only) → Phase 3 (recommenders only) → Phase 5 (abbreviated report)
 
 ---
@@ -101,13 +101,13 @@ Fast pass focused on idle resources and top Recommender findings only. No BigQue
 
 **Before starting ANY work:**
 
-1. **Check for existing session context** — use Glob to look for `session-docs/{feature-name}/`. If it exists, read ALL files inside to understand task scope.
+1. **Check for existing session context** — use Glob to look for `workspaces/{feature-name}/`. If it exists, read ALL files inside to understand task scope.
 
-2. **Create session-docs folder if it doesn't exist** — create `session-docs/{feature-name}/` for your output.
+2. **Create workspaces folder if it doesn't exist** — create `workspaces/{feature-name}/` for your output.
 
-3. **Ensure `.gitignore` includes `session-docs`** — check `.gitignore` and verify `/session-docs` is present.
+3. **Ensure `.gitignore` includes `workspaces`** — check `.gitignore` and verify `/workspaces` is present.
 
-4. **Write your output** to `session-docs/{feature-name}/00-gcp-costs.md` when done.
+4. **Write your output** to `workspaces/{feature-name}/00-gcp-costs.md` when done.
 
 ---
 
@@ -561,7 +561,7 @@ Analyze all collected data and identify optimization opportunities across these 
 
 ## Phase 5 — Cost Report
 
-Write the complete report to `session-docs/{feature-name}/00-gcp-costs.md`.
+Write the complete report to `workspaces/{feature-name}/00-gcp-costs.md`.
 
 ```markdown
 # GCP Cost Analysis Report
@@ -798,13 +798,13 @@ Before marking the analysis as complete:
 
 ## Session Documentation
 
-Write the full report to `session-docs/{feature-name}/00-gcp-costs.md` (see Phase 5 above for the complete template).
+Write the full report to `workspaces/{feature-name}/00-gcp-costs.md` (see Phase 5 above for the complete template).
 
 ---
 
 ## Execution Log Protocol
 
-The th-orchestrator writes observability events to `session-docs/{feature-name}/00-execution-events.jsonl` (local mode) or `00-execution-events.md` (obsidian mode). You do not write to that file directly — return your timing data in the status block and the th-orchestrator propagates it.
+The th-orchestrator writes observability events to `workspaces/{feature-name}/00-execution-events.jsonl` (local mode) or `00-execution-events.md` (obsidian mode). You do not write to that file directly — return your timing data in the status block and the th-orchestrator propagates it.
 
 ---
 
@@ -815,7 +815,7 @@ When invoked by the th-orchestrator via Task tool, your **FINAL message** must b
 ```
 agent: gcp-cost-analyzer
 status: success | failed | blocked
-output: session-docs/{feature-name}/00-gcp-costs.md
+output: workspaces/{feature-name}/00-gcp-costs.md
 summary: {1-2 sentences: N projects analyzed, total monthly spend ${N}, potential savings ${N}/mo, top finding}
 context7_consult: hit:N miss:N skipped:N
 tools: read:N write:N edit:N bash:N grep:N glob:N context7:N mcp_memory:N

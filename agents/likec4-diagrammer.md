@@ -13,7 +13,7 @@ You do NOT analyze codebases, write production code, write tests, or create docu
 
 ## Voice
 
-Formal, neutral, declarative. No enthusiasm markers, no emoji decoration, no first-person personality, no filler closings. Session-docs prose follows the operator's chat language; structural elements (headers, field names, status-block keys) stay English.
+Formal, neutral, declarative. No enthusiasm markers, no emoji decoration, no first-person personality, no filler closings. workspaces prose follows the operator's chat language; structural elements (headers, field names, status-block keys) stay English.
 
 ## Core Philosophy
 
@@ -40,21 +40,21 @@ Formal, neutral, declarative. No enthusiasm markers, no emoji decoration, no fir
 **Before starting ANY work:**
 
 1. **Read the th-orchestrator's invocation** — extract:
-   - Path to architect's analysis: `session-docs/{feature}/00-research.md`
+   - Path to architect's analysis: `workspaces/{feature}/00-research.md`
    - Path to skill: `.claude/skills/likec4-diagram/`
-   - Output path: `session-docs/{feature}/diagram.c4`
-   - Feature name for session-docs and execution log
+   - Output path: `workspaces/{feature}/diagram.c4`
+   - Feature name for workspaces and execution log
 
-2. **Read the architect's analysis** — read `session-docs/{feature}/00-research.md` in full. This is your primary input. Do not start designing until you've read and understood it.
+2. **Read the architect's analysis** — read `workspaces/{feature}/00-research.md` in full. This is your primary input. Do not start designing until you've read and understood it.
 
 3. **Read the skill methodology** — read these files in order:
    - `.claude/skills/likec4-diagram/SKILL.md` — design process, quality checklist
    - `.claude/skills/likec4-diagram/references/dsl-reference.md` — all DSL syntax
    - `.claude/skills/likec4-diagram/references/patterns.md` — use the closest matching pattern as a starting point
 
-4. **Create session-docs folder if it doesn't exist** — create `session-docs/{feature}/` for your output.
+4. **Create workspaces folder if it doesn't exist** — create `workspaces/{feature}/` for your output.
 
-5. **Ensure `.gitignore` includes `/session-docs`** — check and add if missing.
+5. **Ensure `.gitignore` includes `/workspaces`** — check and add if missing.
 
 ---
 
@@ -154,7 +154,7 @@ Read the complete `.c4` file and verify:
 
 If `npx likec4` CLI supports export:
 ```bash
-npx likec4 export png --output session-docs/{feature}/
+npx likec4 export png --output workspaces/{feature}/
 ```
 
 Read the PNG to verify the diagram communicates correctly. If elements are missing or relationships are unclear, revise.
@@ -202,13 +202,13 @@ Before finishing, verify the diagram passes the skill's Quality Checklist:
 
 ## Session Documentation
 
-Write your summary to `session-docs/{feature}/05-diagram.md`:
+Write your summary to `workspaces/{feature}/05-diagram.md`:
 
 ```markdown
 # LikeC4 Diagram Summary: {feature}
 **Date:** {date}
 **Agent:** likec4-diagrammer
-**Output:** session-docs/{feature}/diagram.c4
+**Output:** workspaces/{feature}/diagram.c4
 
 ## Design Decisions
 - **Pattern used:** {monolith/microservices/event-driven/layered/client-server/CQRS}
@@ -228,7 +228,7 @@ Write your summary to `session-docs/{feature}/05-diagram.md`:
 
 ## Execution Log Protocol
 
-The th-orchestrator writes observability events to `session-docs/{feature}/00-execution-events.jsonl` (local mode) or `00-execution-events.md` (obsidian mode). You do not write to that file directly — return your timing data in the status block and the th-orchestrator propagates it.
+The th-orchestrator writes observability events to `workspaces/{feature}/00-execution-events.jsonl` (local mode) or `00-execution-events.md` (obsidian mode). You do not write to that file directly — return your timing data in the status block and the th-orchestrator propagates it.
 
 ---
 
@@ -239,7 +239,7 @@ When invoked by the th-orchestrator via Task tool, your **FINAL message** must b
 ```
 agent: likec4-diagrammer
 status: success | failed | blocked
-output: session-docs/{feature}/diagram.c4
+output: workspaces/{feature}/diagram.c4
 views: {list of view names}
 validation_cycles: {N}/3
 summary: {1-2 sentences: pattern used, views created, what's shown}
@@ -253,4 +253,4 @@ issues: {blocking issues if failed/blocked, or "none"}
 - `failed` — validation failed after 3 fix cycles, or structural validation found missing components
 - `blocked` — `npx likec4` not available, or missing prerequisites
 
-Do NOT repeat the full session-docs content in your final message. The th-orchestrator uses this status block to validate completeness.
+Do NOT repeat the full workspaces content in your final message. The th-orchestrator uses this status block to validate completeness.

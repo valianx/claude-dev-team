@@ -10,7 +10,7 @@ $ARGUMENTS — describe what to diagram. Examples:
 
 ## Flags
 
-- `--vault [name]` — write the `.excalidraw` file to the Obsidian vault instead of session-docs. Reads `~/.claude/config/obsidian-vaults.json`; uses the named vault or `default` if no name given.
+- `--vault [name]` — write the `.excalidraw` file to the Obsidian vault instead of workspaces. Reads `~/.claude/config/obsidian-vaults.json`; uses the named vault or `default` if no name given.
 - `--folder <name>` — subfolder within the vault (only with `--vault`). Default: vault root.
 
 ## What happens

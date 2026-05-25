@@ -39,7 +39,7 @@ Analyze the input: $ARGUMENTS
 ```
 
 Parse `$ARGUMENTS`:
-- Positional: feature name (kebab-case, matches the `session-docs/{feature}/` folder).
+- Positional: feature name (kebab-case, matches the `workspaces/{feature}/` folder).
 - Optional flag: one of `--jsonl`, `--tools`, `--fails`.
 
 If `$ARGUMENTS` is empty or just whitespace, print the usage block above and exit cleanly.
@@ -51,9 +51,9 @@ If `$ARGUMENTS` is empty or just whitespace, print the usage block above and exi
 For every mode, the two source artifacts are:
 
 ```
-session-docs/{feature-name}/00-pipeline-summary.md
-session-docs/{feature-name}/00-execution-events.md    (obsidian mode)
-session-docs/{feature-name}/00-execution-events.jsonl  (local mode)
+workspaces/{feature-name}/00-pipeline-summary.md
+workspaces/{feature-name}/00-execution-events.md    (obsidian mode)
+workspaces/{feature-name}/00-execution-events.jsonl  (local mode)
 ```
 
 These are written by the **th-orchestrator** during pipeline runs (see `agents/th-orchestrator.md` → "Execution Events JSONL" + "Pipeline Summary Protocol"). If either is missing, the pipeline ran before observability was wired up or was interrupted before the th-orchestrator could write it.
@@ -62,10 +62,10 @@ These are written by the **th-orchestrator** during pipeline runs (see `agents/t
 
 ## Default mode (no flag) — pipeline summary
 
-1. Use Glob to check `session-docs/{feature-name}/00-pipeline-summary.md` exists. If not, report:
+1. Use Glob to check `workspaces/{feature-name}/00-pipeline-summary.md` exists. If not, report:
    ```
    No pipeline summary found for '{feature-name}'.
-   Checked: session-docs/{feature-name}/00-pipeline-summary.md
+   Checked: workspaces/{feature-name}/00-pipeline-summary.md
 
    Possible reasons:
      • Pipeline ran before observability was wired up (pre-2026-05-21 spec).
@@ -76,7 +76,7 @@ These are written by the **th-orchestrator** during pipeline runs (see `agents/t
 
 2. Read the file and print it verbatim.
 
-3. If `session-docs/{feature-name}/00-execution-events.md` or `session-docs/{feature-name}/00-execution-events.jsonl` exists, append at the bottom:
+3. If `workspaces/{feature-name}/00-execution-events.md` or `workspaces/{feature-name}/00-execution-events.jsonl` exists, append at the bottom:
    ```
    ---
    For raw events: /trace {feature-name} --jsonl
@@ -89,8 +89,8 @@ These are written by the **th-orchestrator** during pipeline runs (see `agents/t
 ## `--jsonl` mode — raw events
 
 1. Detect the events file:
-   1. Use Glob to check for `session-docs/{feature-name}/00-execution-events.md`. If found, use it (`events_file = ...md`).
-   2. If not found, check for `session-docs/{feature-name}/00-execution-events.jsonl`. If found, use it (`events_file = ...jsonl`).
+   1. Use Glob to check for `workspaces/{feature-name}/00-execution-events.md`. If found, use it (`events_file = ...md`).
+   2. If not found, check for `workspaces/{feature-name}/00-execution-events.jsonl`. If found, use it (`events_file = ...jsonl`).
    3. If neither exists, report:
       ```
       No event trace recorded for '{feature-name}'.
@@ -106,10 +106,10 @@ These are written by the **th-orchestrator** during pipeline runs (see `agents/t
 3. Use Bash to extract and tail the events. For the `.md` variant, strip the YAML frontmatter and code fence wrapper before tailing:
    ```bash
    # For .md: extract JSONL content from inside the ```jsonl fence
-   sed -n '/^```jsonl$/,/^```$/{/^```/d;p}' session-docs/{feature-name}/00-execution-events.md | tail -n 30
+   sed -n '/^```jsonl$/,/^```$/{/^```/d;p}' workspaces/{feature-name}/00-execution-events.md | tail -n 30
 
    # For .jsonl: read directly
-   tail -n 30 session-docs/{feature-name}/00-execution-events.jsonl
+   tail -n 30 workspaces/{feature-name}/00-execution-events.jsonl
    ```
 
 4. If `jq` is available (`command -v jq`), pipe through `jq -c '.'` for normalized one-line-per-event output. If not, print raw.
@@ -118,7 +118,7 @@ These are written by the **th-orchestrator** during pipeline runs (see `agents/t
    ```
    Full trace: cat {events_file}
    ```
-   (where `{events_file}` is the resolved path, e.g., `session-docs/{feature-name}/00-execution-events.md`)
+   (where `{events_file}` is the resolved path, e.g., `workspaces/{feature-name}/00-execution-events.md`)
 
 ---
 
@@ -132,7 +132,7 @@ These are written by the **th-orchestrator** during pipeline runs (see `agents/t
 
    For the `.md` variant, extract JSONL content first:
    ```bash
-   sed -n '/^```jsonl$/,/^```$/{/^```/d;p}' session-docs/{feature-name}/00-execution-events.md | jq -s '...'
+   sed -n '/^```jsonl$/,/^```$/{/^```/d;p}' workspaces/{feature-name}/00-execution-events.md | jq -s '...'
    ```
 
    For the `.jsonl` variant:
@@ -151,7 +151,7 @@ These are written by the **th-orchestrator** during pipeline runs (see `agents/t
        kg_candidates:    [.[] | .tools.kg_save_candidates // []] | flatten | unique,
        kg_passive:       [.[] | .tools.kg_passive_capture] | map(select(.)) | first
      })
-   ' session-docs/{feature-name}/00-execution-events.jsonl
+   ' workspaces/{feature-name}/00-execution-events.jsonl
    ```
 
 3. Render the result as a table:
@@ -183,7 +183,7 @@ These are written by the **th-orchestrator** during pipeline runs (see `agents/t
 2. If `jq` is available, filter the trace. For the `.md` variant, extract content first:
    ```bash
    # .md variant
-   sed -n '/^```jsonl$/,/^```$/{/^```/d;p}' session-docs/{feature-name}/00-execution-events.md | jq -s '
+   sed -n '/^```jsonl$/,/^```$/{/^```/d;p}' workspaces/{feature-name}/00-execution-events.md | jq -s '
      map(select(
        .event == "dispatch.blocked" or
        .event == "iteration.start"   or
@@ -202,7 +202,7 @@ These are written by the **th-orchestrator** during pipeline runs (see `agents/t
        .event == "policy.deny"       or
        (.event == "phase.end" and .status != "success")
      ))
-   ' session-docs/{feature-name}/00-execution-events.jsonl
+   ' workspaces/{feature-name}/00-execution-events.jsonl
    ```
 
 3. Render grouped output:
@@ -236,7 +236,7 @@ These are written by the **th-orchestrator** during pipeline runs (see `agents/t
    ```
    For the `.md` variant, pipe through `sed` first to strip the frontmatter and fence:
    ```bash
-   sed -n '/^```jsonl$/,/^```$/{/^```/d;p}' session-docs/{feature-name}/00-execution-events.md \
+   sed -n '/^```jsonl$/,/^```$/{/^```/d;p}' workspaces/{feature-name}/00-execution-events.md \
      | grep -E '"event":"(dispatch\.blocked|iteration\.start|gate\.fail|policy\.deny)"'
    ```
    Print results verbatim with a header.
@@ -245,17 +245,17 @@ These are written by the **th-orchestrator** during pipeline runs (see `agents/t
 
 ## Error handling
 
-- **Feature name not found / no session-docs folder:** report and suggest `/status` to see available features. Exit cleanly.
+- **Feature name not found / no workspaces folder:** report and suggest `/status` to see available features. Exit cleanly.
 - **Malformed JSONL line:** `jq` will fail loudly on that line. Skip with a one-line warning (`skipped 1 malformed event at line N`) and continue. Do not crash the skill.
 - **No `jq` binary:** every mode has a documented fallback (raw tail, summary-section slice, grep). Never block on `jq` absence.
-- **Permission errors reading session-docs:** report the OS error and exit cleanly.
+- **Permission errors reading workspaces:** report the OS error and exit cleanly.
 
 ---
 
 ## What `/trace` does NOT do
 
-- It does not write or modify any file under `session-docs/`. Strict read-only contract — same rule as `/status`.
-- It does not aggregate across multiple features. For cross-pipeline analysis, run `jq` manually over `session-docs/*/00-execution-events.jsonl` (local mode) or `session-docs/*/00-execution-events.md` (obsidian mode). A future `/metrics` skill may add aggregation once we have 5-10 traces to validate the shape.
+- It does not write or modify any file under `workspaces/`. Strict read-only contract — same rule as `/status`.
+- It does not aggregate across multiple features. For cross-pipeline analysis, run `jq` manually over `workspaces/*/00-execution-events.jsonl` (local mode) or `workspaces/*/00-execution-events.md` (obsidian mode). A future `/metrics` skill may add aggregation once we have 5-10 traces to validate the shape.
 - It does not modify or invalidate the trace. If the JSONL is corrupted, the renderer skips bad lines; it never deletes or rewrites them.
 - It does not invoke any other agent. Read-only file reads + `jq` / `tail` / `grep` via Bash only.
 

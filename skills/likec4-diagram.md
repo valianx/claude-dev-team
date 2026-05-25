@@ -10,7 +10,7 @@ $ARGUMENTS — describe what to diagram. Examples:
 
 ## Flags
 
-- `--vault [name]` — write the `.c4` file to the Obsidian vault instead of session-docs. Reads `~/.claude/config/obsidian-vaults.json`; uses the named vault or `default` if no name given.
+- `--vault [name]` — write the `.c4` file to the Obsidian vault instead of workspaces. Reads `~/.claude/config/obsidian-vaults.json`; uses the named vault or `default` if no name given.
 - `--folder <name>` — subfolder within the vault (only with `--vault`). Default: vault root.
 
 ## What happens
@@ -22,7 +22,7 @@ $ARGUMENTS — describe what to diagram. Examples:
 Direct Mode Task: likec4-diagram
 Description: {$ARGUMENTS without flags}
 Skill path: .claude/skills/likec4-diagram/
-Output: {vault_path/folder/diagram.c4 if --vault, else session-docs/{feature}/diagram.c4}
+Output: {vault_path/folder/diagram.c4 if --vault, else workspaces/{feature}/diagram.c4}
 Vault: {vault name or null}
 Vault path: {resolved path from obsidian-vaults.json or null}
 Folder: {folder name or null}

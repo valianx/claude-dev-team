@@ -12,7 +12,7 @@ $ARGUMENTS — describe what to diagram. Examples:
 
 ## Flags
 
-- `--vault [name]` — write the `.d2` and `.svg` files to the Obsidian vault instead of session-docs. Reads `~/.claude/config/obsidian-vaults.json`; uses the named vault or `default` if no name given.
+- `--vault [name]` — write the `.d2` and `.svg` files to the Obsidian vault instead of workspaces. Reads `~/.claude/config/obsidian-vaults.json`; uses the named vault or `default` if no name given.
 - `--folder <name>` — subfolder within the vault (only with `--vault`). Default: vault root.
 
 ## What happens
@@ -24,7 +24,7 @@ $ARGUMENTS — describe what to diagram. Examples:
 Direct Mode Task: d2-diagram
 Description: {$ARGUMENTS without flags}
 Skill path: .claude/skills/d2-diagram/
-Output: {vault_path/folder/diagram.d2 if --vault, else session-docs/{feature}/diagram.d2}
+Output: {vault_path/folder/diagram.d2 if --vault, else workspaces/{feature}/diagram.d2}
 Vault: {vault name or null}
 Vault path: {resolved path from obsidian-vaults.json or null}
 Folder: {folder name or null}

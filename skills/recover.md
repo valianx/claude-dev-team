@@ -6,10 +6,10 @@ Analyze the input: $ARGUMENTS
 
 ## Mode 1 — Feature name provided (`/recover my-feature`)
 
-1. Check that `session-docs/{feature}/00-state.md` exists
+1. Check that `workspaces/{feature}/00-state.md` exists
 2. If not found, tell the user: "No pipeline state found for '{feature}'. Use `/status` to see active pipelines."
-3. Read `session-docs/{feature}/00-state.md` in full
-4. Read `session-docs/{feature}/00-execution-log.md` if it exists (for timing context)
+3. Read `workspaces/{feature}/00-state.md` in full
+4. Read `workspaces/{feature}/00-execution-log.md` if it exists (for timing context)
 5. Validate the state:
    - If `status: complete` → tell user: "Pipeline '{feature}' already completed. Nothing to recover."
    - If phase and next_action are present → proceed
@@ -35,9 +35,9 @@ Analyze the input: $ARGUMENTS
 
 Recovers ALL interrupted tasks from a multi-task batch (parallel dispatch via worktrees).
 
-1. Check that `session-docs/batch-progress.md` exists
+1. Check that `workspaces/batch-progress.md` exists
 2. If not found → "No batch progress found. Use `/recover {feature}` for single pipeline recovery."
-3. Read `session-docs/batch-progress.md` — extract all tasks with status `RUNNING` or `FAILED`
+3. Read `workspaces/batch-progress.md` — extract all tasks with status `RUNNING` or `FAILED`
 4. If none found → "All batch tasks are DONE or PENDING. Nothing to recover."
 5. For each incomplete task, check if its worktree still exists:
    ```bash
@@ -55,7 +55,7 @@ Recovers ALL interrupted tasks from a multi-task batch (parallel dispatch via wo
 7. Pass batch recovery context to the `th-orchestrator` agent:
    ```
    Recover Batch:
-   - Batch Progress File: session-docs/batch-progress.md
+   - Batch Progress File: workspaces/batch-progress.md
    - Total Tasks: {N}
    - Completed: {N}
    - Need Recovery: {N}
@@ -80,9 +80,9 @@ The th-orchestrator will:
 
 ## Mode 3 — No input provided (`/recover`)
 
-1. First check for `session-docs/batch-progress.md` with incomplete tasks
+1. First check for `workspaces/batch-progress.md` with incomplete tasks
    - If found → show batch status and ask: "Batch has {N} incomplete tasks. Recover the batch (`/recover --batch`) or a specific pipeline?"
-2. If no batch, scan `session-docs/*/00-state.md` for incomplete pipelines (status != complete)
+2. If no batch, scan `workspaces/*/00-state.md` for incomplete pipelines (status != complete)
 3. If none found → "No interrupted pipelines found."
 4. If exactly one found → auto-select it and proceed as Mode 1
 5. If multiple found → show list and ask:
@@ -98,7 +98,7 @@ The th-orchestrator will:
 
 ## Error Handling
 
-- If session-docs folder doesn't exist → "No session-docs found in this project."
+- If workspaces folder doesn't exist → "No workspaces found in this project."
 - If state file exists but is empty → "State file is empty. The pipeline may not have started properly."
 - If a worktree is listed in batch but doesn't exist on disk → mark it as "removed" and suggest re-launch
 - If the th-orchestrator fails to recover → it will report the issue. The skill does not retry.

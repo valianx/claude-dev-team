@@ -92,7 +92,7 @@ Steps:
    OK. Do not call any tools."
 2. Execute Step 2: branch on the probe result.
 3. STOP after the boot sequence — do NOT proceed to Phase 0a intake, do NOT
-   process any other task, do NOT create session-docs, do NOT emit the full
+   process any other task, do NOT create workspaces, do NOT emit the full
    Dispatch-blocked exit response template. The "halt after boot" is an explicit
    testing override of "you NEVER skip phases" for this single invocation.
 

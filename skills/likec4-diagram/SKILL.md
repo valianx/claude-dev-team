@@ -249,7 +249,7 @@ Fix all errors before proceeding.
 
 ### Step 6: Visual validation (if CLI available)
 ```bash
-npx likec4 export png --output session-docs/{feature}/
+npx likec4 export png --output workspaces/{feature}/
 ```
 Read the PNG to verify the diagram communicates correctly. If elements are missing or relationships are unclear, revise the model.
 
@@ -371,9 +371,9 @@ Icons appear in rendered views as small logos on elements. Use them to distingui
 ## Output Files
 
 The skill produces:
-- `session-docs/{feature}/diagram.c4` — the LikeC4 DSL source (primary output)
-- `session-docs/{feature}/05-diagram.md` — summary of design decisions
-- `session-docs/{feature}/diagram_*.png` — exported PNGs (if CLI export succeeded)
+- `workspaces/{feature}/diagram.c4` — the LikeC4 DSL source (primary output)
+- `workspaces/{feature}/05-diagram.md` — summary of design decisions
+- `workspaces/{feature}/diagram_*.png` — exported PNGs (if CLI export succeeded)
 
 The `.c4` file is the authoritative output. It is readable, diffable, and can be re-rendered at any time.
 

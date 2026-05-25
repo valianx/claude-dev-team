@@ -1,6 +1,6 @@
 # Decision Log — gh-fallback Pattern (v2.10.0)
 
-This document records the design decisions made during the gh-fallback graceful degradation design shipped in v2.10.0. The original architect design doc lives in `session-docs/gh-fallback-pattern/01-architecture.md` (gitignored); this file is the committed reference for the 20 open questions resolved at the operator gate.
+This document records the design decisions made during the gh-fallback graceful degradation design shipped in v2.10.0. The original architect design doc lives in `workspaces/gh-fallback-pattern/01-architecture.md` (gitignored); this file is the committed reference for the 20 open questions resolved at the operator gate.
 
 Q-1 through Q-6 cover Part 1 (gh-fallback core). Q-7 through Q-10 cover §9.5 (Review policy loader). Q-11 through Q-15 cover §9.6 (Re-review automation). Q-16 through Q-20 cover §9.7 (Multi-reviewer orchestration).
 

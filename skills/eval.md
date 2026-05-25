@@ -118,7 +118,7 @@ When `needs_scaffold: true`, the `## Context` section defines mock files using f
 - cursor-based pagination
 ```
 
-```file:session-docs/batch-progress.md
+```file:workspaces/batch-progress.md
 # Batch Progress
 | # | Task | Status |
 |---|------|--------|
@@ -128,7 +128,7 @@ When `needs_scaffold: true`, the `## Context` section defines mock files using f
 | 4 | add-dashboard | PENDING |
 ```
 
-```file:session-docs/add-search-filters/02-implementation.md
+```file:workspaces/add-search-filters/02-implementation.md
 # Implementation Summary
 Created filter components and service.
 Files: src/filters/filter.service.ts, src/filters/filter.controller.ts
@@ -139,7 +139,7 @@ Each `file:{path}` block creates that file relative to the worktree root. Direct
 
 **When needs_scaffold: false (default):** The Context section is just descriptive text passed in the prompt. The agent works from the prompt alone, no filesystem. Use this for agents that can work from provided context (architect, security with code snippets in the prompt).
 
-**When to use needs_scaffold: true:** When the agent's system prompt has mandatory filesystem reads (e.g., "Before starting ANY work: read CLAUDE.md", "read session-docs/"). This includes: `delivery`, `implementer`, `tester`, `qa` (validate mode), and any agent with a Session Context Protocol that reads files.
+**When to use needs_scaffold: true:** When the agent's system prompt has mandatory filesystem reads (e.g., "Before starting ANY work: read CLAUDE.md", "read workspaces/"). This includes: `delivery`, `implementer`, `tester`, `qa` (validate mode), and any agent with a Session Context Protocol that reads files.
 
 ### Step 4 — Execute evaluation (skip if --dry-run)
 
@@ -160,7 +160,7 @@ For each scenario:
    - Parse each `file:{path}` block from the Context section
    - Create the directory structure: `mkdir -p $(dirname {path})`
    - Write the file contents: create `{path}` with the block contents
-   - Create `.gitignore` with `/session-docs` entry (agents expect this)
+   - Create `.gitignore` with `/workspaces` entry (agents expect this)
 
 3. **Initial commit** so git operations work:
    ```bash
@@ -179,13 +179,13 @@ For each scenario:
   - Prompt: the scenario's `## Input` section
   - The agent runs inside the scaffolded worktree (pass the path context)
   - Add to the prompt: `Working directory: {EVAL_DIR}. This is a real project — read files normally.`
-- The agent will find real files (CLAUDE.md, session-docs, package.json) because we scaffolded them.
+- The agent will find real files (CLAUDE.md, workspaces, package.json) because we scaffolded them.
 
 **If needs_scaffold: false:**
 - Invoke the agent via the Agent tool with:
   - `subagent_type`: the agent name
   - Prompt: the scenario's `## Input` section (which includes code/context inline)
-  - Add suffix: `Write your output to stdout. Do NOT create session-docs or read any project files beyond what is provided.`
+  - Add suffix: `Write your output to stdout. Do NOT create workspaces or read any project files beyond what is provided.`
 
 3. **Capture the output** from the agent's response.
 

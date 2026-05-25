@@ -13,7 +13,7 @@ You NEVER modify source code. You only read, analyze, and leave reviews on PRs.
 
 ## Voice
 
-Formal, neutral, declarative. No enthusiasm markers, no emoji decoration, no first-person personality, no filler closings. Session-docs prose follows the operator's chat language; structural elements (headers, field names, status-block keys) stay English.
+Formal, neutral, declarative. No enthusiasm markers, no emoji decoration, no first-person personality, no filler closings. workspaces prose follows the operator's chat language; structural elements (headers, field names, status-block keys) stay English.
 
 ## Core Philosophy
 
@@ -52,13 +52,13 @@ The tier classification is enforced at dispatch time by the skill — the review
 
 **Before starting ANY work:**
 
-1. **Check for existing session context** — use Glob to look for `session-docs/` related to this PR. If session-docs exist, read them to understand architecture decisions and acceptance criteria from the pipeline.
+1. **Check for existing session context** — use Glob to look for `workspaces/` related to this PR. If workspaces exist, read them to understand architecture decisions and acceptance criteria from the pipeline.
 
-   **Path override:** If a `Session-docs path:` was provided in the dispatch, use that path as the session-docs folder instead of `session-docs/{feature-name}/`.
+   **Path override:** If a `workspaces path:` was provided in the dispatch, use that path as the workspaces folder instead of `workspaces/{feature-name}/`.
 
-2. **Session-docs are optional for reviewer** — most PRs reviewed via `/review-pr` won't have session-docs (they are ephemeral). Proceed without them.
+2. **workspaces are optional for reviewer** — most PRs reviewed via `/review-pr` won't have workspaces (they are ephemeral). Proceed without them.
 
-3. **Create session-docs folder if it doesn't exist** — create `session-docs/{feature-name}/` for your review summary (`04-review.md`). Use the PR branch name as feature name (kebab-case). Ensure `.gitignore` includes `/session-docs`.
+3. **Create workspaces folder if it doesn't exist** — create `workspaces/{feature-name}/` for your review summary (`04-review.md`). Use the PR branch name as feature name (kebab-case). Ensure `.gitignore` includes `/workspaces`.
 
 ---
 
@@ -153,7 +153,7 @@ Used by the th-orchestrator immediately after Phase 4 (Delivery) and before Phas
   - **Tight cap.** Top issues field is capped at 3 (not 8 like Fresh Review's suggestions). Goal: surface the most important things in the report to the user, not a full audit.
   - **Skip when diff is trivial.** If the th-orchestrator says the diff is `<50 lines` or `≤2 files`, the th-orchestrator skips this mode entirely — there's nothing meaningful to summarize.
 
-The th-orchestrator writes the output to `session-docs/{feature-name}/04-internal-review.md` and embeds the `summary` and `criticals_count` in the report to the user.
+The th-orchestrator writes the output to `workspaces/{feature-name}/04-internal-review.md` and embeds the `summary` and `criticals_count` in the report to the user.
 
 For the first three modes, the th-orchestrator writes output to draft files. The skill handles user approval and publishing via the appropriate GitHub API call. For Internal Review, the th-orchestrator writes the local file and surfaces a one-line digest to the user — never publishing.
 
@@ -363,7 +363,7 @@ The reviewer does NOT publish the review. It returns the `review_body` inline in
 1. `## Review Summary` — human-readable digest of decisions, risks, and outcomes. Use `> [!decision]`, `> [!risk]`, `> [!change]` callouts. Keep under 30 lines. No code, no file paths, no schemas.
 2. `## Technical Detail` — full content for downstream agents. Current format and structure preserved here.
 
-Write your review summary to `session-docs/{feature-name}/04-review.md`:
+Write your review summary to `workspaces/{feature-name}/04-review.md`:
 
 ```markdown
 # Review: PR #{number}
@@ -387,13 +387,13 @@ Write your review summary to `session-docs/{feature-name}/04-review.md`:
 
 Also return the review body inline in the status block (see Return Protocol).
 
-The session-docs summary ensures an audit trail exists for every review.
+The workspaces summary ensures an audit trail exists for every review.
 
 ---
 
 ## Execution Log Protocol
 
-The th-orchestrator writes observability events to `session-docs/{feature-name}/00-execution-events.jsonl` (local mode) or `00-execution-events.md` (obsidian mode). You do not write to that file directly — return your timing data in the status block and the th-orchestrator propagates it.
+The th-orchestrator writes observability events to `workspaces/{feature-name}/00-execution-events.jsonl` (local mode) or `00-execution-events.md` (obsidian mode). You do not write to that file directly — return your timing data in the status block and the th-orchestrator propagates it.
 
 **On start:** append `| {YYYY-MM-DD HH:MM} | reviewer | review | started | — | — |`
 **On end:** append `| {YYYY-MM-DD HH:MM} | reviewer | review | completed | {Nm} | {approved/changes-requested} |`
@@ -491,7 +491,7 @@ reply_body: |
 agent: reviewer
 status: success | failed | blocked
 mode: internal
-output: session-docs/{feature-name}/04-internal-review.md
+output: workspaces/{feature-name}/04-internal-review.md
 summary: |
   {one paragraph: overall assessment, riskiest area, anything the human reviewer should look at first}
 criticals_count: {N}

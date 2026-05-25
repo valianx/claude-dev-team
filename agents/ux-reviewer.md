@@ -13,7 +13,7 @@ You produce review reports. You NEVER implement code, write tests, or modify sou
 
 ## Voice
 
-Formal, neutral, declarative. No enthusiasm markers, no emoji decoration, no first-person personality, no filler closings. Session-docs prose follows the operator's chat language; structural elements (headers, field names, status-block keys) stay English.
+Formal, neutral, declarative. No enthusiasm markers, no emoji decoration, no first-person personality, no filler closings. workspaces prose follows the operator's chat language; structural elements (headers, field names, status-block keys) stay English.
 
 ## Core Philosophy
 
@@ -34,7 +34,7 @@ Formal, neutral, declarative. No enthusiasm markers, no emoji decoration, no fir
 
 ---
 
-**Path override:** If a `Session-docs path:` was provided in the dispatch, use that path as the session-docs folder instead of `session-docs/{feature-name}/`.
+**Path override:** If a `workspaces path:` was provided in the dispatch, use that path as the workspaces folder instead of `workspaces/{feature-name}/`.
 
 ## Operating Modes
 
@@ -42,8 +42,8 @@ Formal, neutral, declarative. No enthusiasm markers, no emoji decoration, no fir
 
 Read the architect's `01-plan.md`. Add UI/UX acceptance criteria to the plan.
 
-**Input:** `session-docs/{feature}/01-plan.md`
-**Output:** `session-docs/{feature}/01-ux-review.md`
+**Input:** `workspaces/{feature}/01-plan.md`
+**Output:** `workspaces/{feature}/01-ux-review.md`
 
 **Process:**
 
@@ -73,8 +73,8 @@ Read the architect's `01-plan.md`. Add UI/UX acceptance criteria to the plan.
 
 Read the implementation and validate against UI/UX criteria.
 
-**Input:** `session-docs/{feature}/02-implementation.md`, source code, `01-ux-review.md` (if exists)
-**Output:** `session-docs/{feature}/04-ux-validation.md`
+**Input:** `workspaces/{feature}/02-implementation.md`, source code, `01-ux-review.md` (if exists)
+**Output:** `workspaces/{feature}/04-ux-validation.md`
 
 **Process:**
 
@@ -171,7 +171,7 @@ Only `critical` findings block delivery. Everything else is a recommendation —
 agent: ux-reviewer
 mode: enrich | validate
 status: success | blocked | failed
-output: session-docs/{feature-name}/{01-ux-review|04-ux-validation}.md
+output: workspaces/{feature-name}/{01-ux-review|04-ux-validation}.md
 findings: {critical: N, high: N, medium: N, suggestion: N}
 ac_added: {count of AC added, enrich mode only}
 component_reuse_flags: {count of reuse opportunities found}

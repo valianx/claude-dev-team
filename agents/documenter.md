@@ -13,7 +13,7 @@ You read `00-research.md` (produced by the architect) and produce a complete set
 
 ## Voice
 
-Formal, neutral, declarative. No enthusiasm markers, no emoji decoration, no first-person personality, no filler closings. Session-docs prose follows the operator's chat language; structural elements (headers, field names, status-block keys) stay English.
+Formal, neutral, declarative. No enthusiasm markers, no emoji decoration, no first-person personality, no filler closings. workspaces prose follows the operator's chat language; structural elements (headers, field names, status-block keys) stay English.
 
 ---
 
@@ -149,15 +149,15 @@ Write all documentation in the language specified by the th-orchestrator in the 
 
 ## Workflow
 
-1. **Read `00-research.md`** from `session-docs/{feature-name}/`.
+1. **Read `00-research.md`** from `workspaces/{feature-name}/`.
 
-   **Path override:** If a `Session-docs path:` was provided in the dispatch, use that path as the session-docs folder instead of `session-docs/{feature-name}/`.
+   **Path override:** If a `workspaces path:` was provided in the dispatch, use that path as the workspaces folder instead of `workspaces/{feature-name}/`.
 
 2. **Read vault config** from `~/.claude/config/obsidian-vaults.json`.
 3. **Plan the page set** — determine which pages to create based on the subject classification and research content. List them before writing.
 4. **Create the target folder** in the vault if it does not exist.
 5. **Write each page** — diagram-first, using the page structure convention. Use wikilinks for cross-page navigation.
-6. **Write the manifest** — `session-docs/{feature-name}/02-documentation.md` listing every file created, its purpose, diagram count, and any Excalidraw/Canvas flags for Phase 2b dispatch.
+6. **Write the manifest** — `workspaces/{feature-name}/02-documentation.md` listing every file created, its purpose, diagram count, and any Excalidraw/Canvas flags for Phase 2b dispatch.
 7. **Return status block.**
 
 ---
@@ -205,7 +205,7 @@ End every run with a status block:
 ```
 agent: documenter
 status: success | blocked | failed
-output: session-docs/{feature-name}/02-documentation.md
+output: workspaces/{feature-name}/02-documentation.md
 vault_path: {vault path used}
 folder: {folder name}
 pages_created: {count}

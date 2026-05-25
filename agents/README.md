@@ -111,4 +111,4 @@ Per the top-level `CLAUDE.md`, agent changes route through the `architect` subag
 
 - `README.md` in this folder is contributor documentation; the installer does **not** copy it to `~/.claude/agents/`.
 - Keep one concern per file. One `.md` = one agent.
-- Agent prompts communicate with each other through files in `session-docs/{feature-name}/`, never through return values.
+- Agent prompts communicate with each other through files in `workspaces/{feature-name}/`, never through return values.

@@ -39,4 +39,4 @@ Ask the user: "Provide a GitHub issue number or describe the feature to design."
 - **You read issues. The th-orchestrator does NOT** — it receives the data from you.
 - Always invoke the `th-orchestrator` agent — do NOT invoke agents directly
 - The th-orchestrator will run Intake + Specify + Design, then stop
-- Output: `session-docs/{feature-name}/01-architecture.md`
+- Output: `workspaces/{feature-name}/01-architecture.md`

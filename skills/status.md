@@ -1,4 +1,4 @@
-Show the current state of all pipelines in session-docs. This is a standalone utility — does NOT route through the th-orchestrator.
+Show the current state of all pipelines in workspaces. This is a standalone utility — does NOT route through the th-orchestrator.
 
 ## Voice
 
@@ -27,7 +27,7 @@ The operator can chat in any language; you reply in the operator's chat language
 
 ## Read-only contract
 
-**This skill NEVER modifies state.** No Edit, no Write, no JSONL append — no file under `session-docs/` is touched when this skill runs. It is a pure renderer: it reads files and prints output. Violating this contract would corrupt pipeline state and is forbidden.
+**This skill NEVER modifies state.** No Edit, no Write, no JSONL append — no file under `workspaces/` is touched when this skill runs. It is a pure renderer: it reads files and prints output. Violating this contract would corrupt pipeline state and is forbidden.
 
 Analyze the input: $ARGUMENTS
 
@@ -35,7 +35,7 @@ Analyze the input: $ARGUMENTS
 
 ## What to scan
 
-1. Use Glob to find all `session-docs/*/00-state.md` files
+1. Use Glob to find all `workspaces/*/00-state.md` files
 2. For each found, read the file and extract:
    - Feature name (from folder name)
    - Current phase
@@ -44,8 +44,8 @@ Analyze the input: $ARGUMENTS
    - Last completed phase
    - Next action
    - Last updated timestamp
-3. Also check for `session-docs/batch-progress.md` — if found, read and include batch status
-4. **Scan worktrees** — run `git worktree list` to find active worktrees. For each worktree path, check if `session-docs/*/00-state.md` exists inside and extract the same fields
+3. Also check for `workspaces/batch-progress.md` — if found, read and include batch status
+4. **Scan worktrees** — run `git worktree list` to find active worktrees. For each worktree path, check if `workspaces/*/00-state.md` exists inside and extract the same fields
 5. **Verify live processes** — run `tmux list-sessions 2>/dev/null` (via WSL if on Windows: `wsl -e tmux list-sessions 2>/dev/null`). Map tmux session names to worktree/task names to determine which tasks have a live Claude Code process running
 
 ---
@@ -115,7 +115,7 @@ If none of the derivations match (legacy pipeline, missing fields), fall back to
 ### If no pipelines found
 
 ```
-No active pipelines in session-docs/.
+No active pipelines in workspaces/.
 ```
 
 ---
@@ -144,9 +144,9 @@ Claude Code worktree sessions typically use the worktree name as part of the tmu
 ### Step 4 — Read state from worktrees
 For each worktree path, check:
 ```
-{worktree-path}/session-docs/*/00-state.md
+{worktree-path}/workspaces/*/00-state.md
 ```
-If found, extract the same fields as regular session-docs.
+If found, extract the same fields as regular workspaces.
 
 ---
 
@@ -165,9 +165,9 @@ The detailed mode renders a structured narrative for one feature. **It is read-o
 
 ### Renderer pipeline (in order)
 
-1. **If `session-docs/{feature-name}/00-state.md` does not exist:** output `No state file at session-docs/{feature-name}/00-state.md.` and exit cleanly. No crash.
+1. **If `workspaces/{feature-name}/00-state.md` does not exist:** output `No state file at workspaces/{feature-name}/00-state.md.` and exit cleanly. No crash.
 
-2. **Pipeline Summary panel** — read `session-docs/{feature-name}/00-pipeline-summary.md` if it exists. Render its `## TL;DR` block and its `## Phase Timeline` table verbatim under a top-level `## Pipeline Summary` header. This is the 30-second answer for "did this work?" that the user sees before the deeper narrative below.
+2. **Pipeline Summary panel** — read `workspaces/{feature-name}/00-pipeline-summary.md` if it exists. Render its `## TL;DR` block and its `## Phase Timeline` table verbatim under a top-level `## Pipeline Summary` header. This is the 30-second answer for "did this work?" that the user sees before the deeper narrative below.
 
    If `00-pipeline-summary.md` is absent: skip this panel silently and continue to step 3 (pipeline ran before observability was wired up, or trace not yet initialized). Do NOT emit a noise placeholder — the deeper narrative below is still useful.
 
@@ -186,13 +186,13 @@ The detailed mode renders a structured narrative for one feature. **It is read-o
    - **Recovery Instructions** — render ONLY if `status` is `paused`, `paused_for_amend`, `blocked`, or the `Process` column was `DEAD` in the no-args view. Otherwise hide — recovery hints are noise when the pipeline is healthy.
 
 4. **Read the events file.** Detect dual-format:
-   1. Use Glob to check for `session-docs/{feature-name}/00-execution-events.md`. If found, use it.
-   2. If not found, check for `session-docs/{feature-name}/00-execution-events.jsonl`.
+   1. Use Glob to check for `workspaces/{feature-name}/00-execution-events.md`. If found, use it.
+   2. If not found, check for `workspaces/{feature-name}/00-execution-events.jsonl`.
    3. If neither exists: render `Timeline\n--------\n(no events recorded — pre-refactor pipeline or trace not initialized)`. No crash, exit code 0.
 
    For the `.md` variant, extract the JSONL content from inside the code fence before parsing:
    ```bash
-   sed -n '/^```jsonl$/,/^```$/{/^```/d;p}' session-docs/{feature-name}/00-execution-events.md
+   sed -n '/^```jsonl$/,/^```$/{/^```/d;p}' workspaces/{feature-name}/00-execution-events.md
    ```
    For the `.jsonl` variant, read directly.
 
@@ -258,7 +258,7 @@ PRs within a round are listed in ascending PR identifier order, regardless of wh
 | `pipeline_version: 1` or field absent | Stage column in no-args table shows `—`; Status uses the raw `status` value. In detailed view: TL;DR renders if present, otherwise `(not available — legacy pipeline, pipeline_version<2)`. Timeline degrades as above. |
 | `## Agent Results` empty | Renders the table header row + `(no agent results yet)`. |
 | Malformed JSONL line | Skip the line silently, count it. Surface as `Timeline (skipped N malformed events)` if any. |
-| `00-state.md` missing entirely | Output `No state file at session-docs/{feature-name}/00-state.md.` Exit cleanly. |
+| `00-state.md` missing entirely | Output `No state file at workspaces/{feature-name}/00-state.md.` Exit cleanly. |
 | `## TL;DR` section absent in `00-state.md` | Render `TL;DR\n-----\n(not available — pipeline state predates the TL;DR section)`. |
 
 ### Example output
@@ -327,7 +327,7 @@ Round R2 (1 PR, started 14:21:49, closed 14:31:02):
 ## Important
 
 - This skill does NOT route through the th-orchestrator
-- Read-only — never modifies session-docs
+- Read-only — never modifies workspaces
 - Works even if no `.gitignore` or CLAUDE.md exists
-- If `00-state.md` is missing but session-docs folder exists, report the folder as "no state file (legacy?)"
+- If `00-state.md` is missing but workspaces folder exists, report the folder as "no state file (legacy?)"
 - If tmux is not available, skip process detection gracefully — show `?` instead of LIVE/DEAD

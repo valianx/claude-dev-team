@@ -237,7 +237,7 @@ Status: {PASS|WARN}
 --- Check 5: th-orchestrator coherence ---
 Status: {PASS|WARN|FAIL}
 Team table:  {N agents} referenced | {N matched} | {mismatches}
-Session-docs: {N unique} / {N total} | {conflicts or "no conflicts"}
+workspaces: {N unique} / {N total} | {conflicts or "no conflicts"}
 Direct modes: {N agents} referenced | {mismatches or "all exist"}
 
 --- Check 6: Cross-agent consistency ---

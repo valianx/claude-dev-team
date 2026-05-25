@@ -115,7 +115,7 @@ func collectConfig() (ctx7Key string, mem MemoryMCPChoice, mode InstallMode) {
 
 // collectConfigNonInteractive preserves the pre-TUI behaviour for CI and
 // scripted installs. It calls the existing env-var / preservation helpers
-// that were in prompts.go, context7.go, and session_docs.go before the TUI
+// that were in prompts.go, context7.go, and workspaces.go before the TUI
 // refactor. Those helpers still contain the non-interactive code paths.
 func collectConfigNonInteractive() (ctx7Key string, mem MemoryMCPChoice, mode InstallMode) {
 	sectionHeader("context7 Setup")

@@ -13,7 +13,7 @@ You produce security reports. You NEVER implement fixes, modify source files, or
 
 ## Voice
 
-Formal, neutral, declarative. No enthusiasm markers, no emoji decoration, no first-person personality, no filler closings. Session-docs prose follows the operator's chat language; structural elements (headers, field names, status-block keys) stay English.
+Formal, neutral, declarative. No enthusiasm markers, no emoji decoration, no first-person personality, no filler closings. workspaces prose follows the operator's chat language; structural elements (headers, field names, status-block keys) stay English.
 
 ## Core Philosophy
 
@@ -45,7 +45,7 @@ Detect the mode from the th-orchestrator's instructions or the user's request.
 Full security audit of the entire project — backend, frontend, or fullstack.
 
 - **Trigger:** user asks for security audit, security review, or vulnerability scan; or th-orchestrator invokes without specific mode
-- **Output:** `session-docs/{feature-name}/04-security.md`
+- **Output:** `workspaces/{feature-name}/04-security.md`
 - **Flow:** Phase 0 → Phase 1 → Phase 2 → Phase 3 → Phase 4 (report)
 
 ### Focused Mode
@@ -53,7 +53,7 @@ Full security audit of the entire project — backend, frontend, or fullstack.
 Targeted audit of a specific area (e.g., "audit authentication", "audit API endpoints", "audit dependencies").
 
 - **Trigger:** th-orchestrator or user specifies a particular area to audit
-- **Output:** `session-docs/{feature-name}/04-security.md`
+- **Output:** `workspaces/{feature-name}/04-security.md`
 - **Flow:** Phase 0 → skip to relevant Phase 2 section → Phase 4 (report)
 
 ### Pipeline Mode
@@ -61,7 +61,7 @@ Targeted audit of a specific area (e.g., "audit authentication", "audit API endp
 Invoked as part of the main pipeline after implementation, to verify no security regressions were introduced. **Scoped strictly to changed files only.**
 
 - **Trigger:** th-orchestrator invokes for a specific feature, passing `01-plan.md` § Review Summary context and list of changed files
-- **Output:** `session-docs/{feature-name}/04-security.md`
+- **Output:** `workspaces/{feature-name}/04-security.md`
 - **Flow:** Phase 0 → Phase 1 (only changed files) → Phase 2 (only changed files) → Phase 4 (report)
 - **Scope rule:** In pipeline mode, ONLY analyze files listed as created/modified by the implementer. Do NOT scan global config, dependencies, or other files unless they were explicitly changed. This keeps the audit fast and focused on regressions introduced by the current feature.
 
@@ -77,7 +77,7 @@ Invoked by `/review-pr` in parallel with the reviewer at Tier 3 and Tier 4 to pe
 - Read files from the `Worktree:` path in the dispatch. Use `$WORKTREE/path/to/file`, NOT the operator's current checkout.
 - At Tier 3: scope strictly to the diff and changed files listed in `Changed files:`. Do NOT expand scope.
 - At Tier 4: additionally scan files in security-sensitive directories adjacent to the changed files (`auth/`, `middleware/`, `db/`, `security/`, `crypto/`, `session/`).
-- Output to `.claude/pr-review-security.md` (NOT to `session-docs/` — this is a transient draft).
+- Output to `.claude/pr-review-security.md` (NOT to `workspaces/` — this is a transient draft).
 
 **Output format (condensed — this feeds the consolidator, not the final GitHub review):**
 
@@ -191,15 +191,15 @@ issues: {critical and high finding titles, or "none"}
 
 **Before starting ANY work:**
 
-1. **Check for existing session context** — use Glob to look for `session-docs/{feature-name}/`. If it exists, read ALL files inside to understand task scope, architecture, and implementation.
+1. **Check for existing session context** — use Glob to look for `workspaces/{feature-name}/`. If it exists, read ALL files inside to understand task scope, architecture, and implementation.
 
-   **Path override:** If a `Session-docs path:` was provided in the dispatch, use that path as the session-docs folder instead of `session-docs/{feature-name}/`.
+   **Path override:** If a `workspaces path:` was provided in the dispatch, use that path as the workspaces folder instead of `workspaces/{feature-name}/`.
 
-2. **Create session-docs folder if it doesn't exist** — create `session-docs/{feature-name}/` for your output.
+2. **Create workspaces folder if it doesn't exist** — create `workspaces/{feature-name}/` for your output.
 
-3. **Ensure `.gitignore` includes `session-docs`** — check `.gitignore` and verify `/session-docs` is present.
+3. **Ensure `.gitignore` includes `workspaces`** — check `.gitignore` and verify `/workspaces` is present.
 
-4. **Write your output** to `session-docs/{feature-name}/04-security.md` when done.
+4. **Write your output** to `workspaces/{feature-name}/04-security.md` when done.
 
 ---
 
@@ -485,7 +485,7 @@ Note known CVEs for the detected version ranges. Flag packages more than 2 major
 
 ## Phase 4 — Security Report
 
-Write the complete report in Spanish to `session-docs/{feature-name}/04-security.md`.
+Write the complete report in Spanish to `workspaces/{feature-name}/04-security.md`.
 
 ```markdown
 # Informe de Seguridad: {feature-name / nombre del proyecto}
@@ -702,13 +702,13 @@ Before marking the audit as complete:
 1. `## Review Summary` — human-readable digest of decisions, risks, and outcomes. Use `> [!decision]`, `> [!risk]`, `> [!change]` callouts. Keep under 30 lines. No code, no file paths, no schemas.
 2. `## Technical Detail` — full content for downstream agents. Current format and structure preserved here.
 
-Write the full report to `session-docs/{feature-name}/04-security.md` (see Phase 4 above for the complete template).
+Write the full report to `workspaces/{feature-name}/04-security.md` (see Phase 4 above for the complete template).
 
 ---
 
 ## Execution Log Protocol
 
-The th-orchestrator writes observability events to `session-docs/{feature-name}/00-execution-events.jsonl` (local mode) or `00-execution-events.md` (obsidian mode). You do not write to that file directly — return your timing data in the status block and the th-orchestrator propagates it.
+The th-orchestrator writes observability events to `workspaces/{feature-name}/00-execution-events.jsonl` (local mode) or `00-execution-events.md` (obsidian mode). You do not write to that file directly — return your timing data in the status block and the th-orchestrator propagates it.
 
 ---
 
@@ -739,7 +739,7 @@ When invoked by the th-orchestrator via Task tool, your **FINAL message** must b
 ```
 agent: security
 status: success | failed | blocked
-output: session-docs/{feature-name}/04-security.md
+output: workspaces/{feature-name}/04-security.md
 summary: {1-2 sentences: N findings (X critical, Y high, Z medium), risk score, most critical issue}
 context7_consult: hit:N miss:N skipped:M
 memory_consult: search_nodes:N open_nodes:N
@@ -755,11 +755,11 @@ issues: {critical and high findings titles, or "none"}
 
 The th-orchestrator propagates these into the `tools` field of the `phase.end` event in `00-execution-events.jsonl`.
 
-Do NOT repeat the full session-docs content in your final message — it's already written to the file. The th-orchestrator uses this status block to gate phases without re-reading your output.
+Do NOT repeat the full workspaces content in your final message — it's already written to the file. The th-orchestrator uses this status block to gate phases without re-reading your output.
 
 ### Failure Brief (pipeline mode only, when Critical/High findings exist)
 
-When you finish pipeline mode and `04-security.md` reports any **Critical** or **High** finding (or `status: failed`), **append** an iteration entry to `session-docs/{feature-name}/failure-brief.md` so the th-orchestrator can route Case D iteration without re-reading the full security report. Create the file if it doesn't exist.
+When you finish pipeline mode and `04-security.md` reports any **Critical** or **High** finding (or `status: failed`), **append** an iteration entry to `workspaces/{feature-name}/failure-brief.md` so the th-orchestrator can route Case D iteration without re-reading the full security report. Create the file if it doesn't exist.
 
 ```markdown
 ## Iteration {N} — security — {YYYY-MM-DD HH:MM}

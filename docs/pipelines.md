@@ -65,13 +65,13 @@ For the day-to-day usage walkthrough, see [`docs/how-it-works.md`](./how-it-work
 
 ### Notable artifacts
 
-- `session-docs/{feature}/01-architecture.md` — design proposal
-- `session-docs/{feature}/02-task-list.md` — PR table with Given/When/Then AC per PR and `Status:` field
-- `session-docs/{feature}/01-plan-review.md` — plan-reviewer verdict
-- `session-docs/{feature}/00-state.md` — live pipeline state (TL;DR + phase + agent results)
-- `session-docs/{feature}/00-execution-events.jsonl` — append-only JSONL trace (local mode)
-- `session-docs/{feature}/00-execution-events.md` — same trace wrapped in YAML frontmatter + code fence (obsidian mode)
-- `session-docs/{feature}/00-pipeline-summary.md` — human-readable rollup
+- `workspaces/{feature}/01-architecture.md` — design proposal
+- `workspaces/{feature}/02-task-list.md` — PR table with Given/When/Then AC per PR and `Status:` field
+- `workspaces/{feature}/01-plan-review.md` — plan-reviewer verdict
+- `workspaces/{feature}/00-state.md` — live pipeline state (TL;DR + phase + agent results)
+- `workspaces/{feature}/00-execution-events.jsonl` — append-only JSONL trace (local mode)
+- `workspaces/{feature}/00-execution-events.md` — same trace wrapped in YAML frontmatter + code fence (obsidian mode)
+- `workspaces/{feature}/00-pipeline-summary.md` — human-readable rollup
 
 ---
 
@@ -95,15 +95,15 @@ Full specification: [`agents/ref-special-flows.md`](../agents/ref-special-flows.
 
 The bug-fix pipeline is tier-classified at Phase 0a to calibrate ceremony to severity.
 
-| Tier | Name | Phase 1 (root-cause) | Phase 2.0 (regression test) | Phase 3 agents | Session-docs |
+| Tier | Name | Phase 1 (root-cause) | Phase 2.0 (regression test) | Phase 3 agents | workspaces |
 |---|---|---|---|---|---|
-| **0** | Trivial/Cosmetic | Skipped | Skipped | tester only (suite no-regress; no full audit) | **None** — no session-docs created |
+| **0** | Trivial/Cosmetic | Skipped | Skipped | tester only (suite no-regress; no full audit) | **None** — no workspaces created |
 | **1** | Docs/Trivial | Skipped — one-sentence prose plan | Conditional skip when no behavior change | tester (no-regress suite) only | Yes — minimal |
 | **2** | Light fix | Architect `mode: light-root-cause`, ≤30 lines | Mandatory | tester + qa | Yes — full |
 | **3** | Standard fix (default) | Architect `mode: full-root-cause`, 1 page max | Mandatory | tester + qa + security | Yes — full |
 | **4** | Critical/Security | `mode: full-root-cause` + mandatory `mcp__memory__search_nodes` Prior Art query | Mandatory | tester + qa + security (extended analysis) | Yes — full + prior-art |
 
-**Tier 0 — no session-docs.** Tier 0 is the genuinely-lite path for trivially cosmetic changes (typo in a comment, whitespace in README, CHANGELOG typo). The implementer makes the fix, runs tests, and opens the PR. No `session-docs/` folder is created. The PR review is the only gate. Auto-classifies when all of: single file touched, ≤5 lines changed, docs/comment/whitespace-only path, no test paths, no system-level files (`agents/*.md`, `skills/*.md`, `cmd/install/*.go`). Auto-promotes to Tier 1+ if any rule breaks during implementation.
+**Tier 0 — no workspaces.** Tier 0 is the genuinely-lite path for trivially cosmetic changes (typo in a comment, whitespace in README, CHANGELOG typo). The implementer makes the fix, runs tests, and opens the PR. No `workspaces/` folder is created. The PR review is the only gate. Auto-classifies when all of: single file touched, ≤5 lines changed, docs/comment/whitespace-only path, no test paths, no system-level files (`agents/*.md`, `skills/*.md`, `cmd/install/*.go`). Auto-promotes to Tier 1+ if any rule breaks during implementation.
 
 **Classification signals.**
 
@@ -196,7 +196,7 @@ When the `gh` CLI is unavailable or unauthenticated, skills degrade through four
 | C | (reserved) |
 | D | Project-board operations skipped silently |
 
-When write via `curl` also fails, `delivery` returns `status: blocked-manual-push`. The th-orchestrator emits a STOP block with the compare URL and `session-docs/{feature}/inputs/pr-body.md`. The operator opens the PR manually, then replies `pr opened #N` to continue.
+When write via `curl` also fails, `delivery` returns `status: blocked-manual-push`. The th-orchestrator emits a STOP block with the compare URL and `workspaces/{feature}/inputs/pr-body.md`. The operator opens the PR manually, then replies `pr opened #N` to continue.
 
 Full contract: [`agents/_shared/gh-fallback.md`](../agents/_shared/gh-fallback.md).
 
@@ -234,7 +234,7 @@ All review agents read files from this worktree (`$WORKTREE/path/to/file`), not 
 
 A shell `trap` registers cleanup so the worktree is removed even on early exit. The worktree name includes the PR number — concurrent reviews in the same session do not conflict.
 
-The phase also scans for `session-docs/` in the worktree. If found, the PR came from a team-harness pipeline and carries AC that can be used for QA validation.
+The phase also scans for `workspaces/` in the worktree. If found, the PR came from a team-harness pipeline and carries AC that can be used for QA validation.
 
 ### Phase 2 — Tier classification
 
@@ -343,10 +343,10 @@ When 2+ topics are detected ("documenta X, Y, y Z"), each topic runs Phase 1 + 2
 
 Default: English. Override with `--lang <code>`. Prose follows the specified language; structural elements (YAML, Mermaid, code blocks) stay in English.
 
-### Session-docs
+### workspaces
 
 ```
-session-docs/{feature-name}/
+workspaces/{feature-name}/
   00-state.md
   00-task-intake.md
   00-research.md
