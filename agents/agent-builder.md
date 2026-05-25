@@ -183,10 +183,9 @@ On end: `| {YYYY-MM-DD HH:MM} | {agent} | {phase} | completed | {Nm} | {success/
 ### Session Documentation Protocol (mandatory)
 
 Agents write outputs to `session-docs/{feature-name}/`:
-- `00-task-intake.md` — task spec (written by th-orchestrator)
 - `00-execution-log.md` — execution timeline
 - `00-research.md` — research output (architect, research mode)
-- `01-plan.md` — architecture + task list (architect, design mode — merged)
+- `01-plan.md` — architect output: spec (§ Review Summary) + architecture (§ Architecture) + task list (§ Task List)
 - `01-planning.md` — task breakdown (architect, planning mode)
 
 ---

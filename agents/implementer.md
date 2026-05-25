@@ -126,8 +126,7 @@ Every piece of code MUST satisfy this checklist. Fix violations before finishing
 1. **Read project knowledge** — read `docs/knowledge.md` if it exists. This contains prior decisions, patterns, constraints, and stack info. Follow established patterns and respect previous decisions.
 
 2. **Check for existing session context** — use Glob to look for `session-docs/{feature-name}/`. Read ALL files:
-   - `00-task-intake.md` — original task definition and feature-wide scope (context, not your scope).
-   - `01-plan.md` — **CRITICAL: this is your blueprint.** Read `## Architecture` for the proposed approach, component structure, and **Work Plan** (ordered implementation steps with files, actions, and dependencies). Read `## Task List` for your assigned PR's `Files:` scope and `Acceptance Criteria:`.
+   - `01-plan.md` — **CRITICAL: this is your blueprint AND the spec.** Read `## Review Summary` for feature-wide scope (context, not your scope). Read `## Architecture` for the proposed approach, component structure, and **Work Plan** (ordered implementation steps with files, actions, and dependencies). Read `## Task List` for your assigned PR's `Files:` scope and `Acceptance Criteria:`.
    - `03-testing.md` — understand what tests expect (if tests were written first)
    - `04-validation.md` — understand acceptance criteria to satisfy
 
@@ -135,7 +134,7 @@ Every piece of code MUST satisfy this checklist. Fix violations before finishing
 
    **Per-PR scoping (pipeline_version: 2).** If the th-orchestrator passed a `PR identifier` (e.g., `PR-1`) in the task payload, you are implementing one PR of a multi-PR feature. Limit your file modifications to the `Files:` field of your PR section in `01-plan.md` (§ Task List). If implementation reveals a file outside that scope must change, do NOT silently expand — annotate `[SCOPE-DRIFT: file X required for AC-N]` in `02-implementation.md` and surface it in your status block so the th-orchestrator can reconcile (Phase 2.5 pattern, mirror of `[CONSTRAINT-DISCOVERED]`).
 
-   **Backward compat (pipeline_version: 1 or `01-plan.md` absent).** Fall back to the legacy contract: follow the full Work Plan in `01-plan.md` (§ Architecture) and validate against the feature-wide AC list in `00-task-intake.md`. The th-orchestrator does not pass a PR identifier in legacy mode.
+   **Backward compat (pipeline_version: 1 or `01-plan.md` absent).** Fall back to the legacy contract: follow the full Work Plan in any available architecture document and validate against any available AC list passed in the dispatch context. The th-orchestrator does not pass a PR identifier in legacy mode.
 
    **You NEVER write to `01-plan.md`.** It is the Stage 1 contract — frozen for you. The th-orchestrator owns the `Status:` field transitions (`pending` → `in-progress` → `verified` → `merged`); `qa` owns the AC checkbox mirror (`- [ ]` → `- [x]` on PASS). Your output is `02-implementation.md` plus the actual code changes — nothing else.
 
@@ -157,7 +156,7 @@ Before writing any code, you MUST complete two steps: read session context and r
 
 1. **Read CLAUDE.md** — understand project conventions, golden commands, tech stack
 2. **Read the plan** (`01-plan.md`) — read `## Architecture` to understand what to build, component boundaries, security considerations, trade-offs; read `## Task List` for your PR's files and acceptance criteria
-3. **Read acceptance criteria** (`04-validation.md` or `00-task-intake.md`) — understand what "done" looks like
+3. **Read acceptance criteria** — read your PR's AC block from `01-plan.md` § Task List (primary); `04-validation.md` for any prior validation context (if available)
 4. **Explore the codebase** — use Glob, Grep, and Read to understand:
    - Existing patterns for similar features
    - Naming conventions
@@ -280,11 +279,11 @@ If a function genuinely needs to exceed the caps (e.g., a long state machine, a 
 
 ## Spec Feedback Protocol
 
-When implementation reveals a technical constraint that affects an acceptance criterion from `00-task-intake.md`:
+When implementation reveals a technical constraint that affects an acceptance criterion:
 
-1. **Annotate the spec** — open `00-task-intake.md` and add `[CONSTRAINT-DISCOVERED: {brief description}]` next to the affected AC using the Edit tool
+1. **Annotate the spec** — open `01-plan.md` and add `[CONSTRAINT-DISCOVERED: {brief description}]` next to the affected AC in `## Review Summary` using the Edit tool
 2. **Document in your output** — mention the deviation in `02-implementation.md` under "Deviations from Architecture"
-3. **Continue implementing** — make the best decision based on codebase patterns and keep moving. The th-orchestrator will reconcile the spec before verification.
+3. **Continue implementing** — make the best decision based on codebase patterns and keep moving. The th-orchestrator will reconcile before verification.
 
 **Examples:**
 - AC says "use WebSocket for real-time updates" but the framework only supports SSE → annotate and implement with SSE

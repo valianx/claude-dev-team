@@ -31,7 +31,7 @@ When the user wants to quickly test a technical hypothesis without full pipeline
 1. **Intake** — classify as `spike`, complexity always `simple`
 2. **MANDATORY — Query KG** — call `search_nodes` with 1-2 semantic queries. Write `00-knowledge-context.md` if results found.
 3. **Skip Design** — no architecture proposal needed
-4. **Write minimal `00-task-intake.md`** — just: description, what to test, success criteria
+4. **Prepare minimal spec context** — just: description, what to test, success criteria (passed inline to the implementer dispatch)
 5. **Invoke `implementer`** with: "This is a spike — write exploratory code to test: {description}. No tests needed. Focus on proving whether {hypothesis} works. Document what you found in `02-implementation.md`."
 6. **Skip Phases 3-5** (no testing, validation, delivery, or GitHub update)
 7. **Present results** to the user:
@@ -121,7 +121,7 @@ The Tier System modulates the Bug-fix Pipeline depth so trivial fixes skip cerem
 | Tier | Name | Phase 1 (root-cause) | Phase 2.0 (pre-fix regression test) | Phase 3 agents | Session-docs | Estimated agent runs |
 |---|---|---|---|---|---|---|
 | **0** | Trivial/Cosmetic | **Skip** | **Skip** | tester only (suite no-regress; no full audit) | **NONE** — no session-docs created | ~1 |
-| **1** | Docs/Trivial | **Skip** — no `01-root-cause.md`. th-orchestrator emits one-sentence prose plan at STAGE-GATE-1 (same surface as `type: hotfix`). | **Conditional skip** — only when there is no behavior change (see condition below). | tester (suite no-regress) only | Yes — `00-state.md`, `00-task-intake.md` | ~3 |
+| **1** | Docs/Trivial | **Skip** — no `01-root-cause.md`. th-orchestrator emits one-sentence prose plan at STAGE-GATE-1 (same surface as `type: hotfix`). | **Conditional skip** — only when there is no behavior change (see condition below). | tester (suite no-regress) only | Yes — `00-state.md`, `01-plan.md` | ~3 |
 | **2** | Light fix | Inline `01-root-cause.md` — 1 paragraph for `## Mechanism` + 1 paragraph for `## Scope of Fix`, no extended sections. Architect dispatched with `mode: light-root-cause`. | Mandatory | tester + qa | Yes — full | ~5 |
 | **3** | Standard fix | Full `01-root-cause.md` (current PR #50 default). Architect dispatched with `mode: full-root-cause`. `## Prior Art` section optional. | Mandatory | tester + qa + security | Yes — full | ~7 |
 | **4** | Critical/Security | Full `01-root-cause.md` + **mandatory `## Prior Art` section** (architect invokes `mcp__memory__search_nodes`). Architect dispatched with `mode: full-root-cause`. | Mandatory | tester + qa + security (**extended analysis** — adjacent-code surface + prior-art cross-reference) | Yes — full + prior-art | ~9 |
@@ -224,13 +224,12 @@ Every bug-fix pipeline produces the backbone artifacts; the tier modulates which
 
 | Artifact | Tier 1 | Tier 2 | Tier 3 | Tier 4 | Content notes |
 |---|---|---|---|---|---|
-| `00-task-intake.md` | Yes | Yes | Yes | Yes | Bug report content + reproduction steps from operator |
+| `01-plan.md` | **Yes (always)** | Yes | Yes | Yes | Bug report content + reproduction steps (§ Review Summary) + tasks of the fix (§ Task List). Minimum 4 lines; Tier 1 may be 3 lines when Phase 2.0 is skipped (reproduce-or-cite, fix, verify) |
 | `00-state.md` | Yes | Yes | Yes | Yes | Standard schema, `type: fix`, `bug_tier: N`, `bug_tier_source` |
 | `00-execution-events.jsonl` | Yes | Yes | Yes | Yes | Standard event trace |
 | `00-pipeline-summary.md` | Yes | Yes | Yes | Yes | Standard rollup |
 | `01-root-cause.md` | **No (Phase 1 skipped)** | Yes — `mode: light-root-cause`, ≤30 lines | Yes — `mode: full-root-cause`, 1 pg max | Yes — `mode: full-root-cause` + mandatory `## Prior Art`, 1 pg max + ≤15 lines | file:line + mechanism + scope |
 | `01-plan-review.md` | Yes | Yes | Yes | Yes | plan-reviewer output, includes Rules 7 + 8 (gated on `type: fix | hotfix`) |
-| `01-plan.md` | **Yes (always)** | Yes | Yes | Yes | Tasks of the fix (§ Task List). Minimum 4 lines; Tier 1 may be 3 lines when Phase 2.0 is skipped (reproduce-or-cite, fix, verify) |
 | `02-regression-test.md` | **Conditional skip** — only when no behavior change (see Tier 1 condition above); otherwise Yes | Yes | Yes | Yes | tester's failing test (path + content + how to run) BEFORE implementer touches anything |
 | `02-implementation.md` | Yes | Yes | Yes | Yes | implementer's report |
 | `03-testing.md` | Yes — suite no-regress only | Yes | Yes | Yes | tester's post-fix verification |
@@ -246,7 +245,7 @@ Every bug-fix pipeline produces the backbone artifacts; the tier modulates which
 | Phase | Owner | Output | Notes |
 |---|---|---|---|
 | 0a Intake | th-orchestrator | `00-state.md` initial | KG session start, KG query, CLAUDE.md read, type classified as `fix`, `bug_tier` classified (1-4), `security-sensitive: true` forced for Tier 3+ |
-| 0b Specify | th-orchestrator | `00-task-intake.md` (bug-report format) | Reported behaviour / Expected behaviour / Reproduction steps / Environment / AC (AC-1 reproduction-no-longer-bug, AC-2 regression-test-exists for Tier 2-4; Tier 1 uses implicit "cited issue is fixed") |
+| 0b Specify | th-orchestrator | Spec context (bug-report format) passed inline to architect; architect incorporates into `01-plan.md` § Review Summary | Reported behaviour / Expected behaviour / Reproduction steps / Environment / AC (AC-1 reproduction-no-longer-bug, AC-2 regression-test-exists for Tier 2-4; Tier 1 uses implicit "cited issue is fixed") |
 | 0.5 Bootstrap | th-orchestrator | — | Same as feature flow |
 | 1 Root-cause | architect (mode: root-cause + sub-mode) | `01-root-cause.md` (Tier 2-4 only) | **Tier 1: skipped.** Tier 2: `mode: light-root-cause`, ≤30 lines. Tier 3: `mode: full-root-cause`, 1 pg max. Tier 4: `mode: full-root-cause` + mandatory `## Prior Art`. |
 | 1.5 Plan ratification | qa (mode: ratify-plan) | append to `01-root-cause.md` | Usually skipped for `type: fix` (≤3 AC) |
@@ -272,10 +271,10 @@ Every bug-fix pipeline produces the backbone artifacts; the tier modulates which
 
 **Dispatch:** th-orchestrator invokes `tester` via Task with:
 - Feature name for session-docs
-- Pointer to `00-task-intake.md` (reproduction steps + expected behaviour + AC)
+- Pointer to `01-plan.md` (§ Review Summary — reproduction steps + expected behaviour + AC)
 - Pointer to `01-root-cause.md` (Regression Test Approach section)
 - `mode: pre-fix-regression`
-- Instruction: "Write a failing test that captures the bug described in `00-task-intake.md` reproduction steps. The test MUST fail against the current codebase. Do NOT modify any source code — test files only. Output the test path in your status block; write your summary to `02-regression-test.md`."
+- Instruction: "Write a failing test that captures the bug described in `01-plan.md` § Review Summary (reproduction steps). The test MUST fail against the current codebase. Do NOT modify any source code — test files only. Output the test path in your status block; write your summary to `02-regression-test.md`."
 
 **Gate (th-orchestrator):**
 
@@ -301,7 +300,7 @@ Documented in `agents/plan-reviewer.md`. Fire only when the th-orchestrator's ta
 
 `agents/qa.md` validate mode adds two boolean fields to the status block:
 - `regression_test_referenced: true | false` — confirms the per-AC mapping in `04-validation.md` cross-references `02-regression-test.md`
-- `reproduction_steps_validated: true | false` — confirms the AC-1 (reproduction-no-longer-bug) was checked against `00-task-intake.md` Reproduction steps
+- `reproduction_steps_validated: true | false` — confirms the AC-1 (reproduction-no-longer-bug) was checked against `01-plan.md` § Review Summary (Reproduction steps)
 
 ### Type classification — auto-detect bug-fix vs hotfix
 
@@ -426,7 +425,6 @@ A dedicated pipeline for achieving **80% branch coverage service-wide**. Decompo
 
 9. **If `--modules` flag provided** --- skip decomposition, create tasks only for specified modules.
 10. **Write session-docs:**
-    - `session-docs/test-pipeline/00-task-intake.md` --- service path, stack, module list, task list, coverage baseline
     - `session-docs/test-pipeline/00-state.md` --- initial pipeline state
     - `session-docs/test-pipeline/batch-progress.md` --- task table (reusing multi-task format)
 
@@ -670,7 +668,7 @@ session-docs/
   test-pipeline/                        # th-orchestrator coordination
     00-state.md                         # pipeline checkpoint
     00-execution-log.md                 # all agents append
-    00-task-intake.md                   # service analysis & task list
+    01-plan.md                          # service analysis & task list (§ Review Summary + § Task List)
     batch-progress.md                   # multi-task tracking
     05-consolidation.md                 # final merged report
   test-pipeline-coverage-config/        # Round 1 blocker
@@ -706,7 +704,7 @@ When the user asks to document a service, database, API, library, infrastructure
 3. **Parse language** — `--lang <code>` flag or explicit language request. Default: `en`. The language applies to all prose in the documentation; structural elements (YAML keys, Mermaid syntax, code blocks) remain in English.
 4. **Parse folder** — `--folder <name>` flag or derived from topic name (kebab-case).
 5. **Classify doc subject** per topic: `service` | `database` | `api` | `library` | `infrastructure` | `product`. This classification guides the architect's research scope and the documenter's page structure.
-6. **Write `00-task-intake.md`** with: topics, vault path, folder, language, subject classification per topic.
+6. **Prepare spec context** with: topics, vault path, folder, language, subject classification per topic. This context is passed inline to the architect dispatch; the architect incorporates it into `01-plan.md` § Review Summary.
 7. **Write initial `00-state.md`** — `type: docs`, `phase: 0`.
 
 ### Phase 1 — Research (per topic)
@@ -817,7 +815,7 @@ Each topic gets its own session-docs subfolder pattern: `session-docs/docs-{topi
 ```
 session-docs/{feature-name}/
   00-state.md              # Pipeline state (type: docs)
-  00-task-intake.md        # Topics, vault, folder, language, subject classification
+  01-plan.md               # Topics, vault, folder, language, subject classification (§ Review Summary) + task breakdown (§ Task List)
   00-research.md           # Architect research findings
   02-documentation.md      # Documenter manifest (pages, diagrams, dispatch requests)
   04-validation.md         # QA validation report

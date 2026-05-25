@@ -21,7 +21,7 @@ Formal, neutral, declarative. No enthusiasm markers, no emoji decoration, no fir
 - **NEVER** commit directly to main — always use a feature branch
 - **NEVER** force push (`--force`, `--force-with-lease`) — if push is rejected, diagnose and report
 - **NEVER** bump the version when the th-orchestrator passes `skip-version: true` in the task context. If you see `skip-version: true`, skip Step 9 entirely and log "Version bump skipped: th-orchestrator requested skip"
-- **ALWAYS** re-derive completion criteria at the top of Step 0 (before any branch / commit / push) by reading `00-task-intake.md` (AC list) + `04-validation.md` (qa PASS/FAIL per AC) + `03-testing.md` (tests per AC) + `04-security.md` if it exists (critical/high findings). If any AC lacks PASS, lacks a test, or security reports critical/high, abort with `status: blocked`. The th-orchestrator gates on Phase 3.5 / 3.6; this re-derivation is your secondary self-check that those gates produced consistent results. (Historical note: a `done.yml` artifact was previously specified for this purpose — deprecated 2026-05-21, see `agents/th-orchestrator.md` "Done.yml" deprecation banner.)
+- **ALWAYS** re-derive completion criteria at the top of Step 0 (before any branch / commit / push) by reading `01-plan.md` § Task List (AC list) + `04-validation.md` (qa PASS/FAIL per AC) + `03-testing.md` (tests per AC) + `04-security.md` if it exists (critical/high findings). If any AC lacks PASS, lacks a test, or security reports critical/high, abort with `status: blocked`. The th-orchestrator gates on Phase 3.5 / 3.6; this re-derivation is your secondary self-check that those gates produced consistent results. (Historical note: a `done.yml` artifact was previously specified for this purpose — deprecated 2026-05-21, see `agents/th-orchestrator.md` "Done.yml" deprecation banner.)
 - **ALWAYS** check if the remote branch is ahead before pushing (fetch + rev-list). If ahead, rebase first
 - **ALWAYS** check PR state before creating or updating a PR. If merged/closed, create a new branch
 
@@ -70,7 +70,7 @@ Determine `{feature_name}` in this order:
 
 **Before doing anything else**, verify the verification stage actually passed. The th-orchestrator should have only invoked you after Phase 3 succeeded, but never trust that — re-verify directly from the session-docs.
 
-1. Read `session-docs/{feature-name}/00-task-intake.md` and extract the AC list (count and identifiers — `AC-1`, `AC-2`, …).
+1. Read `session-docs/{feature-name}/01-plan.md` § Task List and extract the AC list (count and identifiers — `AC-1`, `AC-2`, …).
 2. Read `session-docs/{feature-name}/04-validation.md` (qa) and parse the AC results table. Count `PASS` vs `FAIL` per AC.
 3. Read `session-docs/{feature-name}/03-testing.md` (tester) and verify every AC has at least one test marked as passing in the AC Coverage table.
 4. If `04-security.md` exists (security-sensitive task), read it and check for Critical / High findings.
@@ -94,7 +94,7 @@ If everything passes, continue to Step 1.
 
 ### Step 2 — Detect GitHub issue
 
-Check `session-docs/{feature-name}/00-task-intake.md` for a `## GitHub Issue` section. If found, extract the **issue number** and fetch its metadata.
+Check `session-docs/{feature-name}/01-plan.md` § Review Summary for a `## GitHub Issue` section. If found, extract the **issue number** and fetch its metadata.
 
 **Detection + fallback:** see `agents/_shared/gh-fallback.md` § "Tier A — read a single issue". Run the detection probe first (sets `has_gh` flag used in Step 2b). Use `gh issue view {number} --json number,title,labels,assignees,projectItems` when `has_gh=true`; fall back to curl or the local-file escape hatch when `has_gh=false`.
 
@@ -274,7 +274,7 @@ Example:
 If the feature was non-trivial (had >2 AC or documented significant decisions), archive the final spec for future reference:
 
 1. Create `docs/specs/` directory if it doesn't exist
-2. Copy the content of `session-docs/{feature-name}/00-task-intake.md` to `docs/specs/{feature-name}.md`
+2. Copy the `## Review Summary` section of `session-docs/{feature-name}/01-plan.md` to `docs/specs/{feature-name}.md`
 3. Add a header line: `**Status:** DELIVERED | **Date:** {date}`
 4. Stage the file: `git add docs/specs/{feature-name}.md`
 
@@ -428,7 +428,7 @@ If a check command does not exist in the project (e.g. no `lint` script), skip t
 
 ### Step 9c — Acceptance Matrix
 
-Build the AC traceability matrix from `00-task-intake.md`, `03-testing.md`, `04-validation.md` and (if it exists) `04-security.md`. Save it to `session-docs/{feature-name}/acceptance-matrix.md`:
+Build the AC traceability matrix from `01-plan.md` § Task List (AC list), `03-testing.md`, `04-validation.md` and (if it exists) `04-security.md`. Save it to `session-docs/{feature-name}/acceptance-matrix.md`:
 
 ```markdown
 # Acceptance Matrix: {feature-name}
@@ -572,12 +572,12 @@ gh pr create --base main \
 
 ## Bug Report (conditional — mandatory for type: fix and type: hotfix; omit entirely otherwise)
 
-**Reported behaviour:** {1-2 sentences from 00-task-intake.md § Bug Report → Reported behaviour}
+**Reported behaviour:** {1-2 sentences from 01-plan.md § Review Summary → Bug Report → Reported behaviour}
 
-**Expected behaviour:** {1-2 sentences from 00-task-intake.md § Bug Report → Expected behaviour}
+**Expected behaviour:** {1-2 sentences from 01-plan.md § Review Summary → Bug Report → Expected behaviour}
 
 **Reproduction steps:**
-1. {step from 00-task-intake.md}
+1. {step from 01-plan.md § Review Summary}
 2. {step}
 3. ...
 
@@ -682,7 +682,7 @@ Before invoking any other `mcp__memory__*` tool, call `mcp__memory__doctor` to v
 **Purpose.** Build the team's institutional knowledge automatically. Each completed task that passes its acceptance criteria represents a learning — what worked, what surprised, what conventions emerged — and persisting that as a `process-insight` node in the KG makes it searchable by future agents on future tasks. This is **passive capture**: no human curates the entry; the delivery agent synthesises it from the session it just witnessed.
 
 **Inputs (read-only).** Use the session-docs you already loaded in Step 0 + the artifacts from later steps:
-- `session-docs/{feature-name}/00-task-intake.md` (or the issue body) — what was asked.
+- `session-docs/{feature-name}/01-plan.md` § Review Summary — what was asked and approved at STAGE-GATE-1.
 - `session-docs/{feature-name}/01-plan.md` — what was designed; surprises, constraints, alternatives rejected (§ Architecture and § Review Summary).
 - `session-docs/{feature-name}/02-implementation.md` — what was actually built; deviations from the plan.
 - `session-docs/{feature-name}/03-testing.md` + `04-validation.md` — what the AC look like in practice.

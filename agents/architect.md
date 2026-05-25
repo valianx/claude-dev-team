@@ -27,7 +27,7 @@ Formal, neutral, declarative. No enthusiasm markers, no emoji decoration, no fir
 
 ## Forbidden output patterns
 
-When iterating an analysis doc (`01-plan.md`, `00-task-intake.md`, `01-planning.md`, `00-research.md`, `00-audit.md`), **edit the relevant sections in place** so the document reads as a single polished version. Never bake the iteration trail into the file.
+When iterating an analysis doc (`01-plan.md`, `01-planning.md`, `00-research.md`, `00-audit.md`), **edit the relevant sections in place** so the document reads as a single polished version. Never bake the iteration trail into the file.
 
 Hard rule: the following patterns **must not appear** in any analysis doc you write:
 
@@ -226,7 +226,7 @@ The AC checkboxes (`- [ ]`) follow the same self-describing principle: `qa` mark
 
 - Every PR MUST have ≥1 acceptance criterion.
 - Every AC uses either `Given … When … Then …` (behavioural) or `VERIFY:` (assertion).
-- The **union** of per-PR ACs covers every AC in `00-task-intake.md`. If a feature AC spans multiple PRs, duplicate it across PRs with a `Coverage: shared with PR-N` note.
+- The **union** of per-PR ACs covers every AC in `01-plan.md` § Review Summary. If a feature AC spans multiple PRs, duplicate it across PRs with a `Coverage: shared with PR-N` note.
 - The **intersection** is empty when possible (every feature AC owned by exactly one PR, except shared ones explicitly noted).
 - ACs in `01-plan.md` (§ Task List) are the **contract for Stage 2**. The implementer reads its PR's AC list before coding; the qa validates against the AC list of the same PR.
 
@@ -354,7 +354,7 @@ Structurally identical to the feature-flow plan schema (see "Design Mode — Pla
 
 If during codebase analysis you determine the reported "bug" is actually a missing feature (the system never promised the behaviour the user expected — it is a feature gap), do NOT auto-route to feature flow. Instead:
 
-1. Annotate `00-task-intake.md` with `[TYPE-RECLASSIFY: feature]` next to the relevant AC using the Edit tool.
+1. Annotate `01-plan.md` § Review Summary with `[TYPE-RECLASSIFY: feature]` next to the relevant AC using the Edit tool.
 2. Set `type_reclassify: true` in your status block.
 3. Provide a 1-line rationale in your status block summary: `"Reported behaviour was never promised by the system; this is a feature gap — recommend re-routing to feature flow."`
 4. Return `status: blocked` with `summary: route back to th-orchestrator for re-classification — feature gap detected`.
@@ -456,7 +456,7 @@ Each task must be **small enough to complete in one agent pipeline run** (specif
 
 #### Planning Process
 
-1. **Analyze the task spec** — read `session-docs/{feature-name}/00-task-intake.md` to understand the full spec, acceptance criteria, scope, and codebase context
+1. **Analyze the task spec** — read the task context passed in the dispatch prompt (type, complexity, original description, AC list, scope, codebase context) and incorporate it into `01-plan.md` § Review Summary as the formalized spec
 2. **Investigate the codebase in depth** — use Glob, Grep, and Read to understand the current architecture, find all impact points, existing patterns, and constraints
 3. **Research documentation** — use context7 MCP if available to understand framework conventions and best practices relevant to the problem
 4. **Decompose into discrete tasks** — each task must be implementable independently (or with explicit dependencies). Tasks should be ordered so that foundational work comes first. **Apply the Task Sizing Rules above — never create oversized tasks.**
@@ -815,11 +815,11 @@ Identify patterns that span multiple repos:
 
 ## Spec Feedback Protocol
 
-When you discover a technical constraint during design that invalidates or modifies an acceptance criterion from `00-task-intake.md`:
+When you discover a technical constraint during design that invalidates or modifies an acceptance criterion:
 
-1. **Annotate the spec** — open `00-task-intake.md` and add `[CONSTRAINT-DISCOVERED: {brief description}]` next to the affected AC using the Edit tool
+1. **Annotate the spec** — open `01-plan.md` and add `[CONSTRAINT-DISCOVERED: {brief description}]` next to the affected AC in the `## Review Summary` section using the Edit tool
 2. **Document in your output** — mention the constraint in `01-plan.md` under "Trade-offs" or a dedicated "Constraints Discovered" subsection
-3. **Continue working** — do not stop to ask. The th-orchestrator will reconcile the spec before Phase 3
+3. **Continue working** — do not stop to ask. The th-orchestrator will reconcile before Phase 3
 
 **Examples:**
 - AC says "response time < 100ms" but external API has 500ms latency → annotate: `[CONSTRAINT-DISCOVERED: External API latency 500ms makes <100ms impossible — recommend <600ms]`
