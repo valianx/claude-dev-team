@@ -13,7 +13,7 @@ You NEVER implement code or features — you build **the agents and tools** that
 
 ## Voice
 
-Formal, neutral, declarative. No enthusiasm markers, no emoji decoration, no first-person personality, no filler closings. Session-docs prose follows the operator's chat language; structural elements (headers, field names, status-block keys) stay English.
+Formal, neutral, declarative. No enthusiasm markers, no emoji decoration, no first-person personality, no filler closings. workspaces prose follows the operator's chat language; structural elements (headers, field names, status-block keys) stay English.
 
 ---
 
@@ -50,7 +50,7 @@ The canonical `model` + `effort` matrix for the repo lives in `agents/README.md`
 2. **Read existing commands** — glob `.claude/commands/*.md` to understand available tools
 3. **Check sync state** — note whether global (`~/.claude/agents/`) is in sync
 4. **Read `agents/th-orchestrator.md`** — understand how the th-orchestrator invokes agents (Return Protocol format)
-5. **Create session-docs if needed** — `session-docs/{agent-name}/`
+5. **Create workspaces if needed** — `workspaces/{agent-name}/`
 
 ---
 
@@ -79,7 +79,7 @@ Claude Code has a hierarchical memory system — use it correctly:
 
 **Context window discipline:**
 - Agents run in isolated context windows — keep system prompts under 4000 tokens
-- Use `session-docs/` for intermediate outputs — not the system prompt
+- Use `workspaces/` for intermediate outputs — not the system prompt
 - Use `read_diagram_guide` and references files for large knowledge bases — load on demand, not upfront
 - Prefer `## Section` headers in CLAUDE.md so agents can grep/skim without loading everything
 - Auto memory loads only first 200 lines of `MEMORY.md` — keep it as an index, move details to topic files
@@ -169,11 +169,11 @@ Do NOT repeat the full output content in the return block — it's in the file.
 
 ### Execution Log Protocol (mandatory)
 
-The th-orchestrator writes observability events to `session-docs/{feature}/00-execution-events.jsonl` (local mode) or `00-execution-events.md` (obsidian mode). Agents do not write to that file directly — they return timing data in their status blocks and the th-orchestrator propagates the events.
+The th-orchestrator writes observability events to `workspaces/{feature}/00-execution-events.jsonl` (local mode) or `00-execution-events.md` (obsidian mode). Agents do not write to that file directly — they return timing data in their status blocks and the th-orchestrator propagates the events.
 
 ### Session Documentation Protocol (mandatory)
 
-Agents write outputs to `session-docs/{feature-name}/`:
+Agents write outputs to `workspaces/{feature-name}/`:
 - `00-execution-events.jsonl` / `00-execution-events.md` — observability event trace (th-orchestrator only; `.jsonl` in local mode, `.md` in obsidian mode)
 - `00-research.md` — research output (architect, research mode)
 - `01-plan.md` — architect output: spec (§ Review Summary) + architecture (§ Architecture) + task list (§ Task List)
@@ -276,7 +276,7 @@ Before syncing, evaluate the draft against these mandatory criteria. **If any cr
 | 4 | **Anti-patterns** | Lists what the agent NEVER does |
 | 5 | **Description field** | Is trigger-oriented and specific (when to use, what it does, what it doesn't) |
 
-Document the evaluation result in `session-docs/{agent-name}/01-agent-design.md` under a `## Self-Evaluation` section:
+Document the evaluation result in `workspaces/{agent-name}/01-agent-design.md` under a `## Self-Evaluation` section:
 
 ```markdown
 ## Self-Evaluation
@@ -343,7 +343,7 @@ When designing an agent:
 
 ## Session Documentation
 
-Write design rationale to `session-docs/{agent-name}/01-agent-design.md`:
+Write design rationale to `workspaces/{agent-name}/01-agent-design.md`:
 
 ```markdown
 # Agent Design: {name}
@@ -382,7 +382,7 @@ Write design rationale to `session-docs/{agent-name}/01-agent-design.md`:
 
 ## Execution Log Protocol
 
-The th-orchestrator writes observability events to `session-docs/{agent-name}/00-execution-events.jsonl` (local mode) or `00-execution-events.md` (obsidian mode). You do not write to that file directly.
+The th-orchestrator writes observability events to `workspaces/{agent-name}/00-execution-events.jsonl` (local mode) or `00-execution-events.md` (obsidian mode). You do not write to that file directly.
 
 ---
 

@@ -77,7 +77,7 @@ Examples: `/translate apply`, `/translate translate-only`
 
 - Always invoke the `th-orchestrator` agent — do NOT invoke the `translator` agent directly
 - The th-orchestrator will route to the `translator` agent
-- Output: `session-docs/{feature-name}/00-translation.md`
+- Output: `workspaces/{feature-name}/00-translation.md`
 - Glossary is saved to `docs/glossary.md` in the project root
 - The translator agent modifies source code (replaces hardcoded strings with i18n keys)
 - Source language strings are preserved as-is in the source locale file (validated)

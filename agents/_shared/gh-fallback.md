@@ -45,7 +45,7 @@ Read operations against public (or token-accessible) GitHub data.
    Pass `$GH_TOKEN` or `$GITHUB_TOKEN` if set (5 000 req/hr); anonymous
    otherwise (60 req/hr on public repos).
 3. Else → escape hatch: write the expected JSON template to
-   `session-docs/{feature}/inputs/{resource}-{N}.json`, prompt the operator to
+   `workspaces/{feature}/inputs/{resource}-{N}.json`, prompt the operator to
    fill it in, and re-read on the next invocation.
 
 ### Tier A — read a single issue
@@ -73,7 +73,7 @@ Operator message when escape hatch is triggered:
 ```
 Issue #{number} could not be fetched automatically (gh missing and no github.com
 remote detected). Paste the issue body into
-session-docs/{feature}/inputs/issue-{number}.json and re-run the same command.
+workspaces/{feature}/inputs/issue-{number}.json and re-run the same command.
 ```
 
 ### Tier A — read a single PR
@@ -171,8 +171,8 @@ elif [ "$is_github" = "true" ] && [ -n "${GH_TOKEN:-${GITHUB_TOKEN:-}}" ]; then
     --data "{\"title\":\"{title}\",\"body\":\"{body}\",\"head\":\"{branch}\",\"base\":\"main\"}"
 else
   # Write body to file and surface for operator paste
-  mkdir -p session-docs/{feature}/inputs
-  cat > session-docs/{feature}/inputs/pr-body.md << 'PRBODY'
+  mkdir -p workspaces/{feature}/inputs
+  cat > workspaces/{feature}/inputs/pr-body.md << 'PRBODY'
 {full PR body}
 PRBODY
   echo "GitHub CLI unavailable — PR not created automatically."
@@ -184,7 +184,7 @@ PRBODY
   echo "Title (copy/paste):"
   echo "  {title}"
   echo ""
-  echo "Body: session-docs/{feature}/inputs/pr-body.md"
+  echo "Body: workspaces/{feature}/inputs/pr-body.md"
   echo ""
   echo "Reply 'pr opened #N' to continue the pipeline."
 fi
@@ -222,12 +222,12 @@ elif [ "$is_github" = "true" ] && [ -n "${GH_TOKEN:-${GITHUB_TOKEN:-}}" ]; then
     "https://api.github.com/repos/$repo_path/issues" \
     --data "{\"title\":\"{title}\",\"body\":\"{body}\",\"labels\":[\"{label}\"]}"
 else
-  mkdir -p session-docs/{feature}/inputs
-  cat > session-docs/{feature}/inputs/issue-create.md << 'ISSUEBODY'
+  mkdir -p workspaces/{feature}/inputs
+  cat > workspaces/{feature}/inputs/issue-create.md << 'ISSUEBODY'
 {SDD-formatted issue body}
 ISSUEBODY
   echo "GitHub CLI unavailable — issue not created automatically."
-  echo "Paste the body from session-docs/{feature}/inputs/issue-create.md into GitHub,"
+  echo "Paste the body from workspaces/{feature}/inputs/issue-create.md into GitHub,"
   echo "then reply with the new issue number."
 fi
 ```
@@ -246,12 +246,12 @@ elif [ "$is_github" = "true" ] && [ -n "${GH_TOKEN:-${GITHUB_TOKEN:-}}" ]; then
     "https://api.github.com/repos/$repo_path/issues/{number}" \
     --data "{\"body\":\"{body}\"}"
 else
-  mkdir -p session-docs/{feature}/inputs
-  cat > session-docs/{feature}/inputs/issue-edit.md << 'EDITBODY'
+  mkdir -p workspaces/{feature}/inputs
+  cat > workspaces/{feature}/inputs/issue-edit.md << 'EDITBODY'
 {updated issue body}
 EDITBODY
   echo "Update issue body manually at: https://github.com/$repo_path/issues/{number}"
-  echo "Body written to: session-docs/{feature}/inputs/issue-edit.md"
+  echo "Body written to: workspaces/{feature}/inputs/issue-edit.md"
 fi
 ```
 
@@ -269,11 +269,11 @@ elif [ "$is_github" = "true" ] && [ -n "${GH_TOKEN:-${GITHUB_TOKEN:-}}" ]; then
     "https://api.github.com/repos/$repo_path/issues/{number}/comments" \
     --data "{\"body\":\"{comment}\"}"
 else
-  mkdir -p session-docs/{feature}/inputs
-  cat > session-docs/{feature}/inputs/issue-comment.md << 'COMMENTBODY'
+  mkdir -p workspaces/{feature}/inputs
+  cat > workspaces/{feature}/inputs/issue-comment.md << 'COMMENTBODY'
 {comment body}
 COMMENTBODY
-  echo "Paste the comment from session-docs/{feature}/inputs/issue-comment.md"
+  echo "Paste the comment from workspaces/{feature}/inputs/issue-comment.md"
   echo "into GitHub at: https://github.com/$repo_path/issues/{number}"
 fi
 ```
@@ -328,9 +328,9 @@ non-GitHub remote), consumers report this new status value:
 ```
 agent: delivery
 status: blocked-manual-push
-output: session-docs/{feature}/00-state.md § Delivery
+output: workspaces/{feature}/00-state.md § Delivery
 manual_action_required: true
-manual_action_file: session-docs/{feature}/inputs/pr-body.md
+manual_action_file: workspaces/{feature}/inputs/pr-body.md
 manual_action_url: https://github.com/{owner}/{repo}/compare/main...{branch}?expand=1
 summary: PR not created automatically (gh unavailable). Operator paste required.
 ```
@@ -359,7 +359,7 @@ gh CLI unavailable. Using $GH_TOKEN for write operation via the GitHub REST API.
 ```
 {Resource} #{number} could not be fetched automatically (gh missing and no
 github.com remote detected). Paste the content into
-session-docs/{feature}/inputs/{resource}-{number}.json and re-run the same command.
+workspaces/{feature}/inputs/{resource}-{number}.json and re-run the same command.
 ```
 
 **When escape hatch is used (Tier B — PR create):**
@@ -373,7 +373,7 @@ Branch pushed to origin. Open the PR manually:
 Title (copy/paste):
   {title}
 
-Body: session-docs/{feature}/inputs/pr-body.md
+Body: workspaces/{feature}/inputs/pr-body.md
 
 Reply "pr opened #N" to continue the pipeline.
 ```

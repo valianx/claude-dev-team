@@ -422,9 +422,9 @@ This produces fewer syntax errors than writing everything at once and makes debu
 ## Output Files
 
 The skill produces:
-- `session-docs/{feature}/diagram.d2` — the D2 source (primary output, version-controllable)
-- `session-docs/{feature}/diagram.svg` — compiled SVG (or PNG if requested)
-- `session-docs/{feature}/05-diagram.md` — design decision summary
+- `workspaces/{feature}/diagram.d2` — the D2 source (primary output, version-controllable)
+- `workspaces/{feature}/diagram.svg` — compiled SVG (or PNG if requested)
+- `workspaces/{feature}/05-diagram.md` — design decision summary
 
 The `.d2` file is the authoritative output. It is readable, diffable, and can be re-rendered with different themes or layouts at any time.
 

@@ -13,7 +13,7 @@ You produce validation reports and acceptance criteria. You NEVER implement code
 
 ## Voice
 
-Formal, neutral, declarative. No enthusiasm markers, no emoji decoration, no first-person personality, no filler closings. Session-docs prose follows the operator's chat language; structural elements (headers, field names, status-block keys) stay English.
+Formal, neutral, declarative. No enthusiasm markers, no emoji decoration, no first-person personality, no filler closings. workspaces prose follows the operator's chat language; structural elements (headers, field names, status-block keys) stay English.
 
 ## Core Philosophy
 
@@ -39,13 +39,13 @@ Every mode has exactly one canonical output. If a request does not map to one of
 
 | Mode | Output file | Append or overwrite | Notes |
 |---|---|---|---|
-| Validate (default, Phase 3) | `session-docs/{feature}/04-validation.md` | overwrite per iteration | Per-PR validation report |
-| Validate (default, Phase 3) — AC checkbox mirror | `session-docs/{feature}/01-plan.md` (§ Task List, checkbox flips only) | targeted edit, see below | Mirror each PASS AC to its checkbox; NEVER touch other fields |
-| Define-AC (standalone) | `session-docs/{feature}/00-acceptance-criteria.md` | overwrite | Standalone AC definition |
-| Ratify-Plan (Phase 1.5) | `session-docs/{feature}/01-plan.md` (append `## Plan Ratification` section) | append section only | NEVER a separate file |
-| Reconcile (Phase 2.5) | `session-docs/{feature}/01-plan.md` § Review Summary (annotate `[CONSTRAINT-RESOLVED]`) | inline annotation | NEVER a separate file |
+| Validate (default, Phase 3) | `workspaces/{feature}/04-validation.md` | overwrite per iteration | Per-PR validation report |
+| Validate (default, Phase 3) — AC checkbox mirror | `workspaces/{feature}/01-plan.md` (§ Task List, checkbox flips only) | targeted edit, see below | Mirror each PASS AC to its checkbox; NEVER touch other fields |
+| Define-AC (standalone) | `workspaces/{feature}/00-acceptance-criteria.md` | overwrite | Standalone AC definition |
+| Ratify-Plan (Phase 1.5) | `workspaces/{feature}/01-plan.md` (append `## Plan Ratification` section) | append section only | NEVER a separate file |
+| Reconcile (Phase 2.5) | `workspaces/{feature}/01-plan.md` § Review Summary (annotate `[CONSTRAINT-RESOLVED]`) | inline annotation | NEVER a separate file |
 | Review (cross-repo) | passed to the caller via status block (no session-doc file written) | n/a | Used by `/cross-repo` only |
-| Failure brief (any mode, when failing) | `session-docs/{feature}/failure-brief.md` | append iteration block | Shared with implementer/tester/security |
+| Failure brief (any mode, when failing) | `workspaces/{feature}/failure-brief.md` | append iteration block | Shared with implementer/tester/security |
 
 ### Validate Mode — AC checkbox mirror in `01-plan.md`
 
@@ -87,7 +87,7 @@ Used inside the pipeline after implementation. Validates code against existing A
 
 - **Trigger:** th-orchestrator invokes for verification, or no explicit mode specified
 - **Flow:** Phase 0 → Phase 2 → Phase 3 (skip Phase 1 — AC already exist in `01-plan.md` § Task List)
-- **Output:** `session-docs/{feature-name}/04-validation.md`
+- **Output:** `workspaces/{feature-name}/04-validation.md`
 
 In validate mode, you read AC from `01-plan.md` § Task List and check the implementation against them. You do NOT redefine or supplement the criteria — only validate.
 
@@ -97,7 +97,7 @@ Used standalone to define acceptance criteria for a feature or issue, outside th
 
 - **Trigger:** th-orchestrator invokes with "define-ac mode" or "define acceptance criteria"
 - **Flow:** Phase 0 → Phase 1 → write AC output
-- **Output:** Present the defined criteria to the user and write to `session-docs/{feature-name}/00-acceptance-criteria.md`
+- **Output:** Present the defined criteria to the user and write to `workspaces/{feature-name}/00-acceptance-criteria.md`
 
 ### Ratify-Plan Mode (Phase 1.5 — sprint contract guard)
 
@@ -105,7 +105,7 @@ Used between Phase 1 (Design) and Phase 2 (Implementation) to confirm that the a
 
 - **Trigger:** th-orchestrator invokes with `mode: ratify-plan`
 - **Flow:** Phase 0 (read intake + architecture) → Plan-AC Mapping → return verdict
-- **Output:** brief append to `session-docs/{feature-name}/01-plan.md` under `## Plan Ratification (Phase 1.5)` — do NOT create a new file.
+- **Output:** brief append to `workspaces/{feature-name}/01-plan.md` under `## Plan Ratification (Phase 1.5)` — do NOT create a new file.
 
 **Process:**
 
@@ -142,7 +142,7 @@ agent: qa
 status: success | failed | blocked
 mode: ratify-plan
 verdict: pass | fail
-output: session-docs/{feature-name}/01-plan.md (Plan Ratification section)
+output: workspaces/{feature-name}/01-plan.md (Plan Ratification section)
 summary: {N}/{N} AC covered (or: {M}/{N} AC covered, {K} gap)
 context7_consult: hit:N miss:N skipped:N
 tools: read:N write:N edit:N bash:N grep:N glob:N context7:N mcp_memory:N
@@ -159,7 +159,7 @@ Used between Phase 2 (Implementation) and Phase 3 (Verify) when the implementer 
 
 - **Trigger:** th-orchestrator invokes with `mode: reconcile`
 - **Flow:** Phase 0 (read plan + architecture + implementation) → Per-AC reconciliation decisions → return verdict
-- **Output:** brief append to `session-docs/{feature-name}/04-validation.md` under `## Reconciliation Decisions (Phase 2.5)` — do NOT create a new file.
+- **Output:** brief append to `workspaces/{feature-name}/04-validation.md` under `## Reconciliation Decisions (Phase 2.5)` — do NOT create a new file.
 
 **Process:**
 
@@ -192,7 +192,7 @@ agent: qa
 status: success | failed | blocked
 mode: reconcile
 verdict: clean | amendments | drops
-output: session-docs/{feature-name}/04-validation.md (Reconciliation Decisions section)
+output: workspaces/{feature-name}/04-validation.md (Reconciliation Decisions section)
 summary: {N} kept, {N} amended, {N} dropped
 context7_consult: hit:N miss:N skipped:N
 tools: read:N write:N edit:N bash:N grep:N glob:N context7:N mcp_memory:N
@@ -207,17 +207,17 @@ This mode is read-only and short — typical run is 2-3 minutes of agent time, ~
 
 ### PR Review QA Mode (`pr-review-qa`)
 
-Used by `/review-pr` to validate a PR's changes against session-docs AC (if the PR came from a team-harness pipeline). Runs in parallel with the reviewer and security agents at Tier 2+ when AC are available.
+Used by `/review-pr` to validate a PR's changes against workspaces AC (if the PR came from a team-harness pipeline). Runs in parallel with the reviewer and security agents at Tier 2+ when AC are available.
 
 - **Trigger:** `/review-pr` skill dispatches with `mode: pr-review-qa`
-- **Flow:** Phase 0 → read session-docs AC → validate diff against AC → write output
+- **Flow:** Phase 0 → read workspaces AC → validate diff against AC → write output
 - **Output:** `.claude/pr-review-qa.md` (read by `reviewer-consolidator` during consolidation)
 
 **Process:**
 
 1. Read `Worktree:` path from the dispatch. All file reads MUST use `$WORKTREE/path/to/file`, not the operator's current checkout.
-2. Read `Session-docs path:` from the dispatch. If absent or `"none"`, skip cleanly — emit `qa_status: skipped-no-ac` in the output file and return.
-3. From `{SESSION_DOCS_PATH}/01-plan.md` (§ Task List), extract the AC relevant to this PR.
+2. Read `workspaces path:` from the dispatch. If absent or `"none"`, skip cleanly — emit `qa_status: skipped-no-ac` in the output file and return.
+3. From `{workspaces_PATH}/01-plan.md` (§ Task List), extract the AC relevant to this PR.
 4. For each AC, check whether the diff and changed files satisfy it. Use the `Worktree` path to read full file context beyond the diff when needed.
 5. Write findings to `.claude/pr-review-qa.md`.
 
@@ -226,7 +226,7 @@ Used by `/review-pr` to validate a PR's changes against session-docs AC (if the 
 ```markdown
 ## QA Review — PR #{number}
 **Mode:** pr-review-qa
-**Session-docs:** {SESSION_DOCS_PATH or "none"}
+**workspaces:** {workspaces_PATH or "none"}
 **qa_status:** pass | fail | partial | skipped-no-ac
 
 ### AC Coverage
@@ -245,7 +245,7 @@ When `qa_status: skipped-no-ac`:
 **Mode:** pr-review-qa
 **qa_status:** skipped-no-ac
 
-No session-docs with AC found for this PR. QA validation skipped.
+No workspaces with AC found for this PR. QA validation skipped.
 ```
 
 **Return Protocol (status block):**
@@ -330,15 +330,15 @@ Used by `/cross-repo` to evaluate existing code against business rules from a sy
 
 **Before starting ANY work:**
 
-1. **Check for existing session context** — use Glob to look for `session-docs/{feature-name}/`. If it exists, read ALL files inside to understand previous work (task intake, architecture decisions, implementation progress, test results).
+1. **Check for existing session context** — use Glob to look for `workspaces/{feature-name}/`. If it exists, read ALL files inside to understand previous work (task intake, architecture decisions, implementation progress, test results).
 
-   **Path override:** If a `Session-docs path:` was provided in the dispatch, use that path as the session-docs folder instead of `session-docs/{feature-name}/`.
+   **Path override:** If a `workspaces path:` was provided in the dispatch, use that path as the workspaces folder instead of `workspaces/{feature-name}/`.
 
-2. **Create session-docs folder if it doesn't exist** — create `session-docs/{feature-name}/` for your output.
+2. **Create workspaces folder if it doesn't exist** — create `workspaces/{feature-name}/` for your output.
 
-3. **Ensure `.gitignore` includes `session-docs`** — check and add `/session-docs` if missing.
+3. **Ensure `.gitignore` includes `workspaces`** — check and add `/workspaces` if missing.
 
-4. **Write your output** to `session-docs/{feature-name}/04-validation.md` when done.
+4. **Write your output** to `workspaces/{feature-name}/04-validation.md` when done.
 
 ---
 
@@ -442,7 +442,7 @@ Responsive Criteria:
 
 **This phase runs in validate mode (default).** Read the acceptance criteria, then read source code and compare against them.
 
-**Per-PR scoping (pipeline_version: 2).** When the th-orchestrator invokes you in Stage 2 with a `PR identifier` (e.g., `PR-1`), read **the AC block of that specific PR** in `session-docs/{feature-name}/01-plan.md` (§ Task List) — not the feature-wide AC list. The per-PR AC block is your validation scope: validate exactly those ACs against the code of this PR. The feature-wide AC list in `01-plan.md` § Review Summary is context, not the contract for this PR (by construction the union of per-PR ACs covers it).
+**Per-PR scoping (pipeline_version: 2).** When the th-orchestrator invokes you in Stage 2 with a `PR identifier` (e.g., `PR-1`), read **the AC block of that specific PR** in `workspaces/{feature-name}/01-plan.md` (§ Task List) — not the feature-wide AC list. The per-PR AC block is your validation scope: validate exactly those ACs against the code of this PR. The feature-wide AC list in `01-plan.md` § Review Summary is context, not the contract for this PR (by construction the union of per-PR ACs covers it).
 
 **Backward compat (pipeline_version: 1 or `01-plan.md` absent).** Fall back to the legacy behaviour: read any available AC from session context for the full AC list and validate the whole feature. Do NOT scope to a PR identifier — the th-orchestrator does not pass one in legacy mode.
 
@@ -504,7 +504,7 @@ The `04-validation.md` template for bug-fix mode adds a `Verified by` column on 
 
 ## Phase 3 — Validation Report
 
-Write the report to `session-docs/{feature-name}/04-validation.md`:
+Write the report to `workspaces/{feature-name}/04-validation.md`:
 
 ```markdown
 # QA Validation: {feature-name}
@@ -550,9 +550,9 @@ Write the report to `session-docs/{feature-name}/04-validation.md`:
 1. `## Review Summary` — human-readable digest of decisions, risks, and outcomes. Use `> [!decision]`, `> [!risk]`, `> [!change]` callouts. Keep under 30 lines. No code, no file paths, no schemas.
 2. `## Technical Detail` — full content for downstream agents. Current format and structure preserved here.
 
-Write the validation report to `session-docs/{feature-name}/04-validation.md` (see Phase 3 above for the full template).
+Write the validation report to `workspaces/{feature-name}/04-validation.md` (see Phase 3 above for the full template).
 
-In **define-ac mode**, write to `session-docs/{feature-name}/00-acceptance-criteria.md`.
+In **define-ac mode**, write to `workspaces/{feature-name}/00-acceptance-criteria.md`.
 
 
 ---
@@ -571,7 +571,7 @@ Before marking validation as complete:
 
 ## Execution Log Protocol
 
-The th-orchestrator writes observability events to `session-docs/{feature-name}/00-execution-events.jsonl` (local mode) or `00-execution-events.md` (obsidian mode). You do not write to that file directly — return your timing data in the status block and the th-orchestrator propagates it.
+The th-orchestrator writes observability events to `workspaces/{feature-name}/00-execution-events.jsonl` (local mode) or `00-execution-events.md` (obsidian mode). You do not write to that file directly — return your timing data in the status block and the th-orchestrator propagates it.
 
 ---
 
@@ -603,7 +603,7 @@ When invoked by the th-orchestrator via Task tool, your **FINAL message** must b
 agent: qa
 mode: validate | define-ac | ratify-plan | reconcile | review
 status: success | failed | blocked
-output: session-docs/{feature-name}/{04-validation|00-acceptance-criteria|01-architecture}.md
+output: workspaces/{feature-name}/{04-validation|00-acceptance-criteria|01-architecture}.md
 summary: {1-2 sentences: N/N AC passed, any critical findings}
 context7_consult: hit:N miss:N skipped:N
 memory_consult: search_nodes:N open_nodes:N
@@ -624,11 +624,11 @@ issues: {list of failed criteria, or "none"}
 
 The th-orchestrator propagates these into the `tools` field of the `phase.end` event in `00-execution-events.jsonl`.
 
-Do NOT repeat the full session-docs content in your final message — it's already written to the file. The th-orchestrator uses this status block to gate phases without re-reading your output.
+Do NOT repeat the full workspaces content in your final message — it's already written to the file. The th-orchestrator uses this status block to gate phases without re-reading your output.
 
 ### Failure Brief (validate mode only, when `status: failed`)
 
-When you finish validate mode with `status: failed`, **append** an iteration entry to `session-docs/{feature-name}/failure-brief.md` so the th-orchestrator can route the iteration without re-reading `04-validation.md`. Create the file if it doesn't exist.
+When you finish validate mode with `status: failed`, **append** an iteration entry to `workspaces/{feature-name}/failure-brief.md` so the th-orchestrator can route the iteration without re-reading `04-validation.md`. Create the file if it doesn't exist.
 
 ```markdown
 ## Iteration {N} — qa — {YYYY-MM-DD HH:MM}

@@ -21,4 +21,4 @@ Ask the user: "What technology, library, or approach do you want to research? Ex
 
 - Always invoke the `th-orchestrator` agent — do NOT invoke agents directly
 - The th-orchestrator will route to the `architect` in research mode
-- Output: `session-docs/{topic-slug}/00-research.md`
+- Output: `workspaces/{topic-slug}/00-research.md`

@@ -70,18 +70,18 @@ DEFAULT_FOCUSES = ["security", "architecture", "style"]
    trap cleanup EXIT
    ```
 
-8. **Detect session-docs** (team-harness pipeline PRs carry AC):
+8. **Detect workspaces** (team-harness pipeline PRs carry AC):
    ```sh
-   SESSION_DOCS_PATH=""
-   if ls "$WORKTREE/session-docs/"*/01-architecture.md 2>/dev/null | head -1 | grep -q .; then
-     SESSION_DOCS_PATH=$(ls "$WORKTREE/session-docs/"*/01-architecture.md 2>/dev/null | head -1 | xargs dirname)
-   elif ls "$WORKTREE/session-docs/"*/02-task-list.md 2>/dev/null | head -1 | grep -q .; then
-     SESSION_DOCS_PATH=$(ls "$WORKTREE/session-docs/"*/02-task-list.md 2>/dev/null | head -1 | xargs dirname)
+   workspaces_PATH=""
+   if ls "$WORKTREE/workspaces/"*/01-architecture.md 2>/dev/null | head -1 | grep -q .; then
+     workspaces_PATH=$(ls "$WORKTREE/workspaces/"*/01-architecture.md 2>/dev/null | head -1 | xargs dirname)
+   elif ls "$WORKTREE/workspaces/"*/02-task-list.md 2>/dev/null | head -1 | grep -q .; then
+     workspaces_PATH=$(ls "$WORKTREE/workspaces/"*/02-task-list.md 2>/dev/null | head -1 | xargs dirname)
    fi
-   has_session_docs=false
-   [ -n "$SESSION_DOCS_PATH" ] && has_session_docs=true
+   has_workspaces=false
+   [ -n "$workspaces_PATH" ] && has_workspaces=true
    ```
-   Pass `SESSION_DOCS_PATH` to qa when dispatched.
+   Pass `workspaces_PATH` to qa when dispatched.
 
 ### Step 1.4 — Auto-suggest multi-reviewer for large PRs (no cost warning per operator policy)
 
@@ -130,7 +130,7 @@ Classify the PR's tier based on the changed file list. Use `tier_override` if se
 |---|---|---|
 | 0 | Docs only (`*.md`, comments, `LICENSE`, `CHANGELOG*`) — no source code changes | reviewer only |
 | 1 | Single-file OR test-only changes (`*.test.*`, `*.spec.*`, `*_test.*`) | reviewer only |
-| 2 | Light fix, dev-tooling, configs (`.github/**`, `scripts/**`, `*.json`, `*.yml`, `*.yaml`) | reviewer + qa (if `has_session_docs=true`, else qa skipped) |
+| 2 | Light fix, dev-tooling, configs (`.github/**`, `scripts/**`, `*.json`, `*.yml`, `*.yaml`) | reviewer + qa (if `has_workspaces=true`, else qa skipped) |
 | 3 | Production code (`src/**`, `lib/**`, `cmd/**`, `app/**`, `pkg/**`, `internal/**`, `api/**`) | reviewer + qa + security (parallel) |
 | 4 | Security-sensitive paths (`auth/**`, `middleware/**`, `db/**`, `security/**`, `crypto/**`, `session/**`) OR security keyword in PR body (`auth`, `injection`, `xss`, `csrf`, `secret`, `token`, `bypass`, `sql`, `overflow`, `cve`) | reviewer + qa + security (extended) |
 
@@ -156,7 +156,7 @@ Dispatch review agents based on tier classification. ALL Bash happens in the mai
    - Focus: {focus}
    - Multi-Reviewer: true
    - Worktree: {WORKTREE}
-   - Session-docs path: {SESSION_DOCS_PATH or "none"}
+   - workspaces path: {workspaces_PATH or "none"}
    - Draft Output: .claude/pr-review-draft-{focus}.md
    - Inline Output: .claude/pr-review-inline-{focus}.json
    - {... same PR fields as single-reviewer ...}
@@ -164,12 +164,12 @@ Dispatch review agents based on tier classification. ALL Bash happens in the mai
    Dispatches run **in parallel** (same pattern as Phase 3 tester+qa+security parallel). Wait for all to complete.
 
 9b. If Tier 3 or Tier 4, ALSO dispatch qa and security in parallel (alongside the multi-focused reviewers):
-   - qa dispatch (only when Tier 3+ AND `has_session_docs=true`):
+   - qa dispatch (only when Tier 3+ AND `has_workspaces=true`):
      ```
      Direct Mode Task:
      - Mode: pr-review-qa
      - Worktree: {WORKTREE}
-     - Session-docs path: {SESSION_DOCS_PATH}
+     - workspaces path: {workspaces_PATH}
      - PR: #{number}
      ```
    - security dispatch (always at Tier 3+):
@@ -201,8 +201,8 @@ Dispatch review agents based on tier classification. ALL Bash happens in the mai
 #### Single-reviewer path (when `multi_reviewer=false`)
 
 For Tier 0 / 1: dispatch reviewer only.
-For Tier 2: dispatch reviewer; if `has_session_docs=true`, also dispatch qa in parallel.
-For Tier 3 / 4: dispatch reviewer, qa (if `has_session_docs=true`), and security in parallel.
+For Tier 2: dispatch reviewer; if `has_workspaces=true`, also dispatch qa in parallel.
+For Tier 3 / 4: dispatch reviewer, qa (if `has_workspaces=true`), and security in parallel.
 
 10. Pass ALL gathered data to the `th-orchestrator` agent:
    ```
@@ -229,15 +229,15 @@ For Tier 3 / 4: dispatch reviewer, qa (if `has_session_docs=true`), and security
    - Has Policy: {true if .team-harness/review-policy.md was found in Step 1.5, else false}
    - Review Policy: {verbatim content of .team-harness/review-policy.md, or omit field when has_policy=false}
    - Worktree: {WORKTREE}
-   - Session-docs path: {SESSION_DOCS_PATH or "none"}
+   - workspaces path: {workspaces_PATH or "none"}
    ```
 
-11. For Tier 2 (single-reviewer path) with `has_session_docs=true`, also dispatch qa in parallel:
+11. For Tier 2 (single-reviewer path) with `has_workspaces=true`, also dispatch qa in parallel:
     ```
     Direct Mode Task:
     - Mode: pr-review-qa
     - Worktree: {WORKTREE}
-    - Session-docs path: {SESSION_DOCS_PATH}
+    - workspaces path: {workspaces_PATH}
     - PR: #{number}
     ```
 

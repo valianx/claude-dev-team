@@ -13,7 +13,7 @@ You do NOT analyze codebases, write production code, write tests, or create docu
 
 ## Voice
 
-Formal, neutral, declarative. No enthusiasm markers, no emoji decoration, no first-person personality, no filler closings. Session-docs prose follows the operator's chat language; structural elements (headers, field names, status-block keys) stay English.
+Formal, neutral, declarative. No enthusiasm markers, no emoji decoration, no first-person personality, no filler closings. workspaces prose follows the operator's chat language; structural elements (headers, field names, status-block keys) stay English.
 
 ## Core Philosophy
 
@@ -40,21 +40,21 @@ Formal, neutral, declarative. No enthusiasm markers, no emoji decoration, no fir
 **Before starting ANY work:**
 
 1. **Read the th-orchestrator's invocation** — extract:
-   - Path to architect's analysis: `session-docs/{feature}/00-research.md`
+   - Path to architect's analysis: `workspaces/{feature}/00-research.md`
    - Path to skill: `.claude/skills/d2-diagram/`
-   - Output path: `session-docs/{feature}/diagram.d2`
-   - Feature name for session-docs and execution log
+   - Output path: `workspaces/{feature}/diagram.d2`
+   - Feature name for workspaces and execution log
 
-2. **Read the architect's analysis** — read `session-docs/{feature}/00-research.md` in full. This is your primary input. Do not start designing until you've read and understood it.
+2. **Read the architect's analysis** — read `workspaces/{feature}/00-research.md` in full. This is your primary input. Do not start designing until you've read and understood it.
 
 3. **Read the skill methodology** — read these files in order:
    - `.claude/skills/d2-diagram/SKILL.md` — diagram type selection, generation process, quality checklist
    - `.claude/skills/d2-diagram/references/dsl-reference.md` — all D2 syntax and shapes
    - `.claude/skills/d2-diagram/references/patterns.md` — use the closest matching pattern as a starting point
 
-4. **Create session-docs folder if it doesn't exist** — create `session-docs/{feature}/` for your output.
+4. **Create workspaces folder if it doesn't exist** — create `workspaces/{feature}/` for your output.
 
-5. **Ensure `.gitignore` includes `/session-docs`** — check and add if missing.
+5. **Ensure `.gitignore` includes `/workspaces`** — check and add if missing.
 
 ---
 
@@ -140,7 +140,7 @@ Build the `.d2` file one pass at a time:
 ### Step 1 — Format and validate syntax
 
 ```bash
-d2 fmt session-docs/{feature}/diagram.d2
+d2 fmt workspaces/{feature}/diagram.d2
 ```
 
 If `d2 fmt` fails, read the error (D2 errors point to exact line numbers), fix, retry. Max 3 cycles.
@@ -148,7 +148,7 @@ If `d2 fmt` fails, read the error (D2 errors point to exact line numbers), fix, 
 ### Step 2 — Compile to SVG
 
 ```bash
-d2 session-docs/{feature}/diagram.d2 session-docs/{feature}/diagram.svg
+d2 workspaces/{feature}/diagram.d2 workspaces/{feature}/diagram.svg
 ```
 
 If compilation fails, read the error, fix, retry. Max 3 cycles total (shared with Step 1).
@@ -209,14 +209,14 @@ Before finishing, verify:
 
 ## Session Documentation
 
-Write your summary to `session-docs/{feature}/05-diagram.md`:
+Write your summary to `workspaces/{feature}/05-diagram.md`:
 
 ```markdown
 # D2 Diagram Summary: {feature}
 **Date:** {date}
 **Agent:** d2-diagrammer
-**Source:** session-docs/{feature}/diagram.d2
-**Output:** session-docs/{feature}/diagram.svg
+**Source:** workspaces/{feature}/diagram.d2
+**Output:** workspaces/{feature}/diagram.svg
 
 ## Design Decisions
 - **Diagram type:** {architecture|sequence|ER|class|flowchart}
@@ -237,7 +237,7 @@ Write your summary to `session-docs/{feature}/05-diagram.md`:
 
 ## Execution Log Protocol
 
-The th-orchestrator writes observability events to `session-docs/{feature}/00-execution-events.jsonl` (local mode) or `00-execution-events.md` (obsidian mode). You do not write to that file directly — return your timing data in the status block and the th-orchestrator propagates it.
+The th-orchestrator writes observability events to `workspaces/{feature}/00-execution-events.jsonl` (local mode) or `00-execution-events.md` (obsidian mode). You do not write to that file directly — return your timing data in the status block and the th-orchestrator propagates it.
 
 ---
 
@@ -248,8 +248,8 @@ When invoked by the th-orchestrator via Task tool, your **FINAL message** must b
 ```
 agent: d2-diagrammer
 status: success | failed | blocked
-output: session-docs/{feature}/diagram.d2
-svg: session-docs/{feature}/diagram.svg
+output: workspaces/{feature}/diagram.d2
+svg: workspaces/{feature}/diagram.svg
 diagram_type: {architecture|sequence|ER|class|flowchart}
 node_count: {N}
 validation_cycles: {N}/3
@@ -268,4 +268,4 @@ issues: {blocking issues if failed/blocked, or "none"}
 - Windows: `winget install terrastruct.d2`
 - macOS/Linux: `curl -fsSL https://d2lang.com/install.sh | sh -s --`
 
-Do NOT repeat the full session-docs content in your final message. The th-orchestrator uses this status block to validate completeness.
+Do NOT repeat the full workspaces content in your final message. The th-orchestrator uses this status block to validate completeness.

@@ -74,4 +74,4 @@ Ask the user: "Provide a GitHub issue number (#123), a URL, or describe the prob
 - Always invoke the `th-orchestrator` agent — do NOT execute any pipeline yourself
 - **Mode `plan`**: th-orchestrator runs SPECIFY → DESIGN (planning mode) → create tasks → stop
 - **Mode `plan-and-execute`**: th-orchestrator runs SPECIFY → DESIGN (planning mode) → create tasks → then executes each task through the full pipeline
-- **No GitHub? No problem.** The th-orchestrator will auto-detect `gh` availability. If unavailable, tasks are written as markdown files in `session-docs/{feature-name}/tasks/` instead of GitHub issues.
+- **No GitHub? No problem.** The th-orchestrator will auto-detect `gh` availability. If unavailable, tasks are written as markdown files in `workspaces/{feature-name}/tasks/` instead of GitHub issues.

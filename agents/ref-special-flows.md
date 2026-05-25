@@ -44,8 +44,8 @@ When the user wants to quickly test a technical hypothesis without full pipeline
    3. Investigate further → I'll run another spike or a /research
    ```
 8. **Act on user's choice:**
-   - Formalize: create GitHub issue using **SDD template** — include spike findings in Technical Context. **Detection + fallback:** see `agents/_shared/gh-fallback.md` § "Tier B — create an issue". When `has_gh=true`: `gh issue create`. When `has_gh=false` and token + GitHub origin available: curl POST. When neither: write SDD body to `session-docs/{feature}/inputs/issue-create.md` and prompt operator to paste it into GitHub, then reply with the new issue number. Ask: "Issue created (or paste required). Run full pipeline now?"
-   - Discard: `git checkout -- .` to revert (confirm with user first). Clean up session-docs.
+   - Formalize: create GitHub issue using **SDD template** — include spike findings in Technical Context. **Detection + fallback:** see `agents/_shared/gh-fallback.md` § "Tier B — create an issue". When `has_gh=true`: `gh issue create`. When `has_gh=false` and token + GitHub origin available: curl POST. When neither: write SDD body to `workspaces/{feature}/inputs/issue-create.md` and prompt operator to paste it into GitHub, then reply with the new issue number. Ask: "Issue created (or paste required). Run full pipeline now?"
+   - Discard: `git checkout -- .` to revert (confirm with user first). Clean up workspaces.
    - Investigate: continue as directed.
 
 ---
@@ -73,7 +73,7 @@ Inside each task dispatched by `plan-and-execute`, the child th-orchestrator run
 6. **Create tasks** — **Detection + fallback:** see `agents/_shared/gh-fallback.md` § "Detection probe" and § "Tier B — create an issue" and § "Tier A — list repo labels". Use the standard detection probe to set `has_gh`.
    - **gh available:** create one GitHub issue per task via `gh issue create` using **SDD issue template**. Labels from repo (`gh label list`), assignee `@me`, project board if exists. Comment on parent issue.
    - **gh unavailable, token + GitHub origin available:** use curl Tier B fallback to create issues and Tier A curl to read labels.
-   - **neither available:** write each task as markdown in `session-docs/{feature-name}/tasks/` (existing fallback path, unchanged).
+   - **neither available:** write each task as markdown in `workspaces/{feature-name}/tasks/` (existing fallback path, unchanged).
 7. **Report** created tasks to user.
 
 **Mode: `plan`** → STOP after reporting.
@@ -118,9 +118,9 @@ The Tier System modulates the Bug-fix Pipeline depth so trivial fixes skip cerem
 
 #### Tier table
 
-| Tier | Name | Phase 1 (root-cause) | Phase 2.0 (pre-fix regression test) | Phase 3 agents | Session-docs | Estimated agent runs |
+| Tier | Name | Phase 1 (root-cause) | Phase 2.0 (pre-fix regression test) | Phase 3 agents | workspaces | Estimated agent runs |
 |---|---|---|---|---|---|---|
-| **0** | Trivial/Cosmetic | **Skip** | **Skip** | tester only (suite no-regress; no full audit) | **NONE** — no session-docs created | ~1 |
+| **0** | Trivial/Cosmetic | **Skip** | **Skip** | tester only (suite no-regress; no full audit) | **NONE** — no workspaces created | ~1 |
 | **1** | Docs/Trivial | **Skip** — no `01-root-cause.md`. th-orchestrator emits one-sentence prose plan at STAGE-GATE-1 (same surface as `type: hotfix`). | **Conditional skip** — only when there is no behavior change (see condition below). | tester (suite no-regress) only | Yes — `00-state.md`, `01-plan.md` | ~3 |
 | **2** | Light fix | Inline `01-root-cause.md` — 1 paragraph for `## Mechanism` + 1 paragraph for `## Scope of Fix`, no extended sections. Architect dispatched with `mode: light-root-cause`. | Mandatory | tester + qa | Yes — full | ~5 |
 | **3** | Standard fix | Full `01-root-cause.md` (current PR #50 default). Architect dispatched with `mode: full-root-cause`. `## Prior Art` section optional. | Mandatory | tester + qa + security | Yes — full | ~7 |
@@ -178,13 +178,13 @@ Auto-classify as Tier 0 ONLY when ALL of the following hold:
 
 #### Worked examples
 
-**Example Tier 0 — typo in CHANGELOG, no session-docs:**
+**Example Tier 0 — typo in CHANGELOG, no workspaces:**
 - Operator request: "fix typo in CHANGELOG.md: 'reseved' should be 'reserved'"
 - Signal 1: `typo` (low-tier hint).
 - Signal 2: `CHANGELOG.md` — single file, ≤5 lines, docs-only, no system-level path.
 - Signal 3: none.
 - Classification: `bug_tier: 0` (auto). All Tier 0 conditions satisfied.
-- Pipeline: no session-docs created. Implementer makes the fix. Tester runs suite no-regress. PR is opened. PR review is the only gate. ~1 agent run total.
+- Pipeline: no workspaces created. Implementer makes the fix. Tester runs suite no-regress. PR is opened. PR review is the only gate. ~1 agent run total.
 
 **Example Tier 0 — whitespace fix in README:**
 - Operator request: "trailing whitespace on line 42 of README.md"
@@ -192,7 +192,7 @@ Auto-classify as Tier 0 ONLY when ALL of the following hold:
 - Signal 2: `README.md` — single file, ≤5 lines, docs-only, whitespace-only change.
 - Signal 3: none.
 - Classification: `bug_tier: 0` (auto). All Tier 0 conditions satisfied.
-- Pipeline: no session-docs, no STAGE-GATEs. Implementer makes the fix, runs tests, opens PR. ~1 agent run total.
+- Pipeline: no workspaces, no STAGE-GATEs. Implementer makes the fix, runs tests, opens PR. ~1 agent run total.
 
 **Example A — Tier 1, regression-test skipped:**
 - Operator request: "fix typo in README.md: 'recieve' should be 'receive'"
@@ -218,7 +218,7 @@ Auto-classify as Tier 0 ONLY when ALL of the following hold:
 - Classification: `bug_tier: 3` (path priority > keyword priority; sensitive path wins over the typo hint). The keyword `unauthorized` would normally trigger Tier 4, but here it appears as part of the error-message text being fixed, not as the bug class; the architect can promote to Tier 4 in Phase 1 if root-cause analysis reveals the underlying logic is actually broken.
 - Pipeline: th-orchestrator dispatches architect with `mode: full-root-cause`. `01-root-cause.md` full template (Prior Art optional). Phase 2.0 mandatory. Phase 2 (implementer fixes the typo). Phase 3 (tester + qa + security — defense-in-depth on sensitive path). ~7 agent runs total. If the architect surfaces a tier-promote, the operator decides between Tier 3 and Tier 4.
 
-### Full session-docs artifact set (type: fix)
+### Full workspaces artifact set (type: fix)
 
 Every bug-fix pipeline produces the backbone artifacts; the tier modulates which Phase-1 / Phase-2.0 / Phase-3 artifacts are generated.
 
@@ -270,7 +270,7 @@ Every bug-fix pipeline produces the backbone artifacts; the tier modulates which
 **Operator override (rejects the architect's documented exit hatch):** **Regression test is mandatory always, no exceptions, no fallback.** The architect's design doc proposed a manual-repro-script fallback for race/timing/environment-dependent bugs. The fallback is **rejected**. If the tester cannot author a regression test, the pipeline blocks with `status: blocked` and surfaces to the operator. There is no exit hatch.
 
 **Dispatch:** th-orchestrator invokes `tester` via Task with:
-- Feature name for session-docs
+- Feature name for workspaces
 - Pointer to `01-plan.md` (§ Review Summary — reproduction steps + expected behaviour + AC)
 - Pointer to `01-root-cause.md` (Regression Test Approach section)
 - `mode: pre-fix-regression`
@@ -350,7 +350,7 @@ The Hotfix sub-flow is a tighter variant of the Bug-fix Flow for trivially scope
 - STAGE-GATE-3 — always mandatory.
 - Phases 5 (GitHub Update) and 6 (KG Save) — same.
 
-### Session-docs artifact set (type: hotfix)
+### workspaces artifact set (type: hotfix)
 
 Every artifact required by `type: fix` is also required by `type: hotfix`, **with one exception**: `01-root-cause.md` is omitted (Phase 1 skipped). `01-plan.md` is **still produced** (§ Task List minimum: 4-line task list — reproduce, regression test, fix, verify). All other artifacts in the table above for `type: fix` are produced for `type: hotfix` too — `01-plan.md § Plan Review`, `02-regression-test.md`, `02-implementation.md`, `03-testing.md`, `04-validation.md`, `04-security.md`, `00-state.md § Delivery`, `04-validation.md § Drift Analysis`.
 
@@ -424,9 +424,9 @@ A dedicated pipeline for achieving **80% branch coverage service-wide**. Decompo
    | PARALLEL | Test module: shared/utils | 2 | Round 1 |
 
 9. **If `--modules` flag provided** --- skip decomposition, create tasks only for specified modules.
-10. **Write session-docs:**
-    - `session-docs/test-pipeline/00-state.md` --- initial pipeline state
-    - `session-docs/test-pipeline/batch-progress.md` --- task table (reusing multi-task format)
+10. **Write workspaces:**
+    - `workspaces/test-pipeline/00-state.md` --- initial pipeline state
+    - `workspaces/test-pipeline/batch-progress.md` --- task table (reusing multi-task format)
 
 ### Phase 1 --- Blocker Round
 
@@ -447,7 +447,7 @@ Test-Pipeline Task:
   Exclude: config files, entry points, type definitions, constants/enums,
   barrel exports, migrations, test files, generated code, static assets.
   Read existing coverage config first --- extend, never overwrite.
-  Write session-docs summary when done.
+  Write workspaces summary when done.
 ```
 
 #### Task 1B: Test Infrastructure Setup (conditional --- only if missing)
@@ -465,7 +465,7 @@ Test-Pipeline Task:
   Create mocks directory with index, create common test utilities,
   create test setup file if missing.
   Do NOT write any module-specific tests --- only shared infrastructure.
-  Write session-docs summary when done.
+  Write workspaces summary when done.
 ```
 
 **Dispatch rules:**
@@ -503,7 +503,7 @@ Test-Pipeline Task:
      for security issues. Check: injection risks, auth boundary violations,
      secrets handling, input validation gaps, unsafe data access patterns.
      Report findings with file:line references.
-  4. Write session-docs summary to session-docs/test-pipeline-{module-name}/03-testing.md
+  4. Write workspaces summary to workspaces/test-pipeline-{module-name}/03-testing.md
 ```
 
 #### Branching
@@ -544,7 +544,7 @@ When Phase 3 sends tasks back:
 - Do NOT proceed to Phase 4 unless coverage >= 80% OR max iterations (3) exhausted
 - Do NOT rationalize that "it's close enough" — the gate is binary: >= 80% or iterate
 
-1. **Collect results** --- read all `session-docs/test-pipeline-{module}/03-testing.md` files. Extract: module name, tests created, tests passing, branch coverage %, security findings.
+1. **Collect results** --- read all `workspaces/test-pipeline-{module}/03-testing.md` files. Extract: module name, tests created, tests passing, branch coverage %, security findings.
 
 2. **Run coverage service-wide** --- execute the project's test coverage command across the ENTIRE test suite:
    ```bash
@@ -598,7 +598,7 @@ When Phase 3 sends tasks back:
    - Sort by severity (Critical > High > Medium > Low > Info)
    - Flag cross-module patterns (e.g., "3 modules have unvalidated input")
 
-3. **Write final report** to `session-docs/test-pipeline/05-consolidation.md`:
+3. **Write final report** to `workspaces/test-pipeline/05-consolidation.md`:
    ```markdown
    # Test Pipeline: {service-name}
    **Date:** {date}
@@ -658,13 +658,13 @@ When Phase 3 sends tasks back:
    Tests: {N} created, {N} passing
    Security: {N} findings ({breakdown by severity})
    Iterations: {N}/3
-   Report: session-docs/test-pipeline/05-consolidation.md
+   Report: workspaces/test-pipeline/05-consolidation.md
    ```
 
-### Session-docs structure
+### workspaces structure
 
 ```
-session-docs/
+workspaces/
   test-pipeline/                        # th-orchestrator coordination
     00-state.md                         # pipeline checkpoint
     00-execution-events.jsonl           # event trace (th-orchestrator only, local mode)
@@ -726,9 +726,9 @@ Invoke `architect` in **research mode** with explicit scope per subject classifi
 
 Instruction to architect: "Research mode. Investigate {topic} for documentation purposes. Produce `00-research.md` covering architecture, components, data flows, configuration, and key decisions. The output will be consumed by the documenter agent — be thorough but structured."
 
-**Multi-topic:** if 2+ topics, dispatch one architect research per topic in parallel (separate session-docs subfolders or sequential research rounds into the same `00-research.md` with clear section separation).
+**Multi-topic:** if 2+ topics, dispatch one architect research per topic in parallel (separate workspaces subfolders or sequential research rounds into the same `00-research.md` with clear section separation).
 
-Output: `00-research.md` in `session-docs/{feature-name}/`.
+Output: `00-research.md` in `workspaces/{feature-name}/`.
 
 ### Phase 2a — Write
 
@@ -736,7 +736,7 @@ Invoke `documenter` with the research findings and metadata:
 
 ```
 Task context:
-- research: session-docs/{feature-name}/00-research.md
+- research: workspaces/{feature-name}/00-research.md
 - vault_path: {from Phase 0}
 - folder: {from Phase 0}
 - language: {from Phase 0}
@@ -749,7 +749,7 @@ The documenter:
 3. Writes all pages to the vault folder with diagram-first layout
 4. Writes `02-documentation.md` manifest listing all pages, diagram counts, and Excalidraw/Canvas dispatch requests
 
-Output: Obsidian vault pages + `session-docs/{feature-name}/02-documentation.md`.
+Output: Obsidian vault pages + `workspaces/{feature-name}/02-documentation.md`.
 
 ### Phase 2b — Diagrams (conditional)
 
@@ -812,12 +812,12 @@ Phase 3:  QA validates ALL topics together (cross-topic wikilinks, consistent st
 DOC-GATE: Single gate for all topics
 ```
 
-Each topic gets its own session-docs subfolder pattern: `session-docs/docs-{topic-name}/`. The QA phase validates across all topics to ensure consistency.
+Each topic gets its own workspaces subfolder pattern: `workspaces/docs-{topic-name}/`. The QA phase validates across all topics to ensure consistency.
 
-### Session-docs for documentation pipeline
+### workspaces for documentation pipeline
 
 ```
-session-docs/{feature-name}/
+workspaces/{feature-name}/
   00-state.md              # Pipeline state (type: docs)
   01-plan.md               # Topics, vault, folder, language, subject classification (§ Review Summary) + task breakdown (§ Task List)
   00-research.md           # Architect research findings

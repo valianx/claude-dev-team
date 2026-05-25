@@ -46,7 +46,7 @@ func readLineFrom(scan *bufio.Scanner) string {
 //
 // This function is retained for the test suite (tty_test.go). The interactive
 // install path now uses the huh TUI form; this function is only called from
-// the non-interactive fallback in session_docs.go and is covered by regression
+// the non-interactive fallback in workspaces.go and is covered by regression
 // tests that verify the /dev/tty-over-stdin behaviour.
 func promptMenu(prompt string, valid map[string]bool, defaultVal string) string {
 	input := openInteractiveInput()

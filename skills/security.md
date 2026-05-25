@@ -16,7 +16,7 @@ Examples: `/security`, `/security auth`, `/security api`, `/security dependencie
    - Mode: security
    - Scope: {full / focused}
    - Area: {area specified by user, or "full project"}
-   - Feature: {feature-name from session-docs if in pipeline context, or "security-audit"}
+   - Feature: {feature-name from workspaces if in pipeline context, or "security-audit"}
    ```
 
 ## Mode 2 — No input provided
@@ -37,6 +37,6 @@ Examples: `/security`, `/security auth`, `/security api`, `/security dependencie
 
 - Always invoke the `th-orchestrator` agent — do NOT invoke the `security` agent directly
 - The th-orchestrator will route to the `security` agent
-- Output: `session-docs/{feature-name}/04-security.md`
+- Output: `workspaces/{feature-name}/04-security.md`
 - The security agent performs static analysis using Glob, Grep, and Read — no Bash required
 - Report is written in Spanish with OWASP Top 10 2025 and CWE Top 25 2025 coverage

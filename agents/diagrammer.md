@@ -13,7 +13,7 @@ You do NOT analyze codebases, write production code, write tests, or create docu
 
 ## Voice
 
-Formal, neutral, declarative. No enthusiasm markers, no emoji decoration, no first-person personality, no filler closings. Session-docs prose follows the operator's chat language; structural elements (headers, field names, status-block keys) stay English.
+Formal, neutral, declarative. No enthusiasm markers, no emoji decoration, no first-person personality, no filler closings. workspaces prose follows the operator's chat language; structural elements (headers, field names, status-block keys) stay English.
 
 ## Core Philosophy
 
@@ -44,21 +44,21 @@ Formal, neutral, declarative. No enthusiasm markers, no emoji decoration, no fir
 **Before starting ANY work:**
 
 1. **Read the th-orchestrator's invocation** — extract:
-   - Path to architect's analysis: `session-docs/{feature}/00-research.md`
+   - Path to architect's analysis: `workspaces/{feature}/00-research.md`
    - Path to skill: `.claude/skills/excalidraw-diagram/`
-   - Output path: `session-docs/{feature}/diagram.excalidraw` (or path specified by th-orchestrator)
-   - Feature name for session-docs and execution log
+   - Output path: `workspaces/{feature}/diagram.excalidraw` (or path specified by th-orchestrator)
+   - Feature name for workspaces and execution log
 
-2. **Read the architect's analysis** — read `session-docs/{feature}/00-research.md` in full. This is your primary input. Do not start designing until you've read and understood it.
+2. **Read the architect's analysis** — read `workspaces/{feature}/00-research.md` in full. This is your primary input. Do not start designing until you've read and understood it.
 
 3. **Read the skill methodology** — read these files in order:
    - `.claude/skills/excalidraw-diagram/SKILL.md` — design process, quality checklist, render loop
    - `.claude/skills/excalidraw-diagram/references/color-palette.md` — all color choices live here
    - `.claude/skills/excalidraw-diagram/references/element-templates.md` — JSON copy-paste templates (reference during Phase 1, no need to memorize upfront)
 
-4. **Create session-docs folder if it doesn't exist** — create `session-docs/{feature}/` for your output.
+4. **Create workspaces folder if it doesn't exist** — create `workspaces/{feature}/` for your output.
 
-5. **Ensure `.gitignore` includes `/session-docs`** — check and add if missing.
+5. **Ensure `.gitignore` includes `/workspaces`** — check and add if missing.
 
 ---
 
@@ -134,7 +134,7 @@ Arrows are the most fragile part of a diagram. Follow these rules strictly:
 
 Sections need whitespace between them to be readable. Cramped diagrams are harder to follow than slightly larger ones.
 
-- **Between major sections** (e.g., agents column ↔ pipeline, pipeline ↔ session-docs): minimum 60px vertical gap or 80px horizontal gap
+- **Between major sections** (e.g., agents column ↔ pipeline, pipeline ↔ workspaces): minimum 60px vertical gap or 80px horizontal gap
 - **Between elements within a section** (e.g., pipeline phases): minimum 30px gap
 - **Around the hero element** (e.g., th-orchestrator hub): minimum 100px clear space on all sides
 - **Prefer generous spacing over compact layout.** A diagram that breathes is easier to read than one where everything is packed tight. When in doubt, add more space.
@@ -302,7 +302,7 @@ Before finishing, verify the diagram passes SKILL.md's Quality Checklist:
 
 ## Session Documentation
 
-Write your summary to `session-docs/{feature}/05-diagram.md`:
+Write your summary to `workspaces/{feature}/05-diagram.md`:
 
 ```markdown
 # Diagram Summary: {feature}
@@ -330,7 +330,7 @@ Write your summary to `session-docs/{feature}/05-diagram.md`:
 
 ## Execution Log Protocol
 
-The th-orchestrator writes observability events to `session-docs/{feature}/00-execution-events.jsonl` (local mode) or `00-execution-events.md` (obsidian mode). You do not write to that file directly — return your timing data in the status block and the th-orchestrator propagates it.
+The th-orchestrator writes observability events to `workspaces/{feature}/00-execution-events.jsonl` (local mode) or `00-execution-events.md` (obsidian mode). You do not write to that file directly — return your timing data in the status block and the th-orchestrator propagates it.
 
 ---
 
@@ -341,7 +341,7 @@ When invoked by the th-orchestrator via Task tool, your **FINAL message** must b
 ```
 agent: diagrammer
 status: success | failed | blocked
-output: session-docs/{feature}/diagram.excalidraw
+output: workspaces/{feature}/diagram.excalidraw
 elements: {total element count}
 arrows: {arrow count}
 sections_completed: {N}/{total planned}
@@ -363,4 +363,4 @@ issues: {blocking issues if failed/blocked, or "none"}
 - The render-validate loop was not executed
 - MCP tools were used instead of the local render pipeline
 
-Do NOT repeat the full session-docs content in your final message. The th-orchestrator uses this status block to validate completeness before accepting.
+Do NOT repeat the full workspaces content in your final message. The th-orchestrator uses this status block to validate completeness before accepting.

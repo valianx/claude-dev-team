@@ -2,7 +2,7 @@ Pull the latest team-harness release into `~/.claude/` inline, without launching
 
 ## Voice
 
-Formal, neutral, declarative. No enthusiasm markers, no emoji decoration, no first-person personality, no filler closings. Session-docs prose follows the operator's chat language; structural elements (headers, field names, status-block keys) stay English.
+Formal, neutral, declarative. No enthusiasm markers, no emoji decoration, no first-person personality, no filler closings. workspaces prose follows the operator's chat language; structural elements (headers, field names, status-block keys) stay English.
 
 Analyze the input: $ARGUMENTS
 
@@ -272,6 +272,6 @@ No emoji, no leading marker, no rephrasing. Print this even on a partial-failure
 - This skill does NOT launch the Go installer binary, `install.sh`, `install.ps1`, or `install.cmd`. The previous version of this skill did, and the binary's output was unreadable to the agent because the binary ran in a separate process (a new console window on Windows). This skill drives the update entirely inline so the summary and any errors stay in the agent's transcript.
 - This skill does NOT prompt the operator interactively. There are no credentials to capture — `MEMORY_MCP_URL`, `MEMORY_MCP_BEARER`, and `CONTEXT7_API_KEY` were already written to `~/.claude.json` during the original bootstrap install and are not touched here.
 - This skill compares the latest release tag against the installed version (from manifest). If they match, it prints "up to date" and exits without downloading. To force a full reinstall regardless, use the installer one-liner.
-- This skill does NOT write to `session-docs/`.
+- This skill does NOT write to `workspaces/`.
 - This skill does NOT retry on network failure. The agent surfaces the error and the operator re-invokes `/th-update` when their connection is back.
 - The skill always overwrites. Operators who customize agents should fork the repo or contribute upstream — local edits to `~/.claude/agents/*.md` are explicitly out of scope.

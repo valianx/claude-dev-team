@@ -35,5 +35,5 @@ Analyze the input: $ARGUMENTS
 
 - Always invoke the `th-orchestrator` agent --- do NOT invoke agents directly
 - The th-orchestrator will analyze the service, decompose into modules, and dispatch tester agents in parallel
-- Output: `session-docs/test-pipeline/05-consolidation.md` (final quality report)
+- Output: `workspaces/test-pipeline/05-consolidation.md` (final quality report)
 - Coverage gate: **80% branch coverage service-wide is mandatory** --- pipeline iterates until met or max 3 loops

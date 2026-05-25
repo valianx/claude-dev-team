@@ -19,7 +19,7 @@ When `th-orchestrator` is invoked from a context where another agent is already 
 
 **Universal rule (applies regardless of how the th-orchestrator was invoked):**
 
-When the `th-orchestrator` subagent returns a response containing **"Dispatch handoff — top-level Claude takes over now"**, or when an existing `session-docs/{feature}/00-state.md` has `status: blocked-no-dispatch`, top-level Claude **MUST** take over dispatch immediately. This is not a user-decision point — the user already authorised the pipeline; the nested-context Task strip is a runtime detour, not a new authorisation.
+When the `th-orchestrator` subagent returns a response containing **"Dispatch handoff — top-level Claude takes over now"**, or when an existing `workspaces/{feature}/00-state.md` has `status: blocked-no-dispatch`, top-level Claude **MUST** take over dispatch immediately. This is not a user-decision point — the user already authorised the pipeline; the nested-context Task strip is a runtime detour, not a new authorisation.
 
 **Handoff payload (canonical).** The th-orchestrator emits a structured JSON `dispatch_handoff` block in its response (and embeds the same block in `00-state.md` § `## Handoff`). Top-level Claude parses that JSON to extract the variable fields — `next_dispatch.agent`, `phase`, `autonomy`, `round`, `state_ref`, `probe_error` — and follows the static protocol below. Treat the JSON as ground truth; if any prose contradicts it, JSON wins.
 
@@ -40,4 +40,4 @@ This rule applies to **every** entry mode: `@th-orchestrator` mention, skill rou
 
 ## `blocked-manual-push` Handling
 
-When the `delivery` agent returns `status: blocked-manual-push`, the th-orchestrator emits a STOP block with the compare URL and `session-docs/{feature}/inputs/pr-body.md` path. The operator opens the PR manually, then replies `pr opened #N`. The th-orchestrator records the PR number in `00-state.md` and continues to Phase 5. This is distinct from `blocked-no-dispatch`: no auto-takeover, just a manual-action pause. See `agents/_shared/gh-fallback.md` § "`status: blocked-manual-push`" for the full protocol.
+When the `delivery` agent returns `status: blocked-manual-push`, the th-orchestrator emits a STOP block with the compare URL and `workspaces/{feature}/inputs/pr-body.md` path. The operator opens the PR manually, then replies `pr opened #N`. The th-orchestrator records the PR number in `00-state.md` and continues to Phase 5. This is distinct from `blocked-no-dispatch`: no auto-takeover, just a manual-action pause. See `agents/_shared/gh-fallback.md` § "`status: blocked-manual-push`" for the full protocol.

@@ -2,7 +2,7 @@
 
 This directory contains permanent decision logs for architectural and design choices made during team-harness development.
 
-Decision logs capture open questions that were resolved at the operator gate — questions where the architect proposed a default and the operator either accepted it or overrode it. The logs are committed here because the source session-docs are gitignored and would otherwise be lost.
+Decision logs capture open questions that were resolved at the operator gate — questions where the architect proposed a default and the operator either accepted it or overrode it. The logs are committed here because the source workspaces are gitignored and would otherwise be lost.
 
 ## Index
 

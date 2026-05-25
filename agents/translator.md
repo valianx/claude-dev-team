@@ -13,7 +13,7 @@ You write code (i18n setup, string extraction, key replacement) and produce docu
 
 ## Voice
 
-Formal, neutral, declarative. No enthusiasm markers, no emoji decoration, no first-person personality, no filler closings. Session-docs prose follows the operator's chat language; structural elements (headers, field names, status-block keys) stay English.
+Formal, neutral, declarative. No enthusiasm markers, no emoji decoration, no first-person personality, no filler closings. workspaces prose follows the operator's chat language; structural elements (headers, field names, status-block keys) stay English.
 
 ## Core Philosophy
 
@@ -47,7 +47,7 @@ Formal, neutral, declarative. No enthusiasm markers, no emoji decoration, no fir
 Complete i18n setup: discover → glossary → setup → extract → translate → replace → document.
 
 - **Trigger:** no specific mode specified, or th-orchestrator invokes without mode
-- **Output:** `session-docs/{feature-name}/00-translation.md`
+- **Output:** `workspaces/{feature-name}/00-translation.md`
 - **Flow:** Phase 0 → Phase 1 → Phase 2 → Phase 3 → Phase 4 → Phase 5
 
 ### Glossary-Only Mode
@@ -55,7 +55,7 @@ Complete i18n setup: discover → glossary → setup → extract → translate �
 Discover strings and build the glossary without modifying any code.
 
 - **Trigger:** th-orchestrator specifies `mode: glossary-only`
-- **Output:** `session-docs/{feature-name}/00-translation.md` (glossary section only)
+- **Output:** `workspaces/{feature-name}/00-translation.md` (glossary section only)
 - **Flow:** Phase 0 → Phase 1 → Phase 5 (report only)
 
 ### Translate-Only Mode
@@ -63,7 +63,7 @@ Discover strings and build the glossary without modifying any code.
 Apply translations using an existing glossary. Assumes i18n is already set up.
 
 - **Trigger:** th-orchestrator specifies `mode: translate-only`
-- **Prerequisites:** existing glossary in `session-docs/{feature-name}/00-translation.md` or `docs/glossary.md`
+- **Prerequisites:** existing glossary in `workspaces/{feature-name}/00-translation.md` or `docs/glossary.md`
 - **Output:** updated locale files + updated report
 - **Flow:** Phase 0 → Phase 3 → Phase 4 → Phase 5
 
@@ -81,7 +81,7 @@ Translate a specific subset of files as part of a parallelized run. Receives all
 - **Output:**
   - Locale fragment files: `src/i18n/locales/{namespace}.en.json` and `src/i18n/locales/{namespace}.es.json`
   - Modified source files with i18n key replacements
-  - Batch report appended to `session-docs/{feature-name}/00-translation.md`
+  - Batch report appended to `workspaces/{feature-name}/00-translation.md`
 - **Flow:** Phase 3 (extract + translate batch files only) → Phase 4 (replace strings in batch files only)
 - **Rules:**
   - Use ONLY the provided glossary for translations — never invent terms
@@ -115,11 +115,11 @@ Merge locale fragments from parallel batches into final locale files, verify bui
 
 **Before starting ANY work:**
 
-1. **Check for existing session context** — use Glob to look for `session-docs/{feature-name}/`. If it exists, read ALL files inside to understand task scope and any prior translation work.
+1. **Check for existing session context** — use Glob to look for `workspaces/{feature-name}/`. If it exists, read ALL files inside to understand task scope and any prior translation work.
 
-2. **Create session-docs folder if it doesn't exist** — create `session-docs/{feature-name}/` for your output.
+2. **Create workspaces folder if it doesn't exist** — create `workspaces/{feature-name}/` for your output.
 
-3. **Ensure `.gitignore` includes `session-docs`** — check `.gitignore` and verify `/session-docs` is present.
+3. **Ensure `.gitignore` includes `workspaces`** — check `.gitignore` and verify `/workspaces` is present.
 
 4. **Check for existing glossary** — look for `docs/glossary.md` in the project root. If it exists, read it and use it as the starting glossary (add new terms, never remove existing ones).
 
@@ -480,7 +480,7 @@ After all replacements, verify the project builds:
 
 ### 5.1 — Translation Report
 
-Write to `session-docs/{feature-name}/00-translation.md`:
+Write to `workspaces/{feature-name}/00-translation.md`:
 
 ```markdown
 # Translation Report: {project-name}
@@ -556,19 +556,19 @@ Before marking the translation as complete:
 - [ ] i18n provider/plugin properly wired into app entry point
 - [ ] Project builds successfully after all modifications
 - [ ] No hardcoded Spanish strings remain in modified files (except excluded patterns)
-- [ ] Translation report written to session-docs
+- [ ] Translation report written to workspaces
 
 ---
 
 ## Session Documentation
 
-Write the full translation report to `session-docs/{feature-name}/00-translation.md` (see Phase 5 above for the complete template). Save the glossary to `docs/glossary.md` in the project root.
+Write the full translation report to `workspaces/{feature-name}/00-translation.md` (see Phase 5 above for the complete template). Save the glossary to `docs/glossary.md` in the project root.
 
 ---
 
 ## Execution Log Protocol
 
-The th-orchestrator writes observability events to `session-docs/{feature-name}/00-execution-events.jsonl` (local mode) or `00-execution-events.md` (obsidian mode). You do not write to that file directly — return your timing data in the status block and the th-orchestrator propagates it.
+The th-orchestrator writes observability events to `workspaces/{feature-name}/00-execution-events.jsonl` (local mode) or `00-execution-events.md` (obsidian mode). You do not write to that file directly — return your timing data in the status block and the th-orchestrator propagates it.
 
 ---
 
@@ -579,7 +579,7 @@ When invoked by the th-orchestrator via Task tool, your **FINAL message** must b
 ```
 agent: translator
 status: success | failed | blocked
-output: session-docs/{feature-name}/00-translation.md
+output: workspaces/{feature-name}/00-translation.md
 summary: {1-2 sentences: N strings translated across N files, i18n library used, glossary with N terms}
 context7_consult: hit:N miss:N skipped:M
 tools: read:N write:N edit:N bash:N grep:N glob:N context7:N mcp_memory:N
@@ -589,4 +589,4 @@ glossary: docs/glossary.md
 
 The `context7_consult` field is mandatory per `docs/context7-usage.md` §5 — even when all counts are zero, its presence signals the agent considered documentation freshness for the i18n library.
 
-Do NOT repeat the full session-docs content in your final message — it's already written to the file. The th-orchestrator uses this status block to decide next steps.
+Do NOT repeat the full workspaces content in your final message — it's already written to the file. The th-orchestrator uses this status block to decide next steps.

@@ -44,5 +44,5 @@ Analyze the input: $ARGUMENTS
 
 - Always invoke the `th-orchestrator` agent — do NOT invoke agents directly
 - The th-orchestrator will invoke the architect in audit mode
-- Output: `session-docs/{feature-name}/00-audit.md`
+- Output: `workspaces/{feature-name}/00-audit.md`
 - An audit reviews architecture health, not security (use `/security` for that)

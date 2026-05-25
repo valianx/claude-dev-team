@@ -1,6 +1,6 @@
 # How it works
 
-Team-harness turns Claude Code into a Spec-Driven Development pipeline. Every feature runs through three stages with mandatory human gates between them. State lives in files (`session-docs/{feature}/`) so any session — yours, a teammate's, tomorrow's — can resume cold by reading them.
+Team-harness turns Claude Code into a Spec-Driven Development pipeline. Every feature runs through three stages with mandatory human gates between them. State lives in files (`workspaces/{feature}/`) so any session — yours, a teammate's, tomorrow's — can resume cold by reading them.
 
 ---
 
@@ -29,7 +29,7 @@ You tell the th-orchestrator: `@th-orchestrator give me the work plan for this t
 
 ### Stage 1 — Analysis
 
-The `th-orchestrator` creates `session-docs/daily-reports/` and routes to the `architect`. The architect reads `docs/knowledge.md`, the codebase, and any prior session-docs; produces `01-architecture.md` (the design proposal) and `02-task-list.md` (one section per PR, with Given/When/Then acceptance criteria). `qa` runs Phase 1.5 to confirm every AC maps to a Work Plan step. `plan-reviewer` runs Phase 1.6 to audit the plan-shape (one PR per service, AC format, consolidated documents, cross-references).
+The `th-orchestrator` creates `workspaces/daily-reports/` and routes to the `architect`. The architect reads `docs/knowledge.md`, the codebase, and any prior workspaces; produces `01-architecture.md` (the design proposal) and `02-task-list.md` (one section per PR, with Given/When/Then acceptance criteria). `qa` runs Phase 1.5 to confirm every AC maps to a Work Plan step. `plan-reviewer` runs Phase 1.6 to audit the plan-shape (one PR per service, AC format, consolidated documents, cross-references).
 
 You receive **STAGE-GATE-1** — a STOP block with the TL;DR, the human-review decisions, and the PR table. Reply `approve` (per-PR stops in Stage 2) or `approve autonomous` (skip the per-PR stops).
 
@@ -60,7 +60,7 @@ For full reference coverage of every pipeline — including the refactor flow, d
 
 ## Bug-fix flow (type: fix and type: hotfix)
 
-When the th-orchestrator classifies a request as `type: fix` or `type: hotfix` (via signals like `bug`, `solucionar`, `arreglar`, `corregir`, `regresión`, urgency markers, or GitHub `bug` label), the pipeline runs the **Bug-fix Pipeline** — the same 3-stage shell as feature flow, with type-specific content shifts. Nothing is stripped from the session-docs backbone; every artifact a feature produces is also produced for a bug fix.
+When the th-orchestrator classifies a request as `type: fix` or `type: hotfix` (via signals like `bug`, `solucionar`, `arreglar`, `corregir`, `regresión`, urgency markers, or GitHub `bug` label), the pipeline runs the **Bug-fix Pipeline** — the same 3-stage shell as feature flow, with type-specific content shifts. Nothing is stripped from the workspaces backbone; every artifact a feature produces is also produced for a bug fix.
 
 | Stage | Bug-fix difference |
 |---|---|
@@ -91,7 +91,7 @@ Full flow definition: [`agents/ref-special-flows.md`](../agents/ref-special-flow
 
 ## Resume any time
 
-All state lives in files. `/recover {feature-name}` reads `00-state.md` and continues from `next_action`. Works across compactions, across sessions, across machines (as long as `session-docs/` travels with the repo).
+All state lives in files. `/recover {feature-name}` reads `00-state.md` and continues from `next_action`. Works across compactions, across sessions, across machines (as long as `workspaces/` travels with the repo).
 
 Open `02-task-list.md` at any point and you see PR-level `Status:` (`pending | in-progress | verified | merged | blocked`) and AC checkboxes flipped to `- [x]` on PASS. No cross-referencing required.
 

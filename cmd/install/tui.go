@@ -216,7 +216,7 @@ func buildInstallOptionsGroup(data *tuiFormData) *huh.Group {
 		Value(&data.logsMode).
 		Title("Work-Logs Output").
 		Options(
-			huh.NewOption("Local — ./session-docs/{date}_{feature}/ relative to each project.", "local"),
+			huh.NewOption("Local — ./workspaces/{date}_{feature}/ relative to each project.", "local"),
 			huh.NewOption("Obsidian — writes to work-logs/ in an Obsidian vault with metadata.", "obsidian"),
 		)
 

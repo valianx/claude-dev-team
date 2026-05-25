@@ -682,7 +682,7 @@ check("CHANGELOG.md [Unreleased] mentions Mandatory Working Agreements",
       "CHANGELOG entry for Mandatory Working Agreements section missing")
 
 # ---------------------------------------------------------------------------
-# Suite 16 — Session-docs hygiene guardrails
+# Suite 16 — workspaces hygiene guardrails
 #   qa.md: "Files I write (exhaustive)" + "Files I MUST NOT write"
 #   architect.md: "Forbidden output patterns" with no-history rule
 #   th-orchestrator.md: explicit plan-review routing + qa-substance ban
@@ -693,7 +693,7 @@ check("CHANGELOG.md [Unreleased] mentions Mandatory Working Agreements",
 # same drift cannot recur silently.
 # ---------------------------------------------------------------------------
 print()
-print("=== Suite 16: Session-docs hygiene guardrails ===")
+print("=== Suite 16: workspaces hygiene guardrails ===")
 
 qa_md = read(AGENTS_DIR / "qa.md")
 architect_md = read(AGENTS_DIR / "architect.md")
@@ -1441,7 +1441,7 @@ delivery_kg_checks = [
      "Never invent a URL in the skip log" in delivery_md),
     ("Step 11.5 has Pending payload fallback section",
      "Pending payload fallback" in delivery_md),
-    ("Step 11.5 pending payload path is session-docs/{feature-name}/kg-passive-capture.pending.json",
+    ("Step 11.5 pending payload path is workspaces/{feature-name}/kg-passive-capture.pending.json",
      "kg-passive-capture.pending.json" in delivery_md),
 ]
 
@@ -2635,10 +2635,10 @@ check(
     "Hotfix sub-flow section missing from ref-special-flows.md",
 )
 check(
-    "ref-special-flows.md Bug-fix Flow declares full session-docs artifact set",
+    "ref-special-flows.md Bug-fix Flow declares full workspaces artifact set",
     "01-root-cause.md" in _ref_flows_bf and "02-regression-test.md" in _ref_flows_bf and
     "02-task-list.md" in _ref_flows_bf and "04-security.md" in _ref_flows_bf,
-    "Full session-docs artifact set not declared in Bug-fix Flow",
+    "Full workspaces artifact set not declared in Bug-fix Flow",
 )
 check(
     "ref-special-flows.md Bug-fix Flow declares security agent runs ALWAYS for bugs",
@@ -2926,9 +2926,9 @@ check(
     "Tier 0 auto-promotion rule not documented in th-orchestrator.md",
 )
 check(
-    "th-orchestrator.md Tier 0 no session-docs behavior documented",
-    "Tier 0" in _orch_bf and "no session-docs" in _orch_bf.lower(),
-    "Tier 0 no-session-docs behavior not documented in th-orchestrator.md",
+    "th-orchestrator.md Tier 0 no workspaces behavior documented",
+    "Tier 0" in _orch_bf and "no workspaces" in _orch_bf.lower(),
+    "Tier 0 no-workspaces behavior not documented in th-orchestrator.md",
 )
 check(
     "th-orchestrator.md Tier 0 operator cannot force for system-level files",
@@ -3282,9 +3282,9 @@ check(
     "skills/review-pr.md must pass the $WORKTREE path in every agent dispatch",
 )
 check(
-    "skills/review-pr.md scans for session-docs in the worktree",
-    "SESSION_DOCS_PATH" in _rvpr_v28 or "session-docs" in _rvpr_v28,
-    "skills/review-pr.md must scan for session-docs in the worktree to detect AC",
+    "skills/review-pr.md scans for workspaces in the worktree",
+    "workspaces_PATH" in _rvpr_v28 or "workspaces" in _rvpr_v28,
+    "skills/review-pr.md must scan for workspaces in the worktree to detect AC",
 )
 
 # (2) skills/review-pr.md: tier classification

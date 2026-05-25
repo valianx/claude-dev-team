@@ -8,7 +8,7 @@ Every committed artefact is in English: `README.md`, all files under `docs/`, `a
 
 **Why:** team-harness is open-source and targets an international developer audience. Mixed-language repos are jarring, harder to grep, and force readers through a translation step. Live chat is ephemeral; repo content is the durable artefact that outlives any conversation.
 
-**Session-docs are NOT committed artefacts.** `session-docs/` is gitignored — it is local working memory on each operator's machine, not published. The English-only rule does NOT cover session-doc PROSE content. Agent-composed prose inside session-doc bodies follows the **operator's chat language**. Structural elements that must remain machine-readable across operators stay English regardless: section headers (`## TL;DR`, `## Current State`, `## Agent Results`), field names (`status:`, `phase:`, `verdict:`), status-block keys, closed-set enum values (`success`, `pass`, `fail`, `APPROVE`), filenames (`01-architecture.md`), `dispatch_handoff` JSON keys. The boundary is **structure = English, body prose = operator language**.
+**workspaces are NOT committed artefacts.** `workspaces/` is gitignored — it is local working memory on each operator's machine, not published. The English-only rule does NOT cover session-doc PROSE content. Agent-composed prose inside session-doc bodies follows the **operator's chat language**. Structural elements that must remain machine-readable across operators stay English regardless: section headers (`## TL;DR`, `## Current State`, `## Agent Results`), field names (`status:`, `phase:`, `verdict:`), status-block keys, closed-set enum values (`success`, `pass`, `fail`, `APPROVE`), filenames (`01-architecture.md`), `dispatch_handoff` JSON keys. The boundary is **structure = English, body prose = operator language**.
 
 **Documented exceptions** (committed artefacts where Spanish is allowed):
 
@@ -34,14 +34,14 @@ The agent never composes Spanish (post-audit, with the §7.3 exceptions). The op
 | `dispatch_handoff` JSON keys (`schema_version`, `next_dispatch`, `phase`, `autonomy`) | Agent (machine-parseable surface) | English |
 | Feature name (e.g. `exportación-de-facturas`) | Operator-supplied | Whatever the operator chose |
 | `00-task-intake.md` Original Description block | Operator-quoted | Whatever the operator said |
-| Prose body content inside session-doc sections (analyses, rationales, summaries, insights, narrative verdicts) | Agent | **Operator's chat language** (session-docs are gitignored — see §7.3) |
+| Prose body content inside session-doc sections (analyses, rationales, summaries, insights, narrative verdicts) | Agent | **Operator's chat language** (workspaces are gitignored — see §7.3) |
 | Prose body content in committed agent reports — `04-security.md`, `04-internal-review.md`, `05-internal-review.md` | Agent | Spanish (per §7.3 documented exception) |
 | Status-block `summary:` of every agent (including security, reviewer) | Agent | English (machine-parseable, always) |
 | Prose anywhere else (committed) | Agent | English (per §7.3) |
 
 **Rule of thumb (two-axis):**
 - **What is it?** Structural (headers, keys, filenames, closed-set enum values) → English always, regardless of where it lives. Prose → depends on where it lives.
-- **Where does it live?** Gitignored session-docs → operator's chat language. Committed repo file → English (with the documented §7.3 exceptions).
+- **Where does it live?** Gitignored workspaces → operator's chat language. Committed repo file → English (with the documented §7.3 exceptions).
 
 ## th-orchestrator as the Canonical Entry Point (§7.5)
 
