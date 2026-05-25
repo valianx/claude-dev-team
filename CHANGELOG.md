@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Claude Code plugin format (`.claude-plugin/plugin.json`) with marketplace distribution
 - `/th:setup` skill for interactive MCP and workspace configuration
-- `hooks/hooks.json` for plugin-mode hook registration
+- `.claude-plugin/hooks.json` for plugin-mode hook registration
 - `.claude-plugin/marketplace.json` for custom marketplace distribution
 - Migration guide (`docs/plugin-migration.md`) for existing installer users
 
