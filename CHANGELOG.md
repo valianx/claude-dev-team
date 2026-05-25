@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.23.0] - 2026-05-24
+
+### Added
+
+- **Hooks count in installer summary** (`cmd/install/summary.go`): `countInstalledAgentsAndSkills` renamed to `countInstalledAssets`, extended with a `hooks` return value and a `/hooks/` path-segment counter. Final message now reads "Installation completed successfully. X agents, Y skills, Z hooks installed."
+
+### Fixed
+
+- **`/th-update` displays wrong reinstall command on Windows** (`skills/th-update.md`): the "no update needed" block previously showed the Unix-only `curl | bash` command on all platforms. Replaced with platform-conditional prose: `irm https://valianx.github.io/team-harness/install.ps1 | iex` on Windows, `curl -fsSL https://valianx.github.io/team-harness/install.sh | bash` on macOS/Linux.
+- **Installer final message ambiguous wording** (`cmd/install/summary.go`): "Installation complete." changed to "Installation completed successfully." for unambiguous success confirmation.
+
+### Changed
+
+- **th-orchestrator state template gains `docs_root`/`logs_mode` fields** (`agents/th-orchestrator.md`): both fields persisted in `00-state.md` at boot for recovery and path resolution. Phase Checklist section added as a guardrail against phase skipping. Phase Dispatch Reference table added for inline execution. Step 1c mandates early session-docs creation before any investigation. Substitution rule for session-docs paths documented.
+
 ## [2.22.0] - 2026-05-24
 
 ### Changed

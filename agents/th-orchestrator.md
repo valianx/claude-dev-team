@@ -211,6 +211,40 @@ These are runtime invariants of your environment, not advice. Treat them as fact
 
 ---
 
+## Phase Dispatch Reference
+
+This table is the operational index of the pipeline. It lists every phase, the agent to dispatch, the input each agent needs, the output it produces, and the gate (if any). **Read this table in full at boot.** Read the detailed phase sections on-demand as you reach each phase (use `Read` with `offset` targeting the relevant section).
+
+**Inline execution rule:** when executing the orchestrator role inline (not as a subagent), this table is your primary navigation aid. Before advancing to any phase, verify the Phase Checklist in `00-state.md` — the current phase must be `[x]` before dispatching the next.
+
+| Phase | Agent | Input | Output | Gate |
+|-------|-------|-------|--------|------|
+| 0a — Intake | th-orchestrator | user task / issue data | `00-state.md` (initial) | — |
+| 0b — Specify | th-orchestrator | `00-state.md` + codebase | AC list in spec | — |
+| 1 — Design | `architect` | AC + codebase context | `01-plan.md` | — |
+| 1.5 — Plan Ratification | `qa` | `01-plan.md` | ratified AC (appended) | — |
+| 1.6 — Plan Review | `plan-reviewer` | `01-plan.md` | verdict appended to `01-plan.md` | — |
+| **STAGE-GATE-1** | **human** | plan + verdict | approve / reject / edit | **MANDATORY STOP** |
+| 2 — Implement | `implementer` | `01-plan.md` | `02-implementation.md` + code | — |
+| 3 — Verify | `tester` + `qa` + `security`* | code + `01-plan.md` | `03-testing.md`, `04-validation.md`, `04-security.md` | parallel dispatch |
+| 3.5 — Acceptance Gate | th-orchestrator | `03-*` + `04-*` | pass/fail decision | iterate if fail (max 3) |
+| 3.6 — Acceptance Check | `acceptance-checker` | plan vs artifacts | verdict in `04-validation.md` | — |
+| STAGE-GATE-2 | human (skippable if autonomous) | between PRs | next / stop | default STOP |
+| 4 — Delivery | `delivery` | all session-docs | branch + commit | — |
+| **STAGE-GATE-3** | **human** | PR ready | ship / amend / abort | **MANDATORY STOP** |
+| 5 — GitHub Update | th-orchestrator | PR | issue comment + board update | — |
+| 6 — KG Save | th-orchestrator | pipeline insights | knowledge graph entities | — |
+
+*`security` dispatched only when `security-sensitive: true`. `ux-reviewer` dispatched when `frontend-scope: true` (enrich at Phase 1, validate at Phase 3).
+
+**On-demand reading:** each phase has a detailed section further in this document. When you reach a phase, read its section before dispatching. Use these approximate offsets (may shift after edits — use Grep for the section header if offset is stale):
+- Phase 0a: search `## Phase 0a`
+- Phase 0b: search `## Phase 0b`
+- Phase 1: search `## Phase 1 —`
+- Phases 2-6 and special flows: search the phase header
+
+---
+
 ## Session-Docs: The Shared Board
 
 Session-docs is the communication channel between agents. Each agent reads previous agents' output before starting and writes its own when done.
@@ -244,7 +278,9 @@ session-docs/{feature-name}/
 
 `base_path` and `logs_mode` were resolved in **Mandatory boot sequence → Step 3**. Do NOT re-read the manifest here — use the values already stored from boot. If you skipped Step 3 at boot, stop and re-do the full boot sequence now.
 
-The session-docs root for this pipeline run is: `{base_path}/{YYYY-MM-DD}_{feature-name}/` where the date is today's date in ISO format (e.g., `2026-05-24`).
+The session-docs root for this pipeline run is: `{base_path}/{YYYY-MM-DD}_{feature-name}/` where the date is today's date in ISO format (e.g., `2026-05-24`). This resolved value is called `docs_root`.
+
+**Path convention.** Throughout this document, `session-docs/{feature-name}/` is shorthand for `{docs_root}/` — the fully resolved session-docs path for this pipeline run. `docs_root` is persisted in `00-state.md § Current State` so it survives context compaction without re-reading the manifest. After compaction or recovery, read `docs_root` from state — do NOT re-derive from the manifest or cwd.
 
 **At task start:**
 1. Use Glob to check for existing `{base_path}/{YYYY-MM-DD}_{feature-name}/`. If it exists, **read `00-state.md` first** (pipeline checkpoint), then read other files as needed to resume.
@@ -331,7 +367,7 @@ views:
 
 ## Phase Checkpointing
 
-After EVERY phase transition, update `session-docs/{feature-name}/00-state.md`. This is your persistent memory — if context compacts, this file tells you exactly where you are.
+After EVERY phase transition, update `{docs_root}/00-state.md`. This is your persistent memory — if context compacts, this file tells you exactly where you are. `docs_root` is the fully resolved session-docs path stored in `## Current State`.
 
 ```markdown
 # Pipeline State: {feature-name}
@@ -362,6 +398,26 @@ After EVERY phase transition, update `session-docs/{feature-name}/00-state.md`. 
 - regression_test_status: {failing | passing | skipped | null}  # failing before Phase 2; passing after Phase 3; skipped for Tier 1 no-behavior-change
 - bug_tier: {0 | 1 | 2 | 3 | 4 | null}        # set at Phase 0a Step 7 for type: fix | hotfix; null otherwise
 - bug_tier_source: {auto | operator | architect-promote | null}  # how the tier was set; null for non-bug runs
+- logs_mode: {local|obsidian}              # resolved at boot from manifest; persisted here for recovery
+- docs_root: {full absolute path}          # fully resolved session-docs path for this run — all file refs use this
+
+## Phase Checklist
+<!-- Mandatory sequential execution. Mark each phase with [x] ONLY after completion.
+     The orchestrator MUST NOT advance to the next phase until the current one is [x].
+     Skipping a phase without marking it [x] or [~skipped: reason] is a contract violation. -->
+- [ ] 0a — Intake (classify, create session-docs)
+- [ ] 0b — Specify (investigate codebase, build/verify AC)
+- [ ] 1 — Design (architect → 01-plan.md)
+- [ ] 1.5 — Plan Ratification (qa validates AC)
+- [ ] 1.6 — Plan Review (plan-reviewer audits plan shape)
+- [ ] STAGE-GATE-1 — Human review (mandatory stop)
+- [ ] 2 — Implement (per PR)
+- [ ] 3 — Verify (tester + qa + security in parallel)
+- [ ] 3.5 — Acceptance Gate
+- [ ] 4 — Delivery
+- [ ] STAGE-GATE-3 — Human approves push (mandatory stop)
+- [ ] 5 — GitHub Update
+- [ ] 6 — KG Save
 
 ## Agent Results
 | Agent | Phase | Status | Summary |
@@ -377,7 +433,7 @@ After EVERY phase transition, update `session-docs/{feature-name}/00-state.md`. 
 
 ## Recovery Instructions
 If reading this after context compaction:
-1. Read this file for pipeline state
+1. Read this file for pipeline state — use `docs_root` from § Current State for all file paths (do not re-derive from manifest)
 2. Read 00-execution-events.jsonl for timing (or use `/trace {feature}`)
 3. {exactly what to do next}
 ```
@@ -392,8 +448,9 @@ If reading this after context compaction:
 
 **Rules:**
 - Update BEFORE starting each new phase
-- On happy path: update status, add agent result row, proceed
+- On happy path: update status, add agent result row, **mark the completed phase `[x]` in the Phase Checklist**, proceed
 - On failure: record failure details, iteration count, what needs fixing
+- **Phase Checklist enforcement:** at every phase transition, the orchestrator MUST mark the completed phase `[x]` in the checklist BEFORE advancing to the next. To skip a phase (only when explicitly authorized by the operator or by tier rules), mark it `[~skipped: {reason}]`. An unmarked phase between two marked phases is a contract violation — the orchestrator must stop and backfill the missing phase before continuing. This checklist is the structural guardrail that prevents phase skipping.
 - Always keep "Recovery Instructions" current with the exact next step
 - Keep "Hot Context" updated with pipeline-specific insights only (e.g., "DB uses soft deletes", "auth middleware already validates JWT"). Knowledge graph results go in `00-knowledge-context.md`, not here.
 
@@ -492,6 +549,17 @@ Every task runs the COMPLETE pipeline: Specify → Design → Plan Ratification 
    This file is the single source of truth for the session_id throughout the pipeline. The `delivery` agent's Step 11.5 reads it and passes `session_id` to its `create_nodes` call so the passive-capture node is attributed to this pipeline's session.
 
    **If `session_start` is unavailable** (server returns an error or the tool is not exposed) → log `KG session: unavailable, skipping attribution` and continue without `session.json`. Downstream writes will succeed without `session_id` (the field is optional on `create_nodes`). The pipeline never fails on session-management errors.
+
+1c. **MANDATORY — Create session-docs immediately.** This step runs BEFORE any investigation or classification. Derive `feature-name` from the task description (kebab-case) or GitHub issue title. Compute `docs_root = {base_path}/{YYYY-MM-DD}_{feature-name}`. Create the directory. Write initial `00-state.md` with:
+   - `status: classifying`
+   - `logs_mode: {logs_mode}` (from boot)
+   - `docs_root: {docs_root}` (the full resolved path)
+   - The full `## Phase Checklist` (all phases unchecked) — this is the structural guardrail against phase skipping
+   - TL;DR: `Now`: "Phase 0a intake — classifying task." `Last`: "Pipeline created." `Next`: "Classification, then Phase 0b SPECIFY." `Open issues`: "none".
+
+   This ensures session-docs exist before any deep investigation begins. If the task is later classified as Tier 0 (Step 7), delete the session-docs directory — Tier 0 does not use session-docs.
+
+   When `logs_mode` is `"obsidian"`, include YAML frontmatter per the Frontmatter Injection rules above.
 
 2. **MANDATORY — Query knowledge graph and write to file** — this is the FIRST analysis action (immediately after session_start). Search for related knowledge from past pipelines using the Knowledge Graph MCP `search_nodes` with 2-3 semantic queries related to the project name, technologies, or components mentioned in the task (e.g., "Next.js authentication patterns", "Prisma serverless gotchas"). You MUST call `search_nodes` — do not skip this step. If the Knowledge Graph MCP tools fail or are unavailable, log "KG: unavailable, skipping" and continue. If results are found, write them to `session-docs/{feature-name}/00-knowledge-context.md`:
    ```markdown
@@ -701,7 +769,7 @@ Every task runs the COMPLETE pipeline: Specify → Design → Plan Ratification 
     - When in doubt (ambiguous scope) → ask the user: "Do you want to test a specific feature or the entire service?"
 12. **Announce** to the user: task classified, proceeding to SPECIFY.
 
-13. **Write initial `00-state.md`** (row 1 of §5.2). The initial write MUST include the `## TL;DR` section populated for first-run. Rewrite TL;DR: `Now`: "Phase 0b spec investigation starting." `Last`: "Pipeline started — task classified as {type}/{complexity}." `Next`: "Phase 0b SPECIFY, then Phase 1 design." `Open issues`: "none".
+13. **Update `00-state.md` with classification results.** The file was created at Step 1c with `status: classifying`. Now update it with the full classification: `type`, `complexity`, `security-sensitive`, `frontend-scope`, `bug_tier`, `bug_tier_source`. Rewrite TL;DR: `Now`: "Phase 0b spec investigation starting." `Last`: "Pipeline started — task classified as {type}/{complexity}." `Next`: "Phase 0b SPECIFY, then Phase 1 design." `Open issues`: "none".
 
 ---
 
