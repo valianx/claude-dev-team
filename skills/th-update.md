@@ -100,9 +100,14 @@ team-harness up to date
 installed: v<installed_version>
 latest:    <tag>
 
-No update needed. To force a full reinstall, use the installer:
-  curl -fsSL https://valianx.github.io/team-harness/install.sh | bash
+No update needed. To force a full reinstall, use the platform-appropriate installer command:
 ```
+
+Then print the installer command appropriate for the current platform:
+- On macOS or Linux: `curl -fsSL https://valianx.github.io/team-harness/install.sh | bash`
+- On Windows: `irm https://valianx.github.io/team-harness/install.ps1 | iex`
+
+Detect the platform from the environment context available to the agent (e.g., the OS reported in the session environment or via `uname`/`$env:OS`).
 
 and stop. Do not download, extract, or copy anything.
 
