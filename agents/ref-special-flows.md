@@ -21,6 +21,16 @@ When the user asks to investigate, compare technologies, evaluate a migration, o
 4. **Skip Phases 2-5** (no implementation, testing, validation, or delivery)
 5. **Present** the research report to the user
 6. **Ask** the user how to proceed (implement, discard, or investigate further)
+7. **Act on user's choice:**
+   - **Implement:** reclassify the pipeline and re-enter the full pipeline with all gates:
+     a. Determine the new type: `refactor` if the research identified structural changes to existing code; `feature` if it identified new functionality to build.
+     b. Append reclassification event: `{"ts":"<ISO>","event":"pipeline.reclassify","from":"research","to":"<new_type>","reason":"operator chose implement"}`.
+     c. Update `00-state.md`: set `type:` to the new classification, reset `phase:` to `0b`, set `status: in_progress`. Add to Hot Context: `Reclassified from research to {type}. 00-research.md is input context for design.`
+     d. Re-enter the full pipeline at **Phase 0b (Specify)**. The `00-research.md` feeds the architect's design phase as prior analysis — it is NOT a substitute for `01-plan.md`.
+     e. **All gates are mandatory:** STAGE-GATE-1, Phase 3 (verify), STAGE-GATE-3. The Phase Gate Prerequisites (§ Phase Checkpointing in `th-orchestrator.md`) enforce this mechanically.
+     f. If the architect produced a `01-plan.md` during the research session (e.g., the operator asked for a plan before deciding to implement), that plan enters the normal ratification flow (Phase 1.5 → 1.6 → STAGE-GATE-1). It does NOT bypass design review.
+   - **Discard:** clean up workspaces, mark pipeline as `complete` with `summary: research discarded by operator`.
+   - **Investigate further:** re-invoke architect in research mode with the operator's refined scope. Append findings to existing `00-research.md` (new section, not overwrite).
 
 ---
 

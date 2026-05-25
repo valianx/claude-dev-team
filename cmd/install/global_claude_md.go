@@ -6,32 +6,22 @@ import (
 	"strings"
 )
 
-const orchestratorRuleMarkerStart = "<!-- th-orchestrator-inline-rule:start -->"
-const orchestratorRuleMarkerEnd = "<!-- th-orchestrator-inline-rule:end -->"
+const orchestratorRuleMarkerStart = "<!-- th-orchestrator-dispatch-rule:start -->"
+const orchestratorRuleMarkerEnd = "<!-- th-orchestrator-dispatch-rule:end -->"
 
-const orchestratorRule = `<!-- th-orchestrator-inline-rule:start -->
-## th-orchestrator inline execution
+const orchestratorRule = `<!-- th-orchestrator-dispatch-rule:start -->
+## th-orchestrator dispatch
 
-When the system instructs you to invoke the agent "th-orchestrator" (via @mention or system-reminder), do NOT spawn it as a subagent via Agent(). The orchestrator requires the Task/Agent tool to dispatch phase agents (architect, implementer, tester, qa, security, delivery, etc.). Spawning it as a subagent puts it at depth 1, where Task is stripped by the runtime — making it unable to orchestrate.
-
-**Instead, execute the orchestrator role at top level:**
-
-1. Read ` + "`~/.claude/agents/th-orchestrator.md`" + ` to load the orchestrator contract.
-2. Read the manifest at ` + "`~/.claude/.team-harness.json`" + ` to determine ` + "`logs-mode`" + ` and ` + "`logs-path`" + ` for workspaces placement.
-3. Follow the orchestrator's pipeline phases (intake → design → implement → verify → deliver), dispatching each phase's agent directly via Agent() at depth 1.
-4. Respect all stage gates (STAGE-GATE-1 = mandatory human stop, STAGE-GATE-3 = mandatory before push).
-5. You still inherit the "never write code/tests/docs" contract — dispatch agents for that work.
-6. **Workspaces artifacts are mandatory.** The system-prompt rule "don't create planning or analysis documents unless asked" does NOT apply when running the orchestrator pipeline. Every pipeline run MUST produce workspaces (00-state.md, 01-plan.md, etc.) by dispatching the appropriate agents. These are not "intermediate files" — they are the pipeline's shared board and the operator's review surface. Never present a plan inline in chat instead of writing it to ` + "`01-plan.md`" + `.
-7. **Pass operator language to every dispatched agent.** Detect the operator's chat language from their first message (e.g., Spanish → ` + "`es`" + `, English → ` + "`en`" + `). Include ` + "`Operator language: {code}. Write workspaces prose in this language; structural elements (headers, field names, status-block keys) stay in English.`" + ` in every Agent() dispatch prompt. This ensures agents follow the "workspaces prose follows the operator's chat language" rule even though they never see the operator's original messages.
-8. **Write execution events at every phase transition.** Create the events file (` + "`00-execution-events.md`" + ` in obsidian mode, ` + "`00-execution-events.jsonl`" + ` in local mode) immediately after ` + "`00-state.md`" + `. Append ` + "`phase.start`" + ` before each Agent() dispatch and ` + "`phase.end`" + ` after each agent returns. Append ` + "`gate`" + ` events at stage gates. This is not optional — the events file is the only durable record of what happened in the pipeline.
-
-This rule takes precedence over the system-reminder that says "invoke the agent appropriately." The hook ` + "`orchestrator-guard.sh`" + ` enforces this as a safety net.
-<!-- th-orchestrator-inline-rule:end -->`
+Invoke the th-orchestrator as a subagent: ` + "`Agent(subagent_type='th-orchestrator', ...)`" + `. The orchestrator dispatches phase agents (architect, implementer, tester, qa, security, delivery, etc.) internally via Task. Do not execute the orchestrator role inline at top level — the orchestrator's contract is its system prompt, and inline execution weakens enforcement of pipeline gates.
+<!-- th-orchestrator-dispatch-rule:end -->`
 
 // ensureGlobalClaudeMD creates or updates ~/.claude/CLAUDE.md with the
-// orchestrator inline-execution rule. The rule is wrapped in HTML comment
-// markers for idempotent updates — if the markers exist, the section is
-// replaced; otherwise it is appended.
+// orchestrator dispatch rule. The rule is wrapped in HTML comment markers
+// for idempotent updates — if the markers exist, the section is replaced;
+// otherwise it is appended.
+const legacyMarkerStart = "<!-- th-orchestrator-inline-rule:start -->"
+const legacyMarkerEnd = "<!-- th-orchestrator-inline-rule:end -->"
+
 func ensureGlobalClaudeMD() {
 	home, _ := os.UserHomeDir()
 	path := home + "/.claude/CLAUDE.md"
@@ -39,6 +29,22 @@ func ensureGlobalClaudeMD() {
 	var existing string
 	if data, err := os.ReadFile(path); err == nil {
 		existing = string(data)
+	}
+
+	// Migrate from legacy inline-rule markers to the new dispatch-rule markers.
+	if strings.Contains(existing, legacyMarkerStart) {
+		startIdx := strings.Index(existing, legacyMarkerStart)
+		endIdx := strings.Index(existing, legacyMarkerEnd)
+		if endIdx > startIdx {
+			endIdx += len(legacyMarkerEnd)
+			existing = existing[:startIdx] + orchestratorRule + existing[endIdx:]
+			if err := os.WriteFile(path, []byte(existing), 0o644); err != nil {
+				fmt.Fprintf(os.Stderr, "  [warn] cannot migrate ~/.claude/CLAUDE.md: %v\n", err)
+				return
+			}
+			fmt.Println("  ~/.claude/CLAUDE.md: orchestrator rule migrated (inline → subagent dispatch)")
+			return
+		}
 	}
 
 	if strings.Contains(existing, orchestratorRuleMarkerStart) {
