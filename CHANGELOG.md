@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.30.0] - 2026-05-25
+
+### Changed
+
+- Renamed `agents/th-orchestrator.md` to `agents/orchestrator.md` — avoids double plugin namespace `th:th-orchestrator`, now invoked as `th:orchestrator`
+- Updated all 67 files referencing the old agent name
+- Plugin install is now the only documented install method in README
+- Added update instructions to README (`/plugin marketplace update`)
+
+### Removed
+
+- `/th:update` skill hidden from plugin (moved to `cmd/legacy-skills/`) — plugin updates via `/plugin marketplace update` instead
+
 ## [2.29.0] - 2026-05-25
 
 ### Added
