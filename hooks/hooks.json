@@ -1,0 +1,29 @@
+{
+  "_comment": "Cross-platform hooks for the Team Harness Claude Code plugin. Uses ${CLAUDE_PLUGIN_ROOT} for script paths — the plugin runtime substitutes the plugin's install cache directory. Policy gate (PreToolUse) fires on every write/exec tool; notification (Notification) fires only on idle_prompt when Claude is waiting for operator input.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Write|Edit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/policy-block.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "idle_prompt",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/notify-stage.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

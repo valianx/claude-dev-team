@@ -339,12 +339,10 @@ func installAgents(mode InstallMode) {
 	}
 }
 
-// installSkills copies flat .md skills to ~/.claude/commands/ and subdirectory
-// skills to ~/.claude/skills/<name>/.
+// installSkills copies all skill directories to ~/.claude/skills/<name>/.
+// As of v2.29.0 all skills use the directory format (skills/<name>/SKILL.md).
+// Legacy flat .md files in skills/ are no longer shipped.
 func installSkills() {
-	destCommands := fmt.Sprintf("%s/commands", claudeDir)
-	copyEmbeddedDirFlat("skills", destCommands, ".md", false)
-
 	entries, err := readEmbeddedDir("skills")
 	if err != nil {
 		return
