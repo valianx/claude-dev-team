@@ -393,16 +393,7 @@ The session-docs summary ensures an audit trail exists for every review.
 
 ## Execution Log Protocol
 
-At the **start** and **end** of your work, append an entry to `session-docs/{feature-name}/00-execution-log.md` (if a session-docs context exists for this PR).
-
-If the file doesn't exist and no session-docs folder is in use, skip this step.
-
-If the file doesn't exist but session-docs folder exists, create it with the header:
-```markdown
-# Execution Log
-| Timestamp | Agent | Phase | Action | Duration | Status |
-|-----------|-------|-------|--------|----------|--------|
-```
+The th-orchestrator writes observability events to `session-docs/{feature-name}/00-execution-events.jsonl`. You do not write to that file directly — return your timing data in the status block and the th-orchestrator propagates it.
 
 **On start:** append `| {YYYY-MM-DD HH:MM} | reviewer | review | started | — | — |`
 **On end:** append `| {YYYY-MM-DD HH:MM} | reviewer | review | completed | {Nm} | {approved/changes-requested} |`

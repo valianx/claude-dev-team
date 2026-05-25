@@ -48,7 +48,7 @@ Formal, neutral, declarative. No enthusiasm markers, no emoji decoration, no fir
 
 4. **Ensure `.gitignore` includes `session-docs`** — check and add `/session-docs` if missing.
 
-5. **Write your output** to `session-docs/{feature-name}/05-delivery.md` when done.
+5. **Append your output** as a `## Delivery` section to `session-docs/{feature-name}/00-state.md`. If a prior `## Delivery` section exists, replace it in place.
 
 ---
 
@@ -81,7 +81,7 @@ Determine `{feature_name}` in this order:
 - `04-security.md` reports Critical or High findings (Medium/Low are warnings, not blockers).
 - Any expected session-doc is missing.
 
-When aborting, write `session-docs/{feature-name}/05-delivery.md` with the failure reason and a per-AC table showing which gate failed for which AC. Do NOT create a branch, do NOT commit.
+When aborting, append a `## Delivery` section to `session-docs/{feature-name}/00-state.md` with the failure reason and a per-AC table showing which gate failed for which AC. Do NOT create a branch, do NOT commit.
 
 If everything passes, continue to Step 1.
 
@@ -422,7 +422,7 @@ Before staging, run the project's quality gates. Discover the commands from CLAU
 | Tests | `package.json` `scripts.test`, `make test`, `pytest`, `cargo test` | Abort, report failing tests |
 | Build (when a build step exists) | `package.json` `scripts.build`, `make build` | Abort, report build error |
 
-Run each check. If ANY fails, return `status: failed` with the command output captured in `05-delivery.md` under "DoD Failures". Do NOT proceed to commit.
+Run each check. If ANY fails, return `status: failed` with the command output captured in `00-state.md § Delivery` under "DoD Failures". Do NOT proceed to commit.
 
 If a check command does not exist in the project (e.g. no `lint` script), skip that row and note it in the delivery summary — do NOT invent a command.
 
@@ -785,10 +785,10 @@ The th-orchestrator propagates this into the `kg_passive_capture` sub-field of t
 1. `## Review Summary` — human-readable digest of decisions, risks, and outcomes. Use `> [!decision]`, `> [!risk]`, `> [!change]` callouts. Keep under 30 lines. No code, no file paths, no schemas.
 2. `## Technical Detail` — full content for downstream agents. Current format and structure preserved here.
 
-Write delivery summary to `session-docs/{feature-name}/05-delivery.md`:
+Append delivery summary as a `## Delivery` section to `session-docs/{feature-name}/00-state.md`. If a prior `## Delivery` section exists, replace it in place.
 
 ```markdown
-# Delivery Summary: {feature-name}
+## Delivery
 **Date:** {date}
 **Agent:** delivery
 **Project type:** {backend/frontend/fullstack}
@@ -845,17 +845,7 @@ Write delivery summary to `session-docs/{feature-name}/05-delivery.md`:
 
 ## Execution Log Protocol
 
-At the **start** and **end** of your work, append an entry to `session-docs/{feature-name}/00-execution-log.md`.
-
-If the file doesn't exist, create it with the header:
-```markdown
-# Execution Log
-| Timestamp | Agent | Phase | Action | Duration | Status |
-|-----------|-------|-------|--------|----------|--------|
-```
-
-**On start:** append `| {YYYY-MM-DD HH:MM} | delivery | 4-delivery | started | — | — |`
-**On end:** append `| {YYYY-MM-DD HH:MM} | delivery | 4-delivery | completed | {Nm} | {success/failed} |`
+The th-orchestrator writes observability events to `session-docs/{feature-name}/00-execution-events.jsonl`. You do not write to that file directly — return your timing data in the status block and the th-orchestrator propagates it.
 
 ---
 
@@ -866,7 +856,7 @@ When invoked by the th-orchestrator via Task tool, your **FINAL message** must b
 ```
 agent: delivery
 status: success | failed | blocked | blocked-manual-push
-output: session-docs/{feature-name}/05-delivery.md
+output: session-docs/{feature-name}/00-state.md § Delivery
 summary: {1-2 sentences: branch name, version X→Y, PR #N, CLAUDE.md sections updated}
 issues: {list of blockers, or "none"}
 ```
@@ -876,7 +866,7 @@ issues: {list of blockers, or "none"}
 ```
 agent: delivery
 status: blocked-manual-push
-output: session-docs/{feature-name}/05-delivery.md
+output: session-docs/{feature-name}/00-state.md § Delivery
 manual_action_required: true
 manual_action_file: session-docs/{feature-name}/inputs/pr-body.md
 manual_action_url: https://github.com/{owner}/{repo}/compare/main...{branch}?expand=1

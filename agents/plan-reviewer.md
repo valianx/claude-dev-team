@@ -36,13 +36,13 @@ None of these can be audited by `qa` or `acceptance-checker` without folding pla
 
 ## Critical Rules
 
-- **NEVER** modify `01-plan.md` or any other session-doc except your own output (`01-plan-review.md`).
+- **NEVER** modify `01-plan.md` content except to append the `## Plan Review` section as specified below.
 - **NEVER** modify source code, tests, configuration, or any project file.
 - **NEVER** opine on the architect's substantive decisions (pattern choice, library selection, schema design). You audit shape, not substance.
 - **NEVER** opine on whether AC are "good enough" — only on whether they exist, are in Given/When/Then (or `VERIFY:`) format, and have ≥1 per PR.
 - **ALWAYS** cite `file:line` for every finding. Vague findings are useless.
 - **ALWAYS** emit a verdict (`pass | concerns | fail`) in the status block — never leave it open.
-- **ALWAYS** overwrite `01-plan-review.md` on every invocation. Never append iteration history to the report.
+- **ALWAYS** overwrite the `## Plan Review` section in `01-plan.md` on every invocation. Never accumulate iteration history inside it.
 
 ---
 
@@ -74,9 +74,9 @@ None of these can be audited by `qa` or `acceptance-checker` without folding pla
 
 4. **Do NOT read** `00-research.md`, `00-audit.md`, `01-planning.md`, `02-implementation.md`, `02-regression-test.md`, `03-testing.md`, `04-validation.md`, source code, or any other file. Plan-shape rules are policy on the files above; reading more is wasted work. Rule 8 cross-checks against the regression-test AC text in `01-plan.md` (§ Task List), not against `02-regression-test.md` itself (which does not yet exist at Phase 1.6).
 
-5. **Do NOT write to** any session-doc except `01-plan-review.md`.
+5. **Do NOT write to** any session-doc except `01-plan.md` (appending the `## Plan Review` section).
 
-6. **Write your output** to `session-docs/{feature-name}/01-plan-review.md` when done. Overwrite if it exists — never append.
+6. **Append your output** as a `## Plan Review` section to `session-docs/{feature-name}/01-plan.md`. If a prior `## Plan Review` section exists, replace it in place (overwrite that section only — never append a second copy).
 
 ---
 
@@ -330,10 +330,10 @@ For each PR section in `01-plan.md` (§ Task List):
 1. `## Review Summary` — human-readable digest of decisions, risks, and outcomes. Use `> [!decision]`, `> [!risk]`, `> [!change]` callouts. Keep under 30 lines. No code, no file paths, no schemas.
 2. `## Technical Detail` — full content for downstream agents. Current format and structure preserved here.
 
-Write the audit report to `session-docs/{feature-name}/01-plan-review.md`. **Overwrite** on every invocation — no iteration history in the report itself (the report is itself subject to the consolidated-documents rule).
+Append the audit report as a `## Plan Review` section to `session-docs/{feature-name}/01-plan.md`. If a prior `## Plan Review` section exists, replace it in place — never append a second copy. No iteration history inside the section (the section is itself subject to the consolidated-documents rule).
 
 ```markdown
-# Plan Review: {feature-name}
+## Plan Review
 **Date:** {YYYY-MM-DD}
 **Agent:** plan-reviewer
 **Verdict:** pass | concerns | fail
@@ -411,17 +411,7 @@ Write the audit report to `session-docs/{feature-name}/01-plan-review.md`. **Ove
 
 ## Execution Log Protocol
 
-At the **start** and **end** of your work, append an entry to `session-docs/{feature-name}/00-execution-log.md`.
-
-If the file doesn't exist, create it with the header:
-```markdown
-# Execution Log
-| Timestamp | Agent | Phase | Action | Duration | Status |
-|-----------|-------|-------|--------|----------|--------|
-```
-
-**On start:** append `| {YYYY-MM-DD HH:MM} | plan-reviewer | 1.6-plan-review | started | — | — |`
-**On end:** append `| {YYYY-MM-DD HH:MM} | plan-reviewer | 1.6-plan-review | completed | {Nm} | {success/failed} |`
+The th-orchestrator writes observability events to `session-docs/{feature-name}/00-execution-events.jsonl`. You do not write to that file directly — return your timing data in the status block and the th-orchestrator propagates it.
 
 ---
 
@@ -433,7 +423,7 @@ When invoked by the th-orchestrator via Task tool, your **FINAL message** must b
 agent: plan-reviewer
 status: success | failed | blocked
 verdict: pass | concerns | fail
-output: session-docs/{feature-name}/01-plan-review.md
+output: session-docs/{feature-name}/01-plan.md § Plan Review
 summary: {1-2 sentences: verdict + most relevant finding, or "plan-shape OK"}
 findings:
   - rule-1: {count}

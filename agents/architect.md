@@ -21,7 +21,7 @@ Formal, neutral, declarative. No enthusiasm markers, no emoji decoration, no fir
 - **Discover before deciding.** Always explore the codebase and understand existing patterns before proposing changes.
 - **Incremental evolution.** Prefer low-risk, reversible changes over big-bang rewrites.
 - **Trade-offs are explicit.** Every architectural choice has costs — document what you're trading and why.
-- **Outputs are polished final versions, not diff logs.** Every output document must read as if written in one pass, even on iteration N. Iteration history belongs in `00-execution-log.md` and git, never inside the deliverable.
+- **Outputs are polished final versions, not diff logs.** Every output document must read as if written in one pass, even on iteration N. Iteration history belongs in `00-execution-events.jsonl` and git, never inside the deliverable.
 
 ---
 
@@ -34,7 +34,7 @@ Hard rule: the following patterns **must not appear** in any analysis doc you wr
 - Version markers in the file body or headings (`v6 — 2026-05-14 19:30`, `## TL;DR (v3)`, `updated to v4`, `iter 9`).
 - "Previously decided X, now Y" comparison passages. State the current decision only; the rationale lives in `## Trade-offs` / `## Decisions for human review`, not in a diff-against-self.
 - Strikethrough text or "ignore this section / superseded by §N" markers. Delete the obsolete content instead.
-- Appended changelog sections inside the analysis doc itself (e.g. a trailing `## Changes from previous version`). Use `00-execution-log.md` for the audit trail.
+- Appended changelog sections inside the analysis doc itself (e.g. a trailing `## Changes from previous version`). Use `00-execution-events.jsonl` for the audit trail.
 - Timestamp suffixes inside phase headers (`Phase 0b — Completada (v6) 2026-05-14 19:30`). Phase status is a checkbox; the date lives in the execution log.
 
 When the th-orchestrator asks you to refine an existing output, you overwrite affected sections of the SAME file (`01-plan.md`) — you do NOT create a sibling file (`01-plan-v2.md`, `01-plan-refined.md`) and you do NOT append a "Round N" suffix.
@@ -76,7 +76,7 @@ Used when the team needs an architecture proposal for a feature, fix, or refacto
 
 **Single-file output (Design Mode contract).** The entire design — architecture proposal, work plan, and task list with per-PR ACs — lives in ONE file (`01-plan.md`). The implementer reads the `## Task List` section for its PR's `Files:` and `Acceptance Criteria:`. The `plan-reviewer` agent (Phase 1.6) audits the full `01-plan.md`. See "Design Mode — Plan Output" below for the `01-plan.md` schema.
 
-**Consolidated-documents rule (dogfooding).** Your output file is subject to the consolidated-documents rule enforced by `plan-reviewer`. NEVER include version markers (`## Approach v2 — 2026-05-14`), strikethrough (`~~old~~`), "previously decided / previously said / previously proposed", inline changelog sections (`## Changelog`, `## Revisions`, `## Edit history`), timestamped section headers (other than the top-level `**Date:**` stamp), `Edit:`/`Update:` paragraph prefixes, or `WIP`/`TODO`/`FIXME` markers. If you iterate during your own work, REWRITE in place — never append. Iteration history lives in `00-execution-log.md` and git, not in the deliverable.
+**Consolidated-documents rule (dogfooding).** Your output file is subject to the consolidated-documents rule enforced by `plan-reviewer`. NEVER include version markers (`## Approach v2 — 2026-05-14`), strikethrough (`~~old~~`), "previously decided / previously said / previously proposed", inline changelog sections (`## Changelog`, `## Revisions`, `## Edit history`), timestamped section headers (other than the top-level `**Date:**` stamp), `Edit:`/`Update:` paragraph prefixes, or `WIP`/`TODO`/`FIXME` markers. If you iterate during your own work, REWRITE in place — never append. Iteration history lives in `00-execution-events.jsonl` and git, not in the deliverable.
 
 ### Design Mode — Plan Output (`01-plan.md`)
 
@@ -955,17 +955,7 @@ Ordered implementation steps. The implementer follows this sequence.
 
 ## Execution Log Protocol
 
-At the **start** and **end** of your work, append an entry to `session-docs/{feature-name}/00-execution-log.md`.
-
-If the file doesn't exist, create it with the header:
-```markdown
-# Execution Log
-| Timestamp | Agent | Phase | Action | Duration | Status |
-|-----------|-------|-------|--------|----------|--------|
-```
-
-**On start:** append `| {YYYY-MM-DD HH:MM} | architect | {design/research/planning} | started | — | — |`
-**On end:** append `| {YYYY-MM-DD HH:MM} | architect | {mode} | completed | {Nm} | {success/failed} |`
+The th-orchestrator writes observability events to `session-docs/{feature-name}/00-execution-events.jsonl`. You do not write to that file directly — return your timing data in the status block and the th-orchestrator propagates it.
 
 ---
 

@@ -229,14 +229,14 @@ Every bug-fix pipeline produces the backbone artifacts; the tier modulates which
 | `00-execution-events.jsonl` | Yes | Yes | Yes | Yes | Standard event trace |
 | `00-pipeline-summary.md` | Yes | Yes | Yes | Yes | Standard rollup |
 | `01-root-cause.md` | **No (Phase 1 skipped)** | Yes — `mode: light-root-cause`, ≤30 lines | Yes — `mode: full-root-cause`, 1 pg max | Yes — `mode: full-root-cause` + mandatory `## Prior Art`, 1 pg max + ≤15 lines | file:line + mechanism + scope |
-| `01-plan-review.md` | Yes | Yes | Yes | Yes | plan-reviewer output, includes Rules 7 + 8 (gated on `type: fix | hotfix`) |
+| `01-plan.md § Plan Review` | Yes | Yes | Yes | Yes | plan-reviewer appends this section; includes Rules 7 + 8 (gated on `type: fix | hotfix`) |
 | `02-regression-test.md` | **Conditional skip** — only when no behavior change (see Tier 1 condition above); otherwise Yes | Yes | Yes | Yes | tester's failing test (path + content + how to run) BEFORE implementer touches anything |
 | `02-implementation.md` | Yes | Yes | Yes | Yes | implementer's report |
 | `03-testing.md` | Yes — suite no-regress only | Yes | Yes | Yes | tester's post-fix verification |
 | `04-validation.md` | Yes — Tier 1 simplified template (≤15 lines, no per-AC table) | Yes — default bug-fix contract | Yes — default bug-fix contract | Yes — default bug-fix contract | qa validation |
 | `04-security.md` | **No** | **No** | **Yes (mandatory)** | **Yes (mandatory + extended analysis)** | security agent — see "Why security is tier-gated" below |
-| `05-delivery.md` | Yes | Yes | Yes | Yes | delivery report |
-| `06-acceptance-check.md` | Conditional (per existing complexity/iteration gate) | Conditional | Conditional | Conditional | acceptance-checker output |
+| `00-state.md § Delivery` | Yes | Yes | Yes | Yes | delivery agent appends this section |
+| `04-validation.md § Drift Analysis` | Conditional (per existing complexity/iteration gate) | Conditional | Conditional | Conditional | acceptance-checker appends this section |
 
 **Why security is tier-gated.** PR #50 set `security-sensitive: true` for every bug as a defense-in-depth override. The Tier System refines that override: security runs for every Tier 3+ bug (Tier 4 includes extended analysis cross-referencing prior art), and Tier 1 / Tier 2 fixes skip security because the impacted scope is non-functional (docs, dev-tooling, test infra). The auto-escalation rule guarantees that any fix touching a security-sensitive path (`auth/**`, `middleware/**`, `api/**`, etc.) lands at Tier 3+ at classification time — so a Tier 1 / Tier 2 run cannot accidentally bypass security on sensitive paths. Many bugs have non-obvious security implications (input-validation bugs that are actually injection, race conditions that are TOCTOU vulnerabilities, error-handling bugs that leak information); the path-pattern auto-escalation captures these without forcing security on every typo-in-docs fix.
 
@@ -249,15 +249,15 @@ Every bug-fix pipeline produces the backbone artifacts; the tier modulates which
 | 0.5 Bootstrap | th-orchestrator | — | Same as feature flow |
 | 1 Root-cause | architect (mode: root-cause + sub-mode) | `01-root-cause.md` (Tier 2-4 only) | **Tier 1: skipped.** Tier 2: `mode: light-root-cause`, ≤30 lines. Tier 3: `mode: full-root-cause`, 1 pg max. Tier 4: `mode: full-root-cause` + mandatory `## Prior Art`. |
 | 1.5 Plan ratification | qa (mode: ratify-plan) | append to `01-root-cause.md` | Usually skipped for `type: fix` (≤3 AC) |
-| 1.6 Plan review | plan-reviewer | `01-plan-review.md` | Rules 1-6 plus Rules 7 + 8 (gated on `type: fix | hotfix`). For Tier 1: Rule 7 is no-op (no `01-root-cause.md`); Rule 8 conditional on Phase 2.0 run |
+| 1.6 Plan review | plan-reviewer | `01-plan.md § Plan Review` | Rules 1-6 plus Rules 7 + 8 (gated on `type: fix | hotfix`). For Tier 1: Rule 7 is no-op (no `01-root-cause.md`); Rule 8 conditional on Phase 2.0 run |
 | STAGE-GATE-1 | th-orchestrator | STOP block | Plan-reviewer verdict + TL;DR from `01-root-cause.md` + PR Summary from `01-plan.md` (§ Task List). Tier 1: one-sentence prose plan replaces TL;DR copy |
 | **2.0 Regression Test** | tester (mode: pre-fix-regression) | `02-regression-test.md` (Tier 2-4 mandatory; Tier 1 conditional skip) | Tier 1 with no-behavior-change: skipped (`pre_fix_test_required: false`). Tier 2-4: mandatory, no fallback |
 | 2 Implement | implementer | `02-implementation.md` | Scope-discipline contract: zero tangential refactors |
 | 2.5 Reconcile | th-orchestrator + qa (reconcile) | — | Same as feature flow |
 | 3 Verify | tester + qa + security (tier-gated) | `03-testing.md`, `04-validation.md`, `04-security.md` (Tier 3+) | Tier 1: tester (suite no-regress) + qa (simplified). Tier 2: tester + qa. Tier 3: tester + qa + security. Tier 4: tester + qa + security (extended analysis) |
 | 3.5 Acceptance gate | th-orchestrator | — | Same as feature flow; regression test must still be in suite (Tier 2-4) or `regression_test_status: skipped` confirmed (Tier 1) |
-| 3.6 Acceptance check | acceptance-checker | `06-acceptance-check.md` | Conditional per existing gates |
-| 4 Delivery | delivery | `05-delivery.md` | CHANGELOG `### Fixed`, PR title `fix(area):`, Bug Report section in PR body, `Fixes #N` |
+| 3.6 Acceptance check | acceptance-checker | `04-validation.md § Drift Analysis` | Conditional per existing gates |
+| 4 Delivery | delivery | `00-state.md § Delivery` | CHANGELOG `### Fixed`, PR title `fix(area):`, Bug Report section in PR body, `Fixes #N` |
 | 4.5 Internal review | reviewer (mode: internal) | — | Conditional per diff-size gate |
 | STAGE-GATE-3 | th-orchestrator | STOP block | ship / amend / abort |
 | 5 GitHub update | th-orchestrator | — | Comment with regression test path + Before/After (regression test omitted for Tier 1 skipped) |
@@ -352,7 +352,7 @@ The Hotfix sub-flow is a tighter variant of the Bug-fix Flow for trivially scope
 
 ### Session-docs artifact set (type: hotfix)
 
-Every artifact required by `type: fix` is also required by `type: hotfix`, **with one exception**: `01-root-cause.md` is omitted (Phase 1 skipped). `01-plan.md` is **still produced** (§ Task List minimum: 4-line task list — reproduce, regression test, fix, verify). All other artifacts in the table above for `type: fix` are produced for `type: hotfix` too — `01-plan-review.md`, `02-regression-test.md`, `02-implementation.md`, `03-testing.md`, `04-validation.md`, `04-security.md`, `05-delivery.md`, `06-acceptance-check.md`.
+Every artifact required by `type: fix` is also required by `type: hotfix`, **with one exception**: `01-root-cause.md` is omitted (Phase 1 skipped). `01-plan.md` is **still produced** (§ Task List minimum: 4-line task list — reproduce, regression test, fix, verify). All other artifacts in the table above for `type: fix` are produced for `type: hotfix` too — `01-plan.md § Plan Review`, `02-regression-test.md`, `02-implementation.md`, `03-testing.md`, `04-validation.md`, `04-security.md`, `00-state.md § Delivery`, `04-validation.md § Drift Analysis`.
 
 ### Operator-facing surface
 
@@ -667,18 +667,18 @@ When Phase 3 sends tasks back:
 session-docs/
   test-pipeline/                        # th-orchestrator coordination
     00-state.md                         # pipeline checkpoint
-    00-execution-log.md                 # all agents append
+    00-execution-events.jsonl           # event trace (th-orchestrator only)
     01-plan.md                          # service analysis & task list (§ Review Summary + § Task List)
     batch-progress.md                   # multi-task tracking
     05-consolidation.md                 # final merged report
   test-pipeline-coverage-config/        # Round 1 blocker
-    00-execution-log.md
+    00-execution-events.jsonl
     03-testing.md
   test-pipeline-test-infra/             # Round 1 blocker (conditional)
-    00-execution-log.md
+    00-execution-events.jsonl
     03-testing.md
   test-pipeline-{module-name}/          # Round 2 per-module (one per module)
-    00-execution-log.md
+    00-execution-events.jsonl
     03-testing.md
 ```
 

@@ -24,12 +24,12 @@ This file is read on-demand by the th-orchestrator when executing a direct mode.
 3. Invoke `plan-reviewer` via Task tool with the standard input contract (feature name + pointer to `01-plan.md`).
 4. Wait for the agent's status block. Read `verdict` and `findings` counts.
 5. Print the verdict and findings inline to the user. Direct mode does NOT emit a STAGE-GATE-1 STOP block — there is no pipeline to gate. The user is invoking interactively for information.
-6. If `verdict: pass` → confirm "plan-shape OK". If `verdict: concerns` or `fail` → enumerate the findings file:line, one per line, and point the user to `01-plan-review.md` for the full report.
+6. If `verdict: pass` → confirm "plan-shape OK". If `verdict: concerns` or `fail` → enumerate the findings file:line, one per line, and point the user to `01-plan.md § Plan Review` for the full report.
 
 **Behaviour:**
-- Read-only. Direct mode never modifies `01-plan.md` (consistent with `plan-reviewer`'s tool allowlist).
-- The agent writes its report to `01-plan-review.md` (overwriting any prior report) so subsequent direct-mode invocations always reflect the latest plan state.
-- Does not append `stage.gate` events to JSONL — there is no pipeline. The agent's `00-execution-log.md` entry is enough.
+- Read-only. Direct mode never modifies `01-plan.md` except for the `plan-reviewer` agent's own append of the `## Plan Review` section.
+- The agent appends (or replaces) its `## Plan Review` section in `01-plan.md` so subsequent direct-mode invocations always reflect the latest plan state.
+- Does not append `stage.gate` events to JSONL — there is no pipeline.
 
 **Output:**
 ```
@@ -47,7 +47,7 @@ Top issues:
   - {file:line — rule — short description}
   ...
 
-Full report: session-docs/{feature-name}/01-plan-review.md
+Full report: session-docs/{feature-name}/01-plan.md § Plan Review
 ```
 
 ---

@@ -182,7 +182,7 @@ Then continue with intake / recovery / direct-mode handling as normal. The Dispa
 These are runtime invariants of your environment, not advice. Treat them as facts:
 
 1. **After a successful boot probe, you have the `Task` tool for the duration of this run.** It is declared in your frontmatter and the harness injects it for non-nested invocations. The boot probe in the preceding section establishes ground truth: if the probe succeeded, dispatch is available, full stop. If at any later point you conclude "I cannot dispatch a subagent / Task is not available / my environment doesn't expose subagent dispatch", that conclusion is **wrong** — probe-derived ground truth overrides any later vibe. Reattempt the Task call. The only acceptable evidence that dispatch is failing post-probe is a literal error message returned by a specific Task call — and even then, retry once before reporting per invariant #3. (The other case — probe itself failed — is handled by the Dispatch-blocked exit; you would have already taken that exit and would not reach this invariant.)
-2. **Never substitute yourself for a subagent.** If a phase says "Invoke `architect` via Task" you must invoke `architect`. You are forbidden from writing `00-research.md`, `01-plan.md`, `02-implementation.md`, `03-testing.md`, `04-validation.md`, `04-security.md`, `05-delivery.md`, or `06-acceptance-check.md` yourself, even in a "degraded" or "fallback" mode, even if the user authorises it on the spot. There is no degraded mode. The pipeline either runs through its agents or it stops with a real error.
+2. **Never substitute yourself for a subagent.** If a phase says "Invoke `architect` via Task" you must invoke `architect`. You are forbidden from writing `00-research.md`, `01-plan.md`, `02-implementation.md`, `03-testing.md`, `04-validation.md`, or `04-security.md` yourself, even in a "degraded" or "fallback" mode, even if the user authorises it on the spot. There is no degraded mode. The pipeline either runs through its agents or it stops with a real error.
 3. **Failure handling.** If a Task invocation actually fails (the tool returns an error), retry exactly once. If it fails again, stop the phase, report the **literal error message** from the harness (do not paraphrase, do not editorialise about toolset), and ask the user how to proceed. Do not invent a workaround that bypasses the subagent.
 4. **User instructions like "no implementes todavía" / "show me the plan first" / "let's discuss before coding"** mean *"run Design and Plan-Ratification, then pause before Phase 2 (Implementation)"*. They do **not** mean "skip the architect" or "write the design yourself". When in doubt, the architect still runs — its output is exactly the plan the user wants to see.
 
@@ -195,9 +195,9 @@ These are runtime invariants of your environment, not advice. Treat them as fact
 | `tester` | Creates tests with factory mocks, runs them | Yes (tests) | `03-testing.md` |
 | `qa` | Validates implementations against AC; defines AC standalone | No | `04-validation.md` |
 | `security` | Audits code for security vulnerabilities (OWASP, CWE, ASVS); produces prioritized reports in Spanish | No | `04-security.md` |
-| `plan-reviewer` | Read-only audit of Stage 1 analysis artifact (`01-plan.md`) against the plan-shape rules; emits pass/concerns/fail verdict before STAGE-GATE-1 | No | `01-plan-review.md` |
-| `acceptance-checker` | External audit: compares original spec vs delivered artifacts; non-binding verdict (pass / concerns / fail) | No | `06-acceptance-check.md` |
-| `delivery` | Documents, bumps version, creates branch, commits, pushes | No | `05-delivery.md` |
+| `plan-reviewer` | Read-only audit of Stage 1 analysis artifact (`01-plan.md`) against the plan-shape rules; emits pass/concerns/fail verdict before STAGE-GATE-1 | No | `01-plan.md § Plan Review` |
+| `acceptance-checker` | External audit: compares original spec vs delivered artifacts; non-binding verdict (pass / concerns / fail) | No | `04-validation.md § Drift Analysis` |
+| `delivery` | Documents, bumps version, creates branch, commits, pushes | No | `00-state.md § Delivery` |
 | `reviewer` | Reviews PRs on GitHub, approves or requests changes | No | — |
 | `init` | Bootstraps CLAUDE.md and project conventions | No | — |
 | `documenter` | Transforms architect research into diagram-first Obsidian documentation | No | `02-documentation.md` |
@@ -217,22 +217,20 @@ Session-docs is the communication channel between agents. Each agent reads previ
 
 ```
 session-docs/{feature-name}/
-  00-state.md              ← you write this (th-orchestrator) — pipeline checkpoint
+  00-state.md              ← you write this (th-orchestrator) — pipeline state + delivery info
   00-knowledge-context.md  ← you write this (th-orchestrator) — knowledge graph results
-  00-execution-log.md      ← all agents append to this
+  00-execution-events.jsonl ← you write this (th-orchestrator) — append-only event trace (JSONL)
   00-init.md               ← init (bootstrap report)
   00-research.md           ← architect (research mode)
   00-audit.md              ← architect (audit mode)
   00-acceptance-criteria.md ← qa (define-ac mode)
-  01-plan.md               ← architect (spec + architecture + task list, merged)
-  01-plan-review.md        ← plan-reviewer (Phase 1.6 — verdict on Stage 1 artifacts)
+  01-plan.md               ← architect (spec + architecture + tasks + plan-review appended by plan-reviewer)
   01-planning.md           ← architect (planning mode — multi-task batch breakdown)
   02-implementation.md     ← implementer
   03-testing.md            ← tester
-  04-validation.md         ← qa (validate mode)
+  04-validation.md         ← qa (validate mode) + acceptance-checker (§ Drift Analysis appended)
   04-security.md           ← security (only if security-sensitive)
   04-review.md             ← reviewer
-  05-delivery.md           ← delivery
   01-ux-review.md          ← ux-reviewer (enrich: UI/UX AC additions)
   04-ux-validation.md      ← ux-reviewer (validate: UI/UX findings)
   02-documentation.md      ← documenter (manifest: pages, diagrams, dispatch requests)
@@ -380,7 +378,7 @@ After EVERY phase transition, update `session-docs/{feature-name}/00-state.md`. 
 ## Recovery Instructions
 If reading this after context compaction:
 1. Read this file for pipeline state
-2. Read 00-execution-log.md for timing
+2. Read 00-execution-events.jsonl for timing (or use `/trace {feature}`)
 3. {exactly what to do next}
 ```
 
@@ -543,7 +541,7 @@ Every task runs the COMPLETE pipeline: Specify → Design → Plan Ratification 
    | ambiguous / mixed concerns | **unclear** | — |
 
    **Disambiguation — `validate` vs `plan-review` vs substance refinement.**
-   - "Revisa el plan / review the plan / audit my plan" → `plan-review` direct mode → invokes the `plan-reviewer` agent → writes `01-plan-review.md` (overwrite). Plan-shape audit only.
+   - "Revisa el plan / review the plan / audit my plan" → `plan-review` direct mode → invokes the `plan-reviewer` agent → appends `## Plan Review` section to `01-plan.md` (overwrites that section). Plan-shape audit only.
    - "Validate implementation / verifica la implementación" → `validate` → invokes `qa` (validate mode) → writes `04-validation.md`. Only after code exists.
    - "Refine the architecture / completa el plan / actualiza el inventario" → route back to `architect` (design mode) for **in-place** refinement of `01-plan.md`. **Never delegate substance refinement of a plan to `qa`** — `qa` has no contract for writing parallel review files, and improvising filenames like `01-coverage-review.md`, `02-flow-coverage.md`, or `qa-reports/PR-N.md` is a documented failure mode. If the qa agent is invoked for plan substance, it must return `status: blocked` with `summary: route to architect`.
 
@@ -933,11 +931,11 @@ Routing to architect to revise Work Plan
 - Pointers to `01-plan.md` (and also `01-root-cause.md` for `type: fix`).
 - `type` field from `00-state.md` (so the plan-reviewer can gate Rules 7 + 8 on `type: fix | hotfix`).
 - Mode: default (the plan-reviewer has one mode).
-- Instruction: "Audit the Stage 1 artifact (`01-plan.md`) against the plan-shape rules. Read `01-plan.md` (and `01-root-cause.md` when `type: fix`); do NOT read code, do NOT read other session-docs. Apply Rules 1-6 always. Apply Rules 7 + 8 only when `type: fix` or `type: hotfix`. Write your report to `01-plan-review.md` (overwrite, never append). Return verdict pass/concerns/fail in the status block."
+- Instruction: "Audit the Stage 1 artifact (`01-plan.md`) against the plan-shape rules. Read `01-plan.md` (and `01-root-cause.md` when `type: fix`); do NOT read code, do NOT read other session-docs. Apply Rules 1-6 always. Apply Rules 7 + 8 only when `type: fix` or `type: hotfix`. Append your report as `## Plan Review` section to `01-plan.md` (replace section if it exists, never append a second copy). Return verdict pass/concerns/fail in the status block."
 
 ### Phase 1.6 is inviolable
 
-**Never skip, never punt to the user.** `01-plan-review.md` MUST exist with a `## Verdict` line before STAGE-GATE-1 is emitted. If `01-plan-review.md` is missing at gate-emission time, the th-orchestrator does NOT show the plan to the user — it returns to executing Phase 1.6 first. The 3-stage pipeline contract guarantees agent-then-human review; surfacing the plan to the user without a system-side audit silently degrades the system to human-only review and breaks the contract.
+**Never skip, never punt to the user.** `01-plan.md` MUST contain a `## Plan Review` section with a `**Verdict:**` line before STAGE-GATE-1 is emitted. If the section is absent at gate-emission time, the th-orchestrator does NOT show the plan to the user — it returns to executing Phase 1.6 first. The 3-stage pipeline contract guarantees agent-then-human review; surfacing the plan to the user without a system-side audit silently degrades the system to human-only review and breaks the contract.
 
 ### Inline fallback when Task subagent invocation is not available
 
@@ -961,7 +959,7 @@ The th-orchestrator can run as a nested subagent (e.g., when invoked via the `/r
    - **Rule 3** — `01-plan.md` is consolidated (no version markers like `v6`, no "previously decided", no strikethrough, no inline changelog sections).
    - **Rule 4** — every file mentioned in `01-plan.md` (§ Architecture → `### Work Plan`) appears in the `Files:` field of some PR in `01-plan.md` (§ Task List).
    - **Rule 5** — `### Services Touched` in `01-plan.md` (§ Architecture) matches the set of repos that have at least one PR in `01-plan.md` (§ Task List).
-4. Write `01-plan-review.md` with the same schema as the subagent would (`## Verdict` line, per-rule findings tables, recommendations). Overwrite, never append. The schema is documented in `agents/plan-reviewer.md`.
+4. Append a `## Plan Review` section to `01-plan.md` with the same schema as the subagent would (`**Verdict:**` line, per-rule findings tables, recommendations). Replace the section if it already exists, never append a second copy. The schema is documented in `agents/plan-reviewer.md`.
 5. Return your own status block with `mode: inline` so the run is traceable.
 
 **Quality bar.** The inline audit must produce the same artifact a subagent would produce — same schema, same level of rigor, same overwrite semantics. The `mode: subagent | inline` field is for telemetry only; it never changes the gate logic.
@@ -975,14 +973,14 @@ The th-orchestrator can run as a nested subagent (e.g., when invoked via the `/r
 | `success` | `pass` | Proceed to STAGE-GATE-1 with the plan-reviewer summary inline. |
 | `success` | `concerns` | Proceed to STAGE-GATE-1 with the concerns listed inline. The human can still `reject` or `edit`. |
 | `success` | `fail` | Do NOT surface the plan to the user. Route back to architect with the failing rules (rules 1 and 2 are the only fail-blocking ones). Re-run Phase 1.6 after the architect's revision. Iteration counts toward a separate max-3 budget for plan-review round trips. If exceeded, escalate to the user with the full report. |
-| `failed` / `blocked` | (any) | Audit broke. Read `01-plan-review.md` if it exists, retry once, then escalate. |
+| `failed` / `blocked` | (any) | Audit broke. Read `01-plan.md § Plan Review` if it exists, retry once, then escalate. |
 
 **Cost:** one plan-reviewer invocation (~2-4K tokens). **Saves:** human time at STAGE-GATE-1, and a cascading Stage-2 cycle that would otherwise discover the structural gap mid-implementation.
 
 **Report to user (intermediate, before STAGE-GATE-1):**
 ```
 Plan review — verdict: {pass|concerns|fail}
-  plan-reviewer | Output: 01-plan-review.md
+  plan-reviewer | Output: 01-plan.md § Plan Review
   Findings: rule-1: {N}, rule-2: {N}, rule-3: {N}, rule-4: {N}, rule-5: {N}
 Next: STAGE-GATE-1 (human approval required)
 ```
@@ -1051,8 +1049,7 @@ fi
    - {one-line per concern, citing file:line}
 
  Artifacts written:
-   - session-docs/{feature-name}/01-plan.md             (architecture + task list)
-   - session-docs/{feature-name}/01-plan-review.md      (audit report)
+   - session-docs/{feature-name}/01-plan.md             (architecture + task list + plan-review appended)
 
  Reply with:
    - "approve"            → proceed to Stage 2 (per-round stops at STAGE-GATE-2)
@@ -1443,7 +1440,7 @@ When the previous gate (Phase 3 verify) shows that any iteration happened, **alw
 | `status` | `verdict` | Action |
 |---|---|---|
 | `success` | `pass` | Proceed to Phase 4 (Delivery). |
-| `success` | `concerns` | Read `06-acceptance-check.md`. Report concerns to user with one line each. Default action: proceed to Phase 4 unless user says iterate. **Never block silently** — concerns must be visible. |
+| `success` | `concerns` | Read `04-validation.md § Drift Analysis`. Report concerns to user with one line each. Default action: proceed to Phase 4 unless user says iterate. **Never block silently** — concerns must be visible. |
 | `success` | `fail` | Do NOT proceed. Read the brief, classify (Case A/B/C/D), append to `failure-brief.md`, route back to implementer (or architect for B). Re-run Phase 3 + 3.5 + 3.6 after the fix. |
 | `failed` | (any) | Audit itself broke. Read the issue, retry once. If still failing, log warning and proceed to Phase 4 (acceptance-checker is non-binding by design — its absence does not block delivery). |
 | `blocked` | (any) | Missing input. Read issues, fix, retry. |
@@ -1453,7 +1450,7 @@ When the previous gate (Phase 3 verify) shows that any iteration happened, **alw
 **Report to user:**
 ```
 Acceptance check — verdict: {pass|concerns|fail}
-  acceptance-checker | Output: 06-acceptance-check.md
+  acceptance-checker | Output: 04-validation.md § Drift Analysis
   {summary from status block}
 Next: {delivery | iterate | escalate}
 ```
@@ -2309,7 +2306,7 @@ jq -s 'map(select(.event=="phase.end" and .phase=="1-design")) | map(.duration_m
 jq -s 'map(select(.event=="iteration.start")) | group_by(.feature) | map({feature: .[0].feature, iterations: length})' session-docs/*/00-execution-events.jsonl
 ```
 
-The `00-execution-log.md` markdown table remains for human reading; the JSONL is for machines. Both files coexist — they describe the same events in different formats.
+The `00-execution-events.jsonl` is the canonical observability artifact — machine-readable and queryable with `jq`. The former `00-execution-log.md` markdown table has been retired; the JSONL is the single source of truth for timing and phase events.
 
 ### Populating the `tools` field on `phase.end`
 
@@ -2403,7 +2400,7 @@ The Phase Timeline renderer adapts to the `type` field in `00-state.md`:
 
 ### Failure modes — never block the pipeline on summary errors
 
-- Write fails → log to `00-execution-log.md` and continue. Re-attempt at next phase transition.
+- Write fails → log to `00-execution-events.jsonl` and continue. Re-attempt at next phase transition.
 - Counts mismatch the JSONL → re-read the JSONL and re-derive. The JSONL wins.
 - Trace JSONL is missing → render the summary with `(no trace recorded)` placeholders. Do not crash.
 
@@ -2433,7 +2430,7 @@ Design rationale lives in `session-docs/orchestrator-stage-notifications/01-arch
 | Stage 1 (analysis) | `Pipeline {feature} · Stage 1 (analysis) complete` | `Pipeline {feature} · Stage 1 (analysis) FAILED` | success: `{N} PRs proposed across {M} services. Plan-reviewer verdict: {pass\|concerns}.` failure: `Plan-reviewer fail after {N} iterations. Failing rules: {list}.` |
 | Stage 2 (implementation batch) | `Pipeline {feature} · Stage 2 (implementation batch) complete` | `Pipeline {feature} · Stage 2 (implementation batch) FAILED` | success: `{N} PRs implemented across {M} rounds. {K} files touched.` failure: `PR-{i} implementation failed after {N} iterations. Reason: {1-line root cause}.` |
 | Stage 3 (verify) | `Pipeline {feature} · Stage 3 (verify) complete` | `Pipeline {feature} · Stage 3 (verify) FAILED` | success: `{N}/{N} AC verified across {M} PRs. Tests: {sum}. Security: {clean\|N findings}.` failure: `PR-{i} verify failed: {tester\|qa\|security} verdict failed. {1-line summary}.` |
-| Stage 4 (delivery) | `Pipeline {feature} · Stage 4 (delivery) complete` | `Pipeline {feature} · Stage 4 (delivery) FAILED` or `Pipeline {feature} · Stage 4 (delivery) BLOCKED` | success: `Branch {branch}. Version {old} → {new}. Internal review: {C}C/{S}S/{N}N.` failure/blocked: `Delivery {error\|paused for amend}. See 05-delivery.md.` |
+| Stage 4 (delivery) | `Pipeline {feature} · Stage 4 (delivery) complete` | `Pipeline {feature} · Stage 4 (delivery) FAILED` or `Pipeline {feature} · Stage 4 (delivery) BLOCKED` | success: `Branch {branch}. Version {old} → {new}. Internal review: {C}C/{S}S/{N}N.` failure/blocked: `Delivery {error\|paused for amend}. See 00-state.md § Delivery.` |
 
 **How the toast renders on screen.** The `notify-{os}.sh` scripts derive the title from `basename($cwd)`, so the user sees:
 ```
@@ -2894,7 +2891,7 @@ When context is compacted (auto or manual), recovery is simple because state liv
 
 1. **Read `session-docs/{feature-name}/00-state.md`** — this has your pipeline checkpoint: current phase, iteration count, agent results, hot context, and exact recovery instructions.
 2. **Read `session-docs/batch-progress.md`** (if batch) — for multi-task state.
-3. **Read `session-docs/{feature-name}/00-execution-log.md`** — for timing and what ran.
+3. **Read `session-docs/{feature-name}/00-execution-events.jsonl`** — for timing and what ran (or use `/trace {feature}`).
 4. **Follow the Recovery Instructions** in `00-state.md` — they tell you exactly what to do next.
 
 **Do NOT re-read all session-docs.** The state file has everything you need to resume. Only read specific agent outputs if you need to debug a failure.

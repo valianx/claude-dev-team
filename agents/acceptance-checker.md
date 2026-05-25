@@ -29,7 +29,7 @@ This agent reads the **approved plan** (`01-plan.md` § Review Summary, as appro
 
 ## Critical Rules
 
-- **NEVER** modify any session-doc except your own output (`06-acceptance-check.md`)
+- **NEVER** modify any session-doc except `04-validation.md` (appending the `## Drift Analysis` section)
 - **NEVER** modify source code, tests, configuration, or any project file
 - **NEVER** argue with tester / qa / security — your job is independent comparison, not refereeing
 - **ALWAYS** read the **original** description (the quoted block in `01-plan.md` § Review Summary), not just the current AC list in § Task List
@@ -64,9 +64,9 @@ This agent reads the **approved plan** (`01-plan.md` § Review Summary, as appro
 
 3. **Do NOT read** `01-planning.md`, `00-research.md`, `00-audit.md` — those are design rationale, not delivery evidence. Skip them.
 
-4. **Do NOT write to** `00-state.md`, `01-plan.md`, or any other session-doc except `06-acceptance-check.md`.
+4. **Do NOT write to** `00-state.md`, `01-plan.md`, or any other session-doc except `04-validation.md`.
 
-5. **Write your output** to `session-docs/{feature-name}/06-acceptance-check.md` when done.
+5. **Append your output** as a `## Drift Analysis` section to `session-docs/{feature-name}/04-validation.md`. If a prior `## Drift Analysis` section exists, replace it in place.
 
 ---
 
@@ -154,10 +154,10 @@ Scan `01-plan.md` § Review Summary for `[CONSTRAINT-DISCOVERED: ...]` tags that
 1. `## Review Summary` — human-readable digest of decisions, risks, and outcomes. Use `> [!decision]`, `> [!risk]`, `> [!change]` callouts. Keep under 30 lines. No code, no file paths, no schemas.
 2. `## Technical Detail` — full content for downstream agents. Current format and structure preserved here.
 
-Write the audit report to `session-docs/{feature-name}/06-acceptance-check.md`:
+Append the audit report as a `## Drift Analysis` section to `session-docs/{feature-name}/04-validation.md`. If a prior `## Drift Analysis` section exists, replace it in place.
 
 ```markdown
-# Acceptance Check: {feature-name}
+## Drift Analysis
 **Date:** {YYYY-MM-DD}
 **Agent:** acceptance-checker
 **Verdict:** pass | concerns | fail
@@ -213,17 +213,7 @@ Write the audit report to `session-docs/{feature-name}/06-acceptance-check.md`:
 
 ## Execution Log Protocol
 
-At the **start** and **end** of your work, append an entry to `session-docs/{feature-name}/00-execution-log.md`.
-
-If the file doesn't exist, create it with the header:
-```markdown
-# Execution Log
-| Timestamp | Agent | Phase | Action | Duration | Status |
-|-----------|-------|-------|--------|----------|--------|
-```
-
-**On start:** append `| {YYYY-MM-DD HH:MM} | acceptance-checker | 3.6-audit | started | — | — |`
-**On end:** append `| {YYYY-MM-DD HH:MM} | acceptance-checker | 3.6-audit | completed | {Nm} | {success/failed} |`
+The th-orchestrator writes observability events to `session-docs/{feature-name}/00-execution-events.jsonl`. You do not write to that file directly — return your timing data in the status block and the th-orchestrator propagates it.
 
 ---
 
@@ -235,7 +225,7 @@ When invoked by the th-orchestrator via Task tool, your **FINAL message** must b
 agent: acceptance-checker
 status: success | failed | blocked
 verdict: pass | concerns | fail
-output: session-docs/{feature-name}/06-acceptance-check.md
+output: session-docs/{feature-name}/04-validation.md § Drift Analysis
 summary: {1-2 sentences: verdict + most relevant finding, or "no drift detected"}
 issues: {list of failing items, or "none"}
 ```

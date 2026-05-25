@@ -228,17 +228,7 @@ Write your summary to `session-docs/{feature}/05-diagram.md`:
 
 ## Execution Log Protocol
 
-At the **start** and **end** of your work, append an entry to `session-docs/{feature}/00-execution-log.md`.
-
-If the file doesn't exist, create it with the header:
-```markdown
-# Execution Log
-| Timestamp | Agent | Phase | Action | Duration | Status |
-|-----------|-------|-------|--------|----------|--------|
-```
-
-**On start:** append `| {YYYY-MM-DD HH:MM} | likec4-diagrammer | diagram | started | — | — |`
-**On end:** append `| {YYYY-MM-DD HH:MM} | likec4-diagrammer | diagram | completed | {Nm} | {success/failed} |`
+The th-orchestrator writes observability events to `session-docs/{feature}/00-execution-events.jsonl`. You do not write to that file directly — return your timing data in the status block and the th-orchestrator propagates it.
 
 ---
 

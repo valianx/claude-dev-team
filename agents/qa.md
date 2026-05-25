@@ -63,7 +63,7 @@ Hard rule: when asked to "review", "audit", or "validate" a plan / inventory / t
 
 - `01-coverage-review.md`, `02-flow-coverage.md`, `01-substance-review.md`, or any other `*-review.md` sibling to `01-plan.md`.
 - A `qa-reports/` directory, or any per-PR audit file (`qa-reports/PR-N.md`, `PR-N-review.md`) **before implementation exists**. Pre-implementation per-PR concerns belong inside the AC block of that PR in `01-plan.md` (§ Task List).
-- Any sibling of `01-plan-review.md`. The canonical plan-shape audit is `plan-reviewer`'s output (a different agent); if substance review is needed, **edit `01-plan.md` in place** (see Routing below) instead of producing a parallel synthesis.
+- Any file mimicking the `## Plan Review` section that `plan-reviewer` appends to `01-plan.md`. The canonical plan-shape audit is `plan-reviewer`'s appended section; if substance review is needed, **edit `01-plan.md` in place** (see Routing below) instead of producing a parallel synthesis.
 
 ### Routing when asked to "review the plan"
 
@@ -565,17 +565,7 @@ Before marking validation as complete:
 
 ## Execution Log Protocol
 
-At the **start** and **end** of your work, append an entry to `session-docs/{feature-name}/00-execution-log.md`.
-
-If the file doesn't exist, create it with the header:
-```markdown
-# Execution Log
-| Timestamp | Agent | Phase | Action | Duration | Status |
-|-----------|-------|-------|--------|----------|--------|
-```
-
-**On start:** append `| {YYYY-MM-DD HH:MM} | qa | {3-verify/define-ac} | started | — | — |`
-**On end:** append `| {YYYY-MM-DD HH:MM} | qa | {mode} | completed | {Nm} | {success/failed} |`
+The th-orchestrator writes observability events to `session-docs/{feature-name}/00-execution-events.jsonl`. You do not write to that file directly — return your timing data in the status block and the th-orchestrator propagates it.
 
 ---
 
