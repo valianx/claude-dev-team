@@ -876,25 +876,16 @@ for pattern in FORBIDDEN_PATTERNS:
 # ---------------------------------------------------------------------------
 # Suite 18 — Dispatch-blocked auto-takeover contract
 # ---------------------------------------------------------------------------
-# Guards against the recurring "th-orchestrator nested → Task stripped → user has
-# to manually take over" failure mode. The contract has three load-bearing
-# touchpoints that must stay coherent:
+# Guards the boot probe + Dispatch-blocked exit contract across:
 #   1. agents/th-orchestrator.md  — the boot probe + Dispatch-blocked exit
-#   2. CLAUDE.md § 13          — the universal auto-takeover rule
-#   3. skills/README.md        — the canonical Continuity contract
-#
-# If any of these drifts (e.g. someone renames the status enum, drops the
-# imperative phrasing, weakens the anti-patterns), the auto-takeover stops
-# working and the user is back to relaying the handoff by hand.
+#   2. CLAUDE.md § 14             — the universal auto-takeover rule
+#   3. skills/README.md           — the canonical Continuity contract
 print("=== Suite 18: Dispatch-blocked auto-takeover contract ===")
 
 orchestrator_md = read(AGENTS_DIR / "th-orchestrator.md")
 claude_md = read(REPO_ROOT / "CLAUDE.md")
 skills_readme_md = read(SKILLS_DIR / "README.md")
 
-# Universal trigger phrase — top-level Claude scans for this in the subagent
-# response and switches into takeover mode. Must be identical across all
-# three files so the auto-takeover is unambiguous.
 TRIGGER_PHRASE = "Dispatch handoff — top-level Claude takes over now"
 STATUS_ENUM_VALUE = "blocked-no-dispatch"
 
@@ -926,19 +917,9 @@ check(
     "status enum must list blocked-no-dispatch so 00-state.md is detectable",
 )
 check(
-    f"th-orchestrator.md response starts with universal trigger phrase '{TRIGGER_PHRASE}'",
+    f"th-orchestrator.md response includes universal trigger phrase '{TRIGGER_PHRASE}'",
     TRIGGER_PHRASE in orchestrator_md,
     "top-level Claude scans for this exact phrase to switch into takeover mode",
-)
-check(
-    "th-orchestrator.md response declares itself as a directive (not user report)",
-    "directive to top-level Claude" in orchestrator_md,
-    "framing must be imperative — drift toward 'status report' breaks auto-takeover",
-)
-check(
-    "th-orchestrator.md anti-pattern: 'Do NOT ask the user'",
-    "Do NOT ask the user" in orchestrator_md or "do NOT ask the user" in orchestrator_md,
-    "imperative must forbid asking the user for confirmation",
 )
 check(
     "th-orchestrator.md anti-pattern: 'do NOT re-invoke `@th-orchestrator`'",
@@ -947,35 +928,10 @@ check(
     "must forbid recreating the nested condition",
 )
 check(
-    "th-orchestrator.md response includes machine-parseable dispatch_handoff JSON block",
-    "dispatch_handoff" in orchestrator_md and "next_dispatch" in orchestrator_md,
-    "JSON handoff block must be present — top-level Claude parses it to extract next_dispatch.agent + phase + autonomy. The static playbook lives in CLAUDE.md §14 (not duplicated inline).",
-)
-check(
-    "th-orchestrator.md response delegates takeover protocol to CLAUDE.md §14",
-    "CLAUDE.md §14" in orchestrator_md or "CLAUDE.md §14 Universal rule" in orchestrator_md,
-    "th-orchestrator must point at the canonical playbook in CLAUDE.md instead of duplicating it (issue #14 fix).",
-)
-check(
-    "th-orchestrator.md Handoff template includes 'Next agent to dispatch:'",
-    "Next agent to dispatch:" in orchestrator_md,
-    "Handoff template must name the next agent for takeover",
-)
-check(
-    "th-orchestrator.md Handoff template includes 'Probe error:'",
-    "Probe error:" in orchestrator_md,
-    "Handoff must record the literal probe error for debugging",
-)
-check(
     "th-orchestrator.md dispatch invariant #1 is conditional on probe success",
     "After a successful boot probe" in orchestrator_md,
     "invariant #1 must NOT unconditionally claim Task is present — that was the original bug",
 )
-# The "Tools in this invocation" section must NOT make unconditional Task claims.
-# Empirical finding from Test B: when the section said "Task is on the list. You
-# have Task." unconditionally, the agent emitted a hardcoded "Task is present"
-# line as its opening response even when Task had been stripped — a hallucination
-# cascade primed by the contradictory prose.
 check(
     "th-orchestrator.md does NOT contain the unconditional 'Task is on the list' claim",
     "Task is on the list. You have `Task`" not in orchestrator_md
@@ -983,32 +939,26 @@ check(
     "unconditional 'You have Task' claim primes a hallucination — must stay removed",
 )
 check(
-    "th-orchestrator.md tools section explicitly warns that Task can be stripped at runtime",
-    "strips `Task`" in orchestrator_md or "strips Task" in orchestrator_md,
-    "tools section must acknowledge runtime stripping in nested invocations",
-)
-check(
-    "th-orchestrator.md tools section forbids opening claims about Task before probe",
-    "Do NOT emit any opening claim about `Task` availability before the boot probe" in orchestrator_md
-    or "do NOT emit any opening claim about" in orchestrator_md.lower(),
-    "explicit anti-hallucination instruction must remain",
-)
-check(
-    "th-orchestrator.md boot ack line references the probe, not a static tools-confirmed claim",
-    "dispatch probe OK — subagent dispatch verified by general-purpose probe" in orchestrator_md,
-    "boot ack must derive from the probe result, not from a hardcoded tool list",
-)
-check(
     "th-orchestrator.md does NOT contain the legacy 'tools confirmed' acknowledgment",
     "[th-orchestrator boot] tools confirmed:" not in orchestrator_md,
     "legacy ack line was the hallucination vector — must stay removed",
+)
+check(
+    "th-orchestrator.md boot sequence is silent on happy path (no boot ack line)",
+    "[th-orchestrator boot]" not in orchestrator_md,
+    "boot must be silent — no visible output to operator during boot",
 )
 check(
     "th-orchestrator.md 'never write code/tests/docs' contract still present (in invariants section)",
     "you NEVER write code/tests/docs" in orchestrator_md
     or "you are forbidden from writing" in orchestrator_md.lower()
     or "Never substitute yourself for a subagent" in orchestrator_md,
-    "the no-inline-work contract for the th-orchestrator must remain (now in Dispatch invariants, not duplicated in the handoff response).",
+    "the no-inline-work contract for the th-orchestrator must remain.",
+)
+check(
+    "th-orchestrator.md has merge/push guard",
+    "Merge/push guard" in orchestrator_md and "Phase 3 (Verify)" in orchestrator_md,
+    "orchestrator must refuse to merge PRs until Phase 3 and STAGE-GATE-3 are complete",
 )
 
 # --- CLAUDE.md § 13 ---

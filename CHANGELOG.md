@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Merge/push guard in th-orchestrator — refuses to merge PRs or push until Phase 3 (Verify) and STAGE-GATE-3 are complete. Operator instructions like "merge them" do not override without explicit "skip verification" acknowledgment.
+- Research Flow transition contract (ref-special-flows.md) — defines the mandatory reclassification path when operator chooses "implement" after a research pipeline. Forces re-entry at Phase 0b with full pipeline gates (STAGE-GATE-1, Phase 3, STAGE-GATE-3). Closes the contract gap that allowed research→implement to bypass all verification.
+
+### Changed
+
+- Reverted th-orchestrator to subagent dispatch mode. The inline execution mode (introduced to avoid a cosmetic boot probe message) weakened pipeline gate enforcement — stages were skipped because top-level Claude prioritized user requests over the orchestrator contract. The orchestrator now runs as `Agent(subagent_type='th-orchestrator')` where its contract is the system prompt.
+- Simplified th-orchestrator boot sequence from ~140 lines to ~40. Silent on happy path — no boot acknowledgment line, no manifest read announcement. The dispatch probe and workspaces path resolution still run, but produce no visible output.
+- Installer (`global_claude_md.go`) now writes a subagent dispatch rule instead of the inline execution rule. Migrates users from old `<!-- th-orchestrator-inline-rule -->` markers automatically.
+
+### Removed
+
+- `hooks/orchestrator-guard.sh` — the hook that blocked `Agent(subagent_type='th-orchestrator')` is no longer needed since the orchestrator now runs as a subagent by design.
+- Orchestrator-guard entries from `hooks/config.json` (all 3 OS blocks).
+
 ## [2.27.0] - 2026-05-25
 
 ### Added
