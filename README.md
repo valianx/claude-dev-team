@@ -33,15 +33,22 @@
 
 ### Update
 
-1. Pull the latest version:
-```
-/plugin marketplace update team-harness-marketplace
-```
+Run the update command, then reload:
 
-2. Reload:
 ```
+/th:update
 /reload-plugins
 ```
+
+`/th:update` refreshes the marketplace catalog, downloads the new version into the plugin cache, and syncs the managed `~/.claude/CLAUDE.md` blocks. `/reload-plugins` (or restarting Claude Code) activates it — that step is operator-driven and cannot be automated.
+
+> **Note — manual fallback, only if `/th:update` fails.** Run the three steps yourself, then reload:
+> ```
+> claude plugin marketplace update team-harness-marketplace
+> claude plugin update th@team-harness-marketplace
+> /reload-plugins
+> ```
+> The catalog refresh (`marketplace update`) alone does **not** download files — `claude plugin update` is the step that fetches the new version. This is exactly what `/th:update` automates, so prefer the command above and use this sequence only for troubleshooting.
 
 ---
 

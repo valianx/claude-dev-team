@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `README.md` Update section now leads with `/th:update` (the recommended command — refreshes catalog, downloads the new version, syncs managed blocks) followed by `/reload-plugins`. The previous two-step `/plugin marketplace update` + reload sequence was incorrect (catalog refresh does not download files); it is demoted to a manual-fallback note for troubleshooting only.
+
 ## [2.36.3] - 2026-05-28
 
 ### Changed
