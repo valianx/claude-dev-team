@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.36.2] - 2026-05-28
+
+### Fixed
+
+- `/th:update` now performs the **download** step that was missing. The update flow is three steps, not two: (1) `claude plugin marketplace update` refreshes the catalog metadata but does NOT download files; (2) `claude plugin update th@team-harness-marketplace` downloads the new version into the plugin cache; (3) `/reload-plugins` activates it. The skill previously did only (1) and told the operator to reload, so `/reload-plugins` had nothing new in cache and silently kept the old version. The skill now runs (1) and (2) via the `claude` CLI (both Bash-runnable) and the operator does (3). Removed the incorrect "`/plugin update th` is a no-op" claim — it is only a no-op when installed already equals the catalog's latest. Block sync now reads canonical blocks from the highest cached version (the just-downloaded one) so `~/.claude/CLAUDE.md` matches the version being activated.
+
 ## [2.36.1] - 2026-05-28
 
 ### Added
