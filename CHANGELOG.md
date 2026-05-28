@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.35.2] - 2026-05-28
+
+### Removed
+
+- Dropped the unused `team_id` field from `/th:clickup` config (schema + `setup` prompt). No sub-command read it, and in ClickUp's API v2 "team" is the legacy name for "workspace" — so it was redundant with `workspace_id`. Existing configs need no migration.
+
 ## [2.35.1] - 2026-05-28
 
 ### Fixed

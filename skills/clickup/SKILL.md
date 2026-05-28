@@ -51,7 +51,6 @@ ClickUp config block (the `clickup` key within `~/.claude/.team-harness.json`):
 {
   "clickup": {
     "workspace_id": "<required>",
-    "team_id": "<optional>",
     "default_list_id": "<optional>",
     "default_status_filter": ["done", "closed"]
   }
@@ -74,7 +73,6 @@ Configure or reconfigure ClickUp credentials and defaults.
 - Read `~/.claude/.team-harness.json` if it exists; use the existing `clickup` sub-object's values as defaults. If the file exists but has no `clickup` key, treat ClickUp as unconfigured (fresh ClickUp setup) while preserving all other keys.
 - Prompt the operator interactively for each field:
   - `workspace_id` (required — reject empty input with "workspace_id is required").
-  - `team_id` (optional — press Enter to skip or keep current).
   - `default_list_id` (optional — press Enter to skip or keep current).
   - `default_status_filter` — the default exclusion set is `["done", "closed"]`. Do **not** ask the operator to type this from scratch. Instead, inform them which statuses are excluded by default and offer the option to change them, e.g.:
     `By default these statuses are excluded from task listings: done, closed. Press Enter to keep them, or type a comma-separated list to override (e.g. "done, closed, archived"):`
