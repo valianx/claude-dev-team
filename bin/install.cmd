@@ -1,6 +1,9 @@
 @echo off
 REM team-harness installer bootstrap (Windows cmd.exe)
 REM Usage: curl -fsSL https://valianx.github.io/team-harness/install.cmd -o install.cmd ^&^& install.cmd
+REM DEPRECATED: This script is the legacy install path as of v2.33.0.
+REM Canonical install: /plugin marketplace add valianx/team-harness && /plugin install th && /th:setup
+REM See bin/README.md for details.
 setlocal enableextensions
 
 set REPO=valianx/team-harness
@@ -28,6 +31,9 @@ if errorlevel 1 (
 )
 set INSTALLER=%TMP_DIR%\install.exe
 
+echo DEPRECATED: This script is the legacy install path. 1>&2
+echo   Canonical install: /plugin marketplace add valianx/team-harness 1>&2
+echo   Then: /plugin install th ^&^& /th:setup  (inside Claude Code) 1>&2
 echo Downloading %ASSET% from latest release...
 curl -fsSL --max-time 120 -o "%INSTALLER%" "%URL%"
 if errorlevel 1 (
