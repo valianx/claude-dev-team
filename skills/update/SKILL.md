@@ -32,6 +32,17 @@ The operator can chat in any language; you reply in the operator's chat language
 
 ---
 
+## Output discipline — run quietly, report once
+
+Operators run this skill routinely; the value is a clean result, not a play-by-play.
+
+- **Do not narrate intermediate steps.** Execute the contract steps without emitting prose between tool calls — no "Now refreshing…", no per-command commentary, no restating what a command returned, no step-by-step headers. Work silently until the end.
+- **The harness's activity indicator is the progress bar.** While the tool calls run, Claude Code shows its own running-command indicator; that is the progress signal. A skill cannot render an animated progress bar of its own, and must not simulate one with repeated text, percentage prints, or spinner characters. Rely on the harness indicator during execution and the single final report after it.
+- **Emit exactly one operator-facing message: the final report** (step 7), after all steps complete. The sole exception is an error that halts the flow (see Error handling) — report it immediately, then stop.
+- **The report is the product.** It must read like the output of a mature CLI tool: a titled status block with left-aligned labels and aligned values, neutral declarative voice, no emoji, no celebration, no filler. Keep it scannable in a couple of seconds.
+
+---
+
 ## The update flow has THREE steps — the skill does two, the operator does one
 
 A `th` update is not "refresh catalog + reload". It is three distinct steps, and skipping the middle one leaves `/reload-plugins` with nothing new to activate:
@@ -69,18 +80,35 @@ This skill performs steps 1 and 2 via the `claude` CLI (both are runnable from B
    - **Back up** `~/.claude/CLAUDE.md` to `~/.claude/CLAUDE.md.bak-YYYYMMDD-HHMMSS` (UTC) before the first write. If the file does not exist, create it (blocks-only) and skip the backup.
    - **Write each block idempotently:** if both its markers are present in `~/.claude/CLAUDE.md`, replace everything from `:start` to `:end` inclusive with the canonical block; otherwise append the block at the end of the file. Also migrate legacy orchestrator markers (`<!-- th-orchestrator-inline-rule:start -->`, `<!-- th-orchestrator-dispatch-rule:start -->`) by replacing them with the current `orchestrator-dispatch-rule` block.
    - **Never touch anything outside the marker-delimited blocks.** All other content in `~/.claude/CLAUDE.md` is the operator's and is preserved byte-for-byte.
-   - **Report** which blocks were synced (`updated` / `inserted` / `already current`). If both were already current, state that no change was needed.
+   - **Record** each block's outcome (`updated` / `inserted` / `already current`) for the `managed blocks` row of the final report (step 7). Do not print it inline — the report is the only operator-facing message.
 
-7. **Close with the activation instruction** when a download occurred in step 5:
-   ```
-   Plugin downloaded into cache.
-   Active (this session): <X>  →  Downloaded: <Y>
-   Managed CLAUDE.md blocks: <synced summary>
+7. **Emit the final report** — the single operator-facing message. Use the matching template below verbatim in structure (a fenced status block), filling the values from the run. Align the values into one column. Keep the labels lowercase as shown. Render the closing line outside the fence.
 
-   To activate <Y>, run:
-       /reload-plugins        (or restart Claude Code)
+   **(a) A new version was downloaded** (step 5 ran):
    ```
-   When already current, omit the activation line and state that no reload is needed.
+   th update — new version downloaded
+
+     catalog refresh     done
+     installed version   <X>
+     downloaded version  <Y>
+     managed blocks      <per-block outcome, e.g. "synced (orchestrator-dispatch-rule updated)" or "in sync (2/2)">
+   ```
+   Closing line: `Next: /reload-plugins (or restart Claude Code) to activate <Y>.`
+
+   **(b) Already current** (no download):
+   ```
+   th update — already current
+
+     catalog refresh     done
+     installed version   <X>
+     latest version      <X>
+     managed blocks      <e.g. "in sync (2/2)" or "synced (nested-dispatch-takeover updated)">
+   ```
+   Closing line: `No action required.`
+
+   **(c) Installed ahead** (installed > latest): use template (b) with the title `th update — installed ahead of catalog`, show both versions, and a closing line noting the catalog may not have propagated the latest release yet.
+
+   In every case the `managed blocks` row reflects step 6's outcome. If the block sync wrote changes, the closing line for template (a)/(b) also notes that a backup of `~/.claude/CLAUDE.md` was written.
 
 ## Error handling
 
