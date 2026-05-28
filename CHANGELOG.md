@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.36.1] - 2026-05-28
+
+### Added
+
+- `/th:update` now syncs the managed `~/.claude/CLAUDE.md` blocks (`orchestrator-dispatch-rule`, `nested-dispatch-takeover`) on every run, reading the canonical text from the running plugin version's `skills/setup/SKILL.md` and replacing in place between the markers (insert-if-missing, legacy-marker migration, timestamped backup, operator content outside the markers untouched). This closes the drift gap where managed blocks evolved between releases but only `/th:setup` refreshed them: `/th:update` is the repeatable update command and now owns the recurring block sync; `/th:setup` stays a one-time bootstrap and is never part of the update flow.
+
 ### Changed
 
 - Realigned `tests/test_agent_structure.py` to the current `skills/<name>/SKILL.md` subdirectory layout (added a `skill_path()` resolver) and corrected ~28 assertions that drifted while the suite was silently crashing on the old flat `skills/status.md` path. Failures were triaged against current content: all were stale expectations (artifact `01-architecture.md`+`02-task-list.md` consolidated into `01-plan.md`; `/x` skill names namespaced to `/th:x`; takeover/install detail relocated to `docs/` and `cmd/install/{tui,workspaces}.go`; Phase 3.75 added to canonical set) or one regex bug (`/th:` namespace capture) — no real regressions. Suite now runs end-to-end: 888/888 structural + 22/22 frontmatter + policy-block all green.

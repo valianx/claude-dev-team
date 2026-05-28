@@ -1,9 +1,9 @@
 ---
 name: update
-description: Refresh the th plugin marketplace catalog and report the available version. Reload is operator-driven.
+description: Refresh the th plugin marketplace catalog, report the available version, and sync managed CLAUDE.md blocks. Reload is operator-driven.
 ---
 
-Refresh the `team-harness` plugin marketplace catalog and report whether a new `th` release is available. This is a standalone utility — it does NOT route through the orchestrator.
+Refresh the `team-harness` plugin marketplace catalog, report whether a new `th` release is available, and keep the managed `~/.claude/CLAUDE.md` blocks aligned with the running plugin version. This is a standalone utility — it does NOT route through the orchestrator. It is the repeatable update command; `/th:setup` is the one-time bootstrap and is never part of this flow.
 
 Usage: `/th:update`
 
@@ -66,6 +66,16 @@ This skill therefore does two things and stops: (1) refreshes the catalog, (2) r
    (/plugin update th is a no-op here — the catalog refresh above is the update step.)
    ```
 
+6. **Sync the managed `~/.claude/CLAUDE.md` blocks (always — idempotent).** This is the recurring counterpart to `/th:setup`'s one-time bootstrap: `/th:setup` runs once to configure MCP servers and workspace mode; `/th:update` keeps the managed blocks aligned on every run. Do NOT tell the operator to re-run `/th:setup` for this — `/th:update` owns the recurring sync.
+   - **Source of truth.** The two managed blocks are defined verbatim in this plugin's `skills/setup/SKILL.md`. Derive its path from this skill's own base directory: the base directory ends in `…/skills/update`; the setup contract is its sibling `…/skills/setup/SKILL.md`. Reading from the running version's own cache guarantees the blocks match the plugin version that is actually active.
+   - **Extract** both blocks, each including its delimiter comments:
+     - `<!-- orchestrator-dispatch-rule:start -->` … `<!-- orchestrator-dispatch-rule:end -->`
+     - `<!-- nested-dispatch-takeover:start -->` … `<!-- nested-dispatch-takeover:end -->`
+   - **Back up** `~/.claude/CLAUDE.md` to `~/.claude/CLAUDE.md.bak-YYYYMMDD-HHMMSS` (UTC) before the first write. If the file does not exist, create it (blocks-only) and skip the backup.
+   - **Write each block idempotently:** if both its markers are present in `~/.claude/CLAUDE.md`, replace everything from `:start` to `:end` inclusive with the canonical block; otherwise append the block at the end of the file. Also migrate legacy orchestrator markers (`<!-- th-orchestrator-inline-rule:start -->`, `<!-- th-orchestrator-dispatch-rule:start -->`) by replacing them with the current `orchestrator-dispatch-rule` block.
+   - **Never touch anything outside the marker-delimited blocks.** All other content in `~/.claude/CLAUDE.md` is the operator's and is preserved byte-for-byte.
+   - **Report** which blocks were synced (`updated` / `inserted` / `already current`). If both were already current, state that no change was needed.
+
 ## Error handling
 
 - If `claude` is not on PATH, report `claude CLI not found on PATH; cannot refresh the marketplace.` and stop.
@@ -75,4 +85,5 @@ This skill therefore does two things and stops: (1) refreshes the catalog, (2) r
 ## Important
 
 - This skill is for **plugin installations**. For legacy Go-installer installations, file syncing is a different path (deprecated).
-- The skill never edits repository files, never writes config, and never reloads the session. It refreshes the catalog and reports. The reload is always operator-driven.
+- The skill refreshes the marketplace catalog, reports the version delta, and syncs the marker-delimited managed blocks in `~/.claude/CLAUDE.md` to the running plugin version. It never edits repository files, never writes `~/.claude/.team-harness.json` (that config is `/th:setup`'s domain), never touches `~/.claude/CLAUDE.md` content outside the managed-block markers, and never reloads the session — the reload is always operator-driven.
+- Division of labour with `/th:setup`: setup is the one-time bootstrap (MCP servers, workspace mode, first write of the managed blocks); update is the repeatable command that keeps the catalog and the managed blocks in sync on every run. Re-running setup is never required as part of the update flow.
