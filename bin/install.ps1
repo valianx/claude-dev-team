@@ -1,6 +1,9 @@
 # team-harness installer bootstrap (Windows PowerShell)
 # Pipeable: irm https://valianx.github.io/team-harness/install.ps1 | iex
 # Or run from a clone: .\bin\install.ps1
+# DEPRECATED: This script is the legacy install path as of v2.33.0.
+# Canonical install: /plugin marketplace add valianx/team-harness && /plugin install th && /th:setup
+# See bin/README.md for details.
 $ErrorActionPreference = "Stop"
 
 $Repo    = "valianx/team-harness"
@@ -31,6 +34,9 @@ try {
     # with UseShellExecute=$false. Using a neutral name (th-bootstrap.exe)
     # bypasses the heuristic. See `docs/install.md §Windows UAC` for context.
     $InstallerPath = Join-Path $TmpDir "th-bootstrap.exe"
+    Write-Host "DEPRECATED: This script is the legacy install path." -ForegroundColor Yellow
+    Write-Host "  Canonical install: /plugin marketplace add valianx/team-harness" -ForegroundColor Yellow
+    Write-Host "  Then: /plugin install th && /th:setup  (inside Claude Code)" -ForegroundColor Yellow
     Write-Host "Downloading $Asset from latest release..."
     try {
         Invoke-WebRequest -Uri $Url -OutFile $InstallerPath -UseBasicParsing -TimeoutSec 120

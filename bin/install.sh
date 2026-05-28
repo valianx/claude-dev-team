@@ -2,6 +2,9 @@
 # team-harness installer bootstrap (Unix / macOS)
 # Curl-pipeable: curl -fsSL https://valianx.github.io/team-harness/install.sh | bash
 # Or run from a clone: ./bin/install.sh
+# DEPRECATED: This script is the legacy install path as of v2.33.0.
+# Canonical install: /plugin marketplace add valianx/team-harness && /plugin install th && /th:setup
+# See bin/README.md for details.
 set -eu
 
 REPO="valianx/team-harness"
@@ -42,6 +45,9 @@ TMP=$(mktemp -d 2>/dev/null) || {
 }
 trap 'rm -rf "$TMP"' EXIT
 
+echo "DEPRECATED: This script is the legacy install path." >&2
+echo "  Canonical install: /plugin marketplace add valianx/team-harness" >&2
+echo "  Then: /plugin install th && /th:setup  (inside Claude Code)" >&2
 echo "Downloading ${ASSET} from latest release..."
 if ! curl -fsSL --max-time 120 -o "$TMP/install" "$URL"; then
     echo "Error: download failed from ${URL}" >&2

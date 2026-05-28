@@ -29,7 +29,7 @@ import (
 // Note: the value is the BARE semver (no leading "v"). The "v" is added by
 // the printf in main(). The release workflow strips the leading "v" from
 // the git tag (e.g. v2.0.1 → 2.0.1) before injecting — see release.yml.
-var version = "2.32.0"
+var version = "2.33.0"
 
 // forceFlag is preserved as a no-op for backward compatibility. The installer
 // always overwrites embedded files; this flag once disabled the conflict gate,
@@ -43,8 +43,20 @@ var claudeDir string
 // claudeJSON is ~/.claude.json
 var claudeJSON string
 
+// printDeprecationBanner writes a DEPRECATED notice to stderr before any
+// installer work begins. The Go installer is the legacy install path as of
+// v2.33.0; the canonical path is the Claude Code plugin.
+func printDeprecationBanner() {
+	fmt.Fprintln(os.Stderr, "==== DEPRECATED ====")
+	fmt.Fprintln(os.Stderr, "The Go installer is now the legacy install path.")
+	fmt.Fprintln(os.Stderr, "Canonical install: /plugin marketplace add valianx/team-harness")
+	fmt.Fprintln(os.Stderr, "                   /plugin install th && /th:setup")
+	fmt.Fprintln(os.Stderr, "=====================")
+}
+
 func main() {
 	parseFlags()
+	printDeprecationBanner()
 	resolveClaudePaths()
 	resolveSettingsJSON()
 
