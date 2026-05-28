@@ -25,15 +25,28 @@ When the `orchestrator` subagent returns a response containing **"Dispatch hando
 
 ## Takeover Protocol (static, identical for every handoff)
 
+**Takeover Pipeline Manifest — read this first.** You MUST complete every item below, in order. Read each stage's detailed contract (the agent `.md` and the matching `agents/orchestrator.md` / `agents/ref-special-flows.md` phase section) as you reach it — do NOT read them all up front. Skipping any stage or gate is a defect, not a shortcut; reading the manifest is the means, completing every item is the obligation. The takeover is not a lighter path: the same full-stage compliance that the `orchestrator-dispatch-rule` block requires for normal dispatch ("Full pipeline is the default… Do not skip stages") applies equally here.
+
+Ordered stages and gates (annotate `dispatch_handoff.type` to determine which items apply):
+
+- **STAGE-GATE-1** — mandatory human approval before implementation begins. `[all types]`
+- **Phase 1.6 plan-review** — inviolable plan review (`01-plan.md § Plan Review` with `## Verdict`). `[all types]`
+- **Phase 2.0 regression-test-first** — tester authors a failing test before any source change. `[fix/hotfix only]` (Tier 2-4; Tier 1 conditional skip). Read `agents/ref-special-flows.md § Bug-fix Flow` for the full tier system.
+- **Phase 3 verify** — `tester` + `qa` run in parallel. `[all types]`. Security agent also runs (`security-always`): `[fix/hotfix Tier 3+]` (Tier 2 skips unless path-pattern auto-escalation applies). Read `agents/ref-special-flows.md § Tier System` when `type: fix/hotfix`.
+- **Observability** — `00-execution-events.{jsonl|md}` + `00-pipeline-summary.md` + `00-state.md` updated at every phase transition. `[all types]`
+- **Phase 3.5 Acceptance Gate + Phase 3.6 Acceptance Check** — acceptance-checker appends to `04-validation.md § Drift Analysis`. `[all types]`
+- **STAGE-GATE-3** — mandatory human approval before push; autonomy never covers this gate. `[all types]`
+- **KG passive capture** — `delivery` agent persists one `process-insight` node (best-effort). `[all types]`
+
 1. Do NOT ask the user "should I take over?" The directive in the orchestrator's response is itself the authorisation.
 2. Do NOT re-invoke `@th:orchestrator` or any skill that routes via `Task(subagent_type=orchestrator, ...)` — that recreates the nested context and the boot probe will fail again.
-3. Parse `dispatch_handoff.next_dispatch.agent` from the JSON. If `state_ref` is set, read that state file (`## Current State` + `## Agent Results` + `## Handoff`). Read `agents/{next_dispatch.agent}.md` for the agent's contract (tools, inputs, status block). If `dispatch_handoff.phase.number` is set, also read the matching Phase section of `agents/orchestrator.md`.
+3. Parse `dispatch_handoff.next_dispatch.agent` from the JSON. If `state_ref` is set, read that state file (`## Current State` + `## Agent Results` + `## Handoff`). Read `agents/{next_dispatch.agent}.md` for the agent's contract (tools, inputs, status block). Consult the Takeover Pipeline Manifest above for the ordered set of stages to complete; read each stage's detailed contract as you reach it (lazy-load).
 4. Dispatch the named agent directly via `Task(subagent_type={next_dispatch.agent}, ...)` from the top-level session. Parse the returned status block. Update `state_ref` (TL;DR + Current State + Agent Results) per the orchestrator's checkpointing protocol. Iterate per the orchestrator contract (max 3 iterations on `failed`/`blocked`).
 5. Continue through the remaining phases of the pipeline (Phase 3 verifies in parallel: `tester` + `qa` + `security` when sensitive; Phase 3.5 acceptance-gate; Phase 3.6 `acceptance-checker`; Phase 4 `delivery`). Respect gate semantics:
    - **STAGE-GATE-2** (between PRs in Stage 2): if `dispatch_handoff.autonomy.granted` is `true`, skip silently; otherwise stop and ask the user.
    - **STAGE-GATE-3** (before push in Stage 3): always stop and ask the user — autonomy never covers this gate.
-6. Top-level Claude still inherits the "you NEVER write code/tests/docs" contract during the takeover — dispatch agents for each phase, do not write `02-implementation.md` / `03-testing.md` / `04-validation.md` / `04-security.md` / `05-delivery.md` / `06-acceptance-check.md` inline.
-7. Mirror PR-level progress into `02-task-list.md` (Status field + AC checkbox) at each PR transition.
+6. Top-level Claude still inherits the "you NEVER write code/tests/docs" contract during the takeover — dispatch agents for each phase, do not write `02-implementation.md` / `03-testing.md` / `04-validation.md` / `04-security.md` inline. Delivery info goes to `00-state.md`; acceptance-checker results go to `04-validation.md § Drift Analysis`.
+7. Mirror PR-level progress into `01-plan.md § Task List` (Status field + AC checkbox) at each PR transition.
 8. Report to the user only at pipeline completion, at a mandatory STAGE-GATE, or when a non-recoverable failure needs human input.
 
 This rule applies to **every** entry mode: `@th:orchestrator` mention, skill routing (`/issue`, `/recover`, `/plan`, `/design`, `/deliver`, `/validate`, `/research`, `/spike`, `/test`, etc.), or another agent's referral. The `blocked-no-dispatch` state is the system's documented self-healing path — leaving it open for the user to resolve manually defeats the purpose.

@@ -97,9 +97,9 @@ If the block already exists (markers found), replace the content between the mar
 
 1. Parse the `dispatch_handoff` JSON block embedded in the subagent's response (or read it from the `## Handoff` section of `00-state.md` if `state_ref` is provided).
 2. Dispatch the named agent directly via `Task(subagent_type={next_agent}, ...)` from the top-level session. Do NOT re-invoke `@th:orchestrator` or any skill that routes through it — that recreates the nested context and the same Task strip happens again.
-3. Continue the pipeline through subsequent phases. Respect STAGE-GATE-2 autonomy semantics and STAGE-GATE-3 always-mandatory human approval.
+3. Read the full flow for the detected task type (`agents/ref-special-flows.md` for `fix`/`hotfix`/`docs`; `agents/orchestrator.md` phase sections for `feature`/`refactor`/`enhancement`). Execute EVERY stage and honor EVERY gate of the detected flow — skipping any is a defect, not a shortcut. See the **Takeover Pipeline Manifest** in `docs/subagent-orchestration.md` for the ordered stage/gate list with per-type annotations.
 
-**Full protocol:** see `docs/subagent-orchestration.md` in the `team-harness` repo (8-step takeover contract, handoff JSON schema, `blocked-manual-push` handling).
+**Full protocol:** see `docs/subagent-orchestration.md` in the `team-harness` repo (Takeover Pipeline Manifest + 8-step takeover contract, handoff JSON schema, `blocked-manual-push` handling).
 
 **Red herring:** if `~/.claude/agents/` does not exist, this is NOT a failure. Plugin-installed agents live under `~/.claude/plugins/cache/.../th/<version>/agents/`. The `subagent_type` strings are namespaced (`th:architect`, `th:implementer`, etc.) and the harness resolves them from the plugin path.
 <!-- nested-dispatch-takeover:end -->
