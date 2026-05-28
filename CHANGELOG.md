@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- New managed block `nested-dispatch-takeover` written to `~/.claude/CLAUDE.md` by `/th:setup`. The block tells top-level Claude how to auto-recover from a nested-context `dispatch_handoff` from any repo, not only from `team-harness`. Block content references `docs/subagent-orchestration.md` for the full 8-step protocol and notes the `~/.claude/agents/` red herring (plugin agents live under `~/.claude/plugins/cache/.../th/<ver>/agents/`).
+
 ### Changed
 
 - Deprecated the Go installer (`bin/install.{sh,ps1,cmd}` + `cmd/install/`); the Claude Code plugin (`/plugin marketplace add valianx/team-harness` + `/plugin install th` + `/th:setup`) is now the canonical install path. Deprecation banners added to runtime (`cmd/install/main.go`) and script comments; binary remains functional for legacy/offline/CI/low-cost mode use cases. Documentation across `README.md`, `docs/`, `CLAUDE.md §3`, `agents/README.md`, `skills/README.md`, and `site/index.html` updated to reflect the canonical path. New `bin/README.md` documents the legacy bootstrap scripts.
