@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.36.3] - 2026-05-28
+
+### Changed
+
+- `/th:update` output is now quiet-during-execution with a single polished final report. Added an "Output discipline" contract: the skill runs its steps without narrating between tool calls (the harness's own running-command indicator is the progress signal — a skill cannot render an animated progress bar and must not simulate one), and emits exactly one operator-facing message at the end. The final report is a titled, column-aligned status block (`th update — already current` / `— new version downloaded` / `— installed ahead of catalog`) in neutral declarative voice, no emoji, designed to read like a mature CLI tool.
+
 ## [2.36.2] - 2026-05-28
 
 ### Fixed
