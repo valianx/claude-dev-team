@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.36.0] - 2026-05-28
+
+### Added
+
+- New `/th:update` standalone skill: refreshes the `team-harness` plugin marketplace catalog (`claude plugin marketplace update`), compares the installed `th` version against the latest available, and reports the delta with the reload instruction. The skill cannot reload the running session — `/reload-plugins` remains operator-driven (a hard Claude Code limitation: `/plugin` and `/reload-plugins` are UI commands with no agent-callable tool). This populates the `/th:update` entry already listed in the skills README roster, replacing the deprecated Go-installer update path.
+
 ## [2.35.2] - 2026-05-28
 
 ### Removed
