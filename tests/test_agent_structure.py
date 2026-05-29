@@ -1375,6 +1375,7 @@ check(
     "dispatch-template in skills/README.md must not produce a double-prefix",
 )
 
+
 # ---------------------------------------------------------------------------
 # Suite 19 — Agent identity & cross-reference consistency
 # ---------------------------------------------------------------------------
