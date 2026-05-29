@@ -107,6 +107,22 @@ If the block already exists (markers found), replace the content between the mar
 <!-- nested-dispatch-takeover:end -->
 ```
 
+### 4c. Write voice-rule block
+
+Read `~/.claude/CLAUDE.md`. If the file does not contain the voice-rule block (look for `<!-- voice-rule:start -->`), append the block below at the end of the file. If the block already exists (markers found), replace the content between the markers with the canonical version below. This is the idempotence contract: insert if missing, replace between markers if present.
+
+```markdown
+<!-- voice-rule:start -->
+## Voice — neutral register, no regional idioms
+
+Use neutral, standard language that reads the same to a reader from any country. Do NOT use country-specific idioms, regionalisms, or local slang of any particular nation. This applies to every response, in any language — there is no informal-chat-mode exception.
+
+- Prefer the standard, neutral form of a word over its regional or colloquial variant.
+- No localisms, no dialect slang, no colloquial anglicisms (`shippeo`, `bakeado`, `wrappear`) — use the formal equivalent (`publicar`, `incorporado`, `encapsular`).
+- Keep the tone declarative and professional; the reader's country should not be inferable from word choice.
+<!-- voice-rule:end -->
+```
+
 ### 5. Write manifest
 
 Write `~/.claude/.team-harness.json` with:
