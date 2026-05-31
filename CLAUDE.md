@@ -107,7 +107,7 @@ team-harness/
 | Visuals | Excalidraw (`.excalidraw` JSON), PNG preview |
 | Distribution | Claude Code plugin (`th`) via custom marketplace (`valianx/team-harness`) — canonical install path. Go installer (legacy alternative for offline/CI/low-cost mode). |
 
-**Current version:** `2.40.1` (see `.claude-plugin/plugin.json` `version` field — canonical source of truth for the plugin marketplace. `CHANGELOG.md` tracks the release history).
+**Current version:** `2.40.2` (see `.claude-plugin/plugin.json` `version` field — canonical source of truth for the plugin marketplace. `CHANGELOG.md` tracks the release history).
 
 **Install modes.** The installer offers two modes (interactive prompt or `INSTALL_MODE` env var):
 
@@ -346,8 +346,10 @@ Structural suites registered by literal (self-referential guards assert these na
 consolidation. **Suite 38** — review-pipeline-guardrails (scope discipline, AI-authored lens,
 worktree behavioral verification, agent-level publish invariant). **Suite 39** — pr-a-takeover-contract
 (nested-dispatch takeover contract: next-agent binding, consume-side guard, dispatch_handoff schema,
-dispatch.blocked emit, manifest gate-label, §14 cross-ref). Full reference (per-suite scope,
-when to add a test, what is NOT covered): `docs/testing.md`.
+dispatch.blocked emit, manifest gate-label, §14 cross-ref). **Suite 40** — pr-b-security-failopen
+(fail-closed security gating: hotfix Tier-3 hard floor + override-clamp, deterministic re-tier GATE
+at Phase 2-close, boot type=null classify-first + security-defaults-RUN, plan-review keyword
+trigger + visible-skip). Full reference (per-suite scope, when to add a test, what is NOT covered): `docs/testing.md`.
 
 ---
 
