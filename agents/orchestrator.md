@@ -500,6 +500,17 @@ Next action: run `/th:recover` to investigate. Identify which agent produced `st
 - [ ] 5 — GitHub Update
 - [ ] 6 — KG Save
 
+### Phase Checklist — frontend_scope additions
+
+These items are added to the Phase Checklist when `frontend_scope: true`. When `frontend_scope: false`, mark each `[~skipped: frontend_scope:false]`.
+
+**Sub-phase identity note:** the numbers 1.7 and 3.4 mark identity for observability — they are NOT execution order. Phase 1.7 (`1.7-ux-enrich`) executes BEFORE Phase 1.5 in time (after architect, before plan-ratification); Phase 3.4 (`3.4-ux-validate`) runs in the parallel Phase 3 block. This is the same convention as Phase 3.75 which executes before Phase 3.6 in time.
+
+**Observability:** each sub-phase emits `phase.start` / `phase.end` events to `{docs_root}/{events_file}` with `phase: "1.7-ux-enrich"` or `phase: "3.4-ux-validate"`.
+
+- [ ] 1.7-ux-enrich — ux-reviewer enrich (after architect, before 1.5; output: 01-ux-review.md; AC pinned into 01-plan.md § Task List) [~skipped: frontend_scope:false]
+- [ ] 3.4-ux-validate — ux-reviewer validate (parallel with tester/qa/security; output: 04-ux-validation.md; critical findings gate Phase 3.5) [~skipped: frontend_scope:false]
+
 ## Agent Results
 | Agent | Phase | Status | Tokens | Summary |
 |-------|-------|--------|--------|---------|
@@ -1097,6 +1108,56 @@ Next: ratify the plan (qa checks every AC has a Work Plan step)
 
 **Rewrite TL;DR** (row 3 of §5.2): `Now`: "Phase 1.5 plan-ratification running (qa checking AC coverage)." `Last`: "Phase 1 architect proposed {N} PRs across {M} services with {K} AC." `Next`: "Phase 1.6 plan-reviewer, then STAGE-GATE-1." `Open issues`: any `[CONSTRAINT-DISCOVERED]` annotations.
 
+### When frontend_scope: true — ux-reviewer enrich (Phase 1.7)
+
+**Sub-phase identity:** `1.7-ux-enrich` — this number marks phase identity for observability and is NOT the execution order. Phase 1.7 executes BEFORE Phase 1.5 in time (after the architect gate, before plan-ratification); the number is higher than 1.5/1.6 because it was assigned for identity/observability continuity, following the same precedent as Phase 3.75 which executes before Phase 3.6.
+
+**When to run:** immediately after the architect gate passes, before Phase 1.5 (plan-ratification), only when `frontend_scope: true` in `00-state.md`. Skip entirely when `frontend_scope: false` — mark checklist item `[~skipped: frontend_scope:false]`.
+
+**Agent:** `ux-reviewer` (mode: `enrich`)
+
+Append a `phase.start` event to `{docs_root}/{events_file}`:
+```json
+{"ts":"…","event":"phase.start","phase":"1.7-ux-enrich","feature":"{feature}"}
+```
+
+**Invoke via Task tool** with context:
+- Feature name for workspaces
+- workspaces path: {resolved_workspaces_path}
+- Mode: `enrich`
+- Pointer to `01-plan.md` (architect's design proposal and task list)
+- Instruction: "Read `01-plan.md`. Identify all UI-facing changes. Write `01-ux-review.md` with recommended UI/UX AC additions and findings. **Pin the recommended AC into `01-plan.md` § Task List** (append to the per-PR AC block using Given/When/Then format) in addition to writing them in `01-ux-review.md`. The gate source-of-truth for all AC is `01-plan.md § Task List` — AC that live only in `01-ux-review.md` will not be tested by the acceptance gate."
+
+**Gate (status-block):** If `status: success` → update `00-state.md`, proceed to Phase 1.5. If `status: failed` or `status: blocked` → log the issue and proceed to Phase 1.5 (ux-reviewer enrich is non-blocking; its absence does not stop the pipeline — the pipeline continues without UI/UX AC).
+
+**AC-sink contract:** The ux-reviewer **appends** AC to `01-plan.md § Task List` using contiguous numbering after the architect's last AC. These pinned AC are the source-of-truth for the Phase 3.5 acceptance gate and Phase 3.6 acceptance-checker. `01-ux-review.md` is the UX narrative and finding detail; `01-plan.md § Task List` is the gate contract.
+
+Append a `phase.end` event:
+```json
+{"ts":"…","event":"phase.end","phase":"1.7-ux-enrich","feature":"{feature}","status":"{success|skipped|failed}","extra":{"ac_added":N,"findings_critical":N}}
+```
+
+### ux-reviewer fallback
+
+**When:** the Task tool is unavailable (nested context — same condition as the plan-reviewer fallback at Phase 1.6).
+
+| Task invocation outcome | Action |
+|---|---|
+| Task succeeds → subagent returns status block | proceed with normal Gate handling above. |
+| Task fails with "not available" / nesting refusal | **inline fallback (mandatory).** Do NOT report to user. Execute the enrich review yourself: |
+| Task fails with any other error (timeout, transient) | retry once. If still failing, fall back to inline. |
+
+**Inline fallback procedure (when triggered):**
+
+1. Read `agents/ux-reviewer.md` as the procedure spec. Treat its enrich-mode prompt as your own checklist.
+2. Read `01-plan.md` exactly as the subagent would.
+3. Identify all UI-facing changes and evaluate against the ux-reviewer checklist.
+4. Write `01-ux-review.md` with findings and recommended AC.
+5. Append recommended AC into `01-plan.md § Task List` (same AC-sink contract: pin to `01-plan.md § Task List`, not only `01-ux-review.md`).
+6. Return your own status block with `mode: inline`.
+
+**Status-block gate:** read `findings.critical` from the ux-reviewer (or inline equivalent) status block. A non-zero `findings.critical` in enrich mode is advisory only (not a gate failure at Phase 1.7 — the gate runs at Phase 3.5 on the validate output). Log the count in Hot Context: `ux-enrich findings.critical: {N}`.
+
 ---
 
 ## Phase 1.5 — Plan Ratification (cheap loop guard)
@@ -1548,6 +1609,23 @@ Launch agents simultaneously using Task tool calls in the same message:
 - **qa** (validate mode): feature name, summary of what was implemented (from implementer's status block summary). For `type: fix` / `type: hotfix` (Tier 2-4): also instruct: "Validate AC-1 (reproduction-no-longer-bug) by reading reproduction steps from `01-plan.md` § Review Summary and verifying observed behaviour matches expected. Validate AC-2 (regression-test-exists) by cross-checking `02-regression-test.md` against the current suite. Set `regression_test_referenced: true|false` and `reproduction_steps_validated: true|false` in your status block." For `type: fix` Tier 1: instruct: "Reduced validation. Verify the diff matches the intent stated in `01-plan.md` § Review Summary. AC list is implicit — the cited issue is fixed. Set `regression_test_referenced: null` (Phase 2.0 was skipped) and `reproduction_steps_validated: true|false` in your status block."
 - **security** (pipeline mode, only when the dispatch table above says so): feature name, list of files created/modified, summary of what was implemented, reference to `00-knowledge-context.md` if it exists. Instruct: "This is pipeline mode — focus on the changed files and their security implications." For `bug_tier: 4`: additionally instruct: "Extended analysis. Read `01-root-cause.md ## Prior Art` and cross-reference any prior `process-insight` nodes describing similar failure modes. Analyse the adjacent code paths beyond the diff (one hop out in the call graph) for related vulnerability classes. Surface findings on adjacent code as `## Adjacent Surface Findings` in `04-security.md` separate from the diff findings."
 
+### When frontend_scope: true — ux-reviewer validate (Phase 3.4)
+
+**Sub-phase identity:** `3.4-ux-validate` — included in the parallel Task block alongside tester/qa/security when `frontend_scope: true`. Skip when `frontend_scope: false` — mark checklist item `[~skipped: frontend_scope:false]`.
+
+Append a `phase.start` event before launching the parallel block:
+```json
+{"ts":"…","event":"phase.start","phase":"3.4-ux-validate","feature":"{feature}"}
+```
+
+Add to the parallel Task launch (same message as tester/qa/security when `frontend_scope: true`):
+- **ux-reviewer** (validate mode): feature name, workspaces path, pointer to `02-implementation.md` and `01-ux-review.md` (if it exists from Phase 1.7), source code paths relevant to UI changes. Output: `04-ux-validation.md`. Instruct: "Read `01-ux-review.md` for the UI/UX AC (from Stage 1 enrich). Read `02-implementation.md` to understand what was built. Validate each UI/UX criterion. Write `04-ux-validation.md` with per-finding verdicts including `findings.critical` count in your status block."
+
+Append a `phase.end` event after the ux-reviewer status block is received:
+```json
+{"ts":"…","event":"phase.end","phase":"3.4-ux-validate","feature":"{feature}","status":"{success|skipped|failed}","extra":{"findings_critical":N,"findings_high":N}}
+```
+
 **Gate (status-block):** All agents return compact status blocks. Read all:
 - If all `status: success` → update `00-state.md`, proceed to Phase 4
 - If any `status: failed` → **ONLY THEN** read the failing agent's workspaces (`03-testing.md`, `04-validation.md`, and/or `04-security.md`) to understand what went wrong
@@ -1630,15 +1708,26 @@ After Phase 3 succeeds and BEFORE invoking `delivery`, verify acceptance traceab
 2. **Read `workspaces/{feature-name}/04-validation.md`** (qa) and count `PASS` vs `FAIL` per AC.
 3. **Read `workspaces/{feature-name}/03-testing.md`** AC Coverage table and verify every AC has at least one test marked PASS.
 4. **If `04-security.md` exists**, confirm there are no Critical/High findings unresolved.
-5. **Test-ratchet check.** Compare the tester's `tests_count` from this iteration's status block against `last_tests_count` recorded in `00-state.md` Hot Context (from the previous iteration; absent on the first iteration of this pipeline). On the first iteration, capture `tests_count` as the baseline and skip the comparison. On subsequent iterations:
+
+### UX gate — frontend_scope: true
+
+**When to run:** only when `frontend_scope: true` in `00-state.md`. Skip when `frontend_scope: false`.
+
+5. **If `frontend_scope: true`**, read `workspaces/{feature-name}/04-ux-validation.md`:
+   - Count `findings.critical` (WCAG A violations — these are the only blocking severity).
+   - If any `critical` findings are present → **fail the gate** (Case A): route back to the implementer with the list of critical findings from `04-ux-validation.md`. Increment the iteration counter (subject to the max-3 limit from Phase 3).
+   - `high`, `medium`, and `suggestion` findings do **not** block delivery — include them in the acceptance gate summary as recommendations only.
+   - If `04-ux-validation.md` is absent (ux-reviewer failed or was skipped) → log a warning and proceed (non-blocking when the file is absent; the gate only blocks on present critical findings).
+
+6. **Test-ratchet check.** Compare the tester's `tests_count` from this iteration's status block against `last_tests_count` recorded in `00-state.md` Hot Context (from the previous iteration; absent on the first iteration of this pipeline). On the first iteration, capture `tests_count` as the baseline and skip the comparison. On subsequent iterations:
    - **`tests_count >= last_tests_count`** → ratchet passes. Update `last_tests_count` in Hot Context.
    - **`tests_count < last_tests_count` AND `tests_deleted == 0`** → impossible, the tester miscounted. Log a warning and proceed; treat as ratchet pass.
    - **`tests_deleted > 0` AND `tests_deleted_reason` is present and meaningful** → ratchet passes (legitimate deletion). Update `last_tests_count`. Note the reason in Hot Context: `tests_deleted: {N} — {reason}`.
    - **`tests_deleted > 0` AND `tests_deleted_reason` is empty, missing, or matches a forbidden pattern** (`broken`, `flaky`, `couldn't make them pass`, `removing failing tests`) → **ratchet FAILS.** Route back to `tester` with: "Test-ratchet violation: {N} tests deleted without valid justification. Restore the deleted tests and fix the underlying issue instead." This counts toward the max-3 iteration budget.
 
 **Decision matrix:**
-- All AC `PASS` in qa AND every AC has a passing test AND no Critical/High security AND test-ratchet passes → **proceed to Phase 4**.
-- Any AC failed in qa, missing a test, any unresolved Critical/High security, or test-ratchet fails → **route back to implementer or tester** (depending on which check failed) with a focused fix brief. Increment iteration counter (still subject to the max-3 limit from Phase 3).
+- All AC `PASS` in qa AND every AC has a passing test AND no Critical/High security AND no critical UX findings (when `frontend_scope: true`) AND test-ratchet passes → **proceed to Phase 4**.
+- Any AC failed in qa, missing a test, any unresolved Critical/High security, any critical UX finding (WCAG A, when `frontend_scope: true`), or test-ratchet fails → **route back to implementer or tester** (depending on which check failed — UX critical findings route to implementer as Case A) with a focused fix brief. Increment iteration counter (still subject to the max-3 limit from Phase 3).
 - AC count in qa report ≠ AC count in `01-plan.md` § Task List → **abort with `status: blocked`** and report the discrepancy to the user; this means the plan drifted silently and needs reconciliation.
 
 Update `00-state.md` with the Phase 3.5 result. If gate passes, write a single line in Hot Context: `Acceptance gate: {N}/{N} AC verified, {test count} tests, security {clean|N findings}`. Also persist `last_tests_count: {N}` in Hot Context for the test-ratchet baseline used by the next iteration (if any).
@@ -1747,7 +1836,7 @@ Routing to implementer to fix build
 - Feature name for workspaces
 - workspaces path: {resolved_workspaces_path}
 - Pointer to `01-plan.md` (§ Review Summary — original description + approved AC)
-- Pointer to `02-implementation.md`, `03-testing.md`, `04-validation.md`, and `04-security.md` (if it exists)
+- Pointer to `02-implementation.md`, `03-testing.md`, `04-validation.md`, `04-security.md` (if it exists), and `04-ux-validation.md` (if `frontend_scope: true` and it exists)
 
 **Gate (status-block + verdict):** the agent returns a status block with a `verdict` field separate from `status`. Read both:
 

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.40.4] - 2026-05-31
+
+### Fixed
+
+- Wired the dead-letter frontend-scope (ux-reviewer) flow into orchestrator phase bodies and gates (PR D — pipeline-flows-hardening): (1) Added sub-phase 1.7-ux-enrich — a "When frontend_scope: true" sub-block in Phase 1 that dispatches the ux-reviewer in enrich mode after the architect, before Phase 1.5, with input `01-plan.md` and output `01-ux-review.md`; AC pinned into `01-plan.md § Task List` (gate source-of-truth). (2) Added sub-phase 3.4-ux-validate — ux-reviewer validate added to the Phase 3 parallel Task block when `frontend_scope: true`, alongside tester/qa/security, with input `02-implementation.md`+`01-ux-review.md` and output `04-ux-validation.md`. (3) Phase 3.5 UX gate — reads `04-ux-validation.md` when `frontend_scope: true`; any critical (WCAG A) finding fails the gate and routes to the implementer (Case A); high/medium/suggestion findings are recommendations only and do not block. (4) Phase 3.6 input pointers now include `04-ux-validation.md`. (5) Phase Checklist gains frontend_scope-gated entries for 1.7-ux-enrich and 3.4-ux-validate with phase.start/phase.end observability events and [~skipped: frontend_scope:false] markers; ordering note documents that sub-phase numbers mark identity/observability, not execution order. (6) Inline/nested fallback for the ux-reviewer mirrors the plan-reviewer fallback tree; status-block gate reads `findings.critical`. (7) Fixed AC-sink ambiguity in `agents/ux-reviewer.md` enrich mode: AC must be pinned into `01-plan.md § Task List` (gate source-of-truth), not only written to `01-ux-review.md`. Suite 42 (10 anchor-scoped checks, anti-false-green idiom) added to `tests/test_agent_structure.py`.
+
 ## [2.40.3] - 2026-05-30
 
 ### Fixed
