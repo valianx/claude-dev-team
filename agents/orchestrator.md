@@ -2245,7 +2245,7 @@ Example:
 - Append at the end of the file, after existing bullets.
 - One bullet per entity saved; do NOT list entities that failed the dedup check (i.e., only `create_nodes` saves, not `add_observations` updates).
 
-**Do NOT call `read_graph` from this phase.** `read_graph` returns the entire graph (often 100K+ tokens) — using it just to count entities or to find duplicates is a token-cost anti-pattern that scales linearly with graph size and runs on every pipeline. Dedup MUST happen via the targeted `search_nodes` call in step 2; that is enough to prevent duplicates without paying the cost of loading the whole graph. Periodic consolidation across the whole KG is a separate concern — surface it to the user as `/memory consolidate` when relevant, do not run it automatically here.
+**Do NOT call `read_graph` from this phase.** `read_graph` returns the entire graph (often 100K+ tokens) — using it just to count entities or to find duplicates is a token-cost anti-pattern that scales linearly with graph size and runs on every pipeline. Dedup MUST happen via the targeted `search_nodes` call in step 2; that is enough to prevent duplicates without paying the cost of loading the whole graph. Periodic consolidation across the whole KG is a separate concern — surface it to the user as `/th:kg consolidate` when relevant, do not run it automatically here.
 
 ### Phase 6 — Close the KG session (MANDATORY tail)
 
@@ -2933,7 +2933,7 @@ The summary is best-effort rendering; the JSONL is the durable record.
 
 ## Stage-end notification protocol
 
-The orchestrator emits one OS-native toast at the close of each of the four user-facing pipeline stages, independent of autonomy mode and pipeline outcome. This gives the developer a predictable "come back and look" signal without requiring them to poll `/status`. The protocol is orthogonal to the Claude Code hook events in `~/.claude/settings.json` — the ultra-quiet preset stays unchanged; these toasts go through the `hooks/notify-stage.sh` wrapper invoked via the orchestrator's own `Bash` tool.
+The orchestrator emits one OS-native toast at the close of each of the four user-facing pipeline stages, independent of autonomy mode and pipeline outcome. This gives the developer a predictable "come back and look" signal without requiring them to poll `/th:pipelines`. The protocol is orthogonal to the Claude Code hook events in `~/.claude/settings.json` — the ultra-quiet preset stays unchanged; these toasts go through the `hooks/notify-stage.sh` wrapper invoked via the orchestrator's own `Bash` tool.
 
 Design rationale lives in `workspaces/orchestrator-stage-notifications/01-architecture.md`.
 

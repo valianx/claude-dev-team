@@ -85,7 +85,7 @@ team-harness/
 
 **Ownership boundaries.**
 - `agents/` — system prompts only. One `.md` = one agent.
-- `skills/` — slash-command entry points. Most are thin: parse args → route to orchestrator. A few are standalone (`/lint`, `/status`, `/memory`, `/tmux`, `/th-update`).
+- `skills/` — slash-command entry points. Most are thin: parse args → route to orchestrator. A few are standalone (`/lint`, `/th:pipelines`, `/th:kg`, `/tmux`, `/th-update`).
 - `hooks/` — keep these **generic and portable** (no personal tokens, no private endpoints). User-specific hooks belong in `~/.claude/hooks/`, not here.
 - `cmd/install/` — Go installer source. Uses `charm.land/huh/v2` for TUI. Compiled with `CGO_ENABLED=0` for static single-file binaries.
 
@@ -266,8 +266,8 @@ The three things a developer already knows how to ask for — a work plan, an im
 **Permitted exceptions:**
 
 - **STAGE-GATE-{1,2,3} identifiers in STOP-block headers.** The identifier is a durable label referenced by `00-state.md`, the JSONL trace, the test suite, and the hook payloads. The label stays in the header line; the surrounding prose uses dev-natural verbs.
-- **`/status` output.** When the operator explicitly invokes `/status`, surfacing the `Stage` / `Phase` columns is appropriate — the operator is asking about pipeline mechanics.
-- **`/trace` output.** Same rule as `/status`.
+- **`/th:pipelines` output.** When the operator explicitly invokes `/th:pipelines`, surfacing the `Stage` / `Phase` columns is appropriate — the operator is asking about pipeline mechanics.
+- **`/trace` output.** Same rule as `/th:pipelines`.
 
 ### 7.3 Language — English-only repo content
 
