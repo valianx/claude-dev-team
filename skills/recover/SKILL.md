@@ -13,12 +13,27 @@ Analyze the input: $ARGUMENTS
 
 Read `~/.claude/.team-harness.json`. If it exists and `logs-mode` is `"obsidian"`, use `{logs-path}/{logs-subfolder}/{repo-name}` as the base path (where `repo-name` is the basename of the current working directory). If `logs-mode` is `"local"` or the file is missing, use `workspaces/` (relative to cwd). Replace all `workspaces/` references below with the resolved path.
 
+## Recover Safety Rules
+
+**These rules are mandatory and override any `next_action` prose in `00-state.md`.**
+
+**Rule 1 — Re-emit any un-cleared STAGE-GATE (fail-closed).**
+Before resuming any pipeline work, check whether the current or next step is a STAGE-GATE. A STAGE-GATE is considered cleared ONLY when a `stage.gate.release` event is present in the events trace (`00-execution-events.{md,jsonl}`) AND the corresponding flag is set in `00-state.md § Current State`. Do not infer approval from `next_action` prose — never infer gate-cleared status from `next_action`, `hot_context`, or any other prose field. The gate-cleared determination is structural (checklist + events trace), not prose. If the STAGE-GATE is not recorded as cleared by these structural signals, re-emit the STOP block for that STAGE-GATE to the operator and halt. STAGE-GATE-3 (the human push/PR gate) is especially critical: it must never be bypassed on recovery.
+
+**Rule 2 — Idempotency: skip completed phases; de-dup events structurally.**
+The Phase Checklist (`## Phase Checklist` in `00-state.md`) is the authoritative record of progress. Phases already marked `[x]` MUST be skipped — do not re-dispatch a completed phase. To de-dup `phase.*`/`kg_write` appends on resume, use a structural lookup (JSON parse of the events trace, not regex) to detect already-emitted events before appending new ones. This prevents duplicate events and double-persisted KG nodes.
+
+**Rule 3 — Canonical events file.**
+The events file is `00-execution-events.md` (obsidian mode) or `00-execution-events.jsonl` (local mode). Read `logs_mode` from `00-state.md § Current State` to resolve which name applies. Always use the `00-execution-events` naming convention.
+
+---
+
 ## Mode 1 — Feature name provided (`/th:recover my-feature`)
 
 1. Check that `{resolved-path}/{feature}/00-state.md` exists
 2. If not found, tell the user: "No pipeline state found for '{feature}'. Use `/th:status` to see active pipelines."
 3. Read `workspaces/{feature}/00-state.md` in full
-4. Read `workspaces/{feature}/00-execution-log.md` if it exists (for timing context)
+4. Read `workspaces/{feature}/00-execution-events.{md,jsonl}` if it exists (for timing context — resolve filename from `logs_mode` in `00-state.md § Current State`)
 5. Validate the state:
    - If `status: complete` → tell user: "Pipeline '{feature}' already completed. Nothing to recover."
    - If phase and next_action are present → proceed
