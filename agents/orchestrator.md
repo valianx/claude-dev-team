@@ -2233,11 +2233,11 @@ Dedup applies to relations too — `search_nodes` for the pair before `create_re
 After saving Phase 6 entities successfully, append a `[kg]` cross-link bullet to `docs/knowledge.md` for every entity saved this run (only if the file exists — do NOT create it; `init.md` is responsible for the initial placeholder):
 
 ```markdown
-- **[kg]** {entity-name} ({entityType}): {one-line gloss} — see `/th:memory show {entity-name}`
+- **[kg]** {entity-name} ({entityType}): {one-line gloss} — see `/th:kg show {entity-name}`
 ```
 
 Example:
-- **[kg]** nextjs-prisma-trpc-b2b-saas (stack-profile): default stack for B2B SaaS admin dashboards — see `/th:memory show nextjs-prisma-trpc-b2b-saas`
+- **[kg]** nextjs-prisma-trpc-b2b-saas (stack-profile): default stack for B2B SaaS admin dashboards — see `/th:kg show nextjs-prisma-trpc-b2b-saas`
 
 **Rules for the cross-link append:**
 - Skip if `docs/knowledge.md` does not exist (no error — the file may not yet be initialized on this repo).
@@ -2245,7 +2245,7 @@ Example:
 - Append at the end of the file, after existing bullets.
 - One bullet per entity saved; do NOT list entities that failed the dedup check (i.e., only `create_nodes` saves, not `add_observations` updates).
 
-**Do NOT call `read_graph` from this phase.** `read_graph` returns the entire graph (often 100K+ tokens) — using it just to count entities or to find duplicates is a token-cost anti-pattern that scales linearly with graph size and runs on every pipeline. Dedup MUST happen via the targeted `search_nodes` call in step 2; that is enough to prevent duplicates without paying the cost of loading the whole graph. Periodic consolidation across the whole KG is a separate concern — surface it to the user as `/memory consolidate` when relevant, do not run it automatically here.
+**Do NOT call `read_graph` from this phase.** `read_graph` returns the entire graph (often 100K+ tokens) — using it just to count entities or to find duplicates is a token-cost anti-pattern that scales linearly with graph size and runs on every pipeline. Dedup MUST happen via the targeted `search_nodes` call in step 2; that is enough to prevent duplicates without paying the cost of loading the whole graph. Periodic consolidation across the whole KG is a separate concern — surface it to the user as `/th:kg consolidate` when relevant, do not run it automatically here.
 
 ### Phase 6 — Close the KG session (MANDATORY tail)
 
@@ -2852,7 +2852,7 @@ This is the data that feeds the **Tool Effectiveness** section of `00-pipeline-s
 
 `workspaces/{feature-name}/00-pipeline-summary.md` is the human-readable counterpart of the JSONL trace. You (the orchestrator) rewrite it **in full** at the end of every phase transition. The reader of this file should answer "did this pipeline work?" in 30 seconds without opening anything else.
 
-**You are the sole writer.** Agents do not touch this file. The `/th:trace` skill reads it for the default view; `/th:status <feature>` reads it for the "Pipeline Summary" panel at the top of the narrative renderer.
+**You are the sole writer.** Agents do not touch this file. The `/th:trace` skill reads it for the default view; `/th:pipelines <feature>` reads it for the "Pipeline Summary" panel at the top of the narrative renderer.
 
 ### When to rewrite (full rewrite, never append)
 
@@ -2933,7 +2933,7 @@ The summary is best-effort rendering; the JSONL is the durable record.
 
 ## Stage-end notification protocol
 
-The orchestrator emits one OS-native toast at the close of each of the four user-facing pipeline stages, independent of autonomy mode and pipeline outcome. This gives the developer a predictable "come back and look" signal without requiring them to poll `/status`. The protocol is orthogonal to the Claude Code hook events in `~/.claude/settings.json` — the ultra-quiet preset stays unchanged; these toasts go through the `hooks/notify-stage.sh` wrapper invoked via the orchestrator's own `Bash` tool.
+The orchestrator emits one OS-native toast at the close of each of the four user-facing pipeline stages, independent of autonomy mode and pipeline outcome. This gives the developer a predictable "come back and look" signal without requiring them to poll `/th:pipelines`. The protocol is orthogonal to the Claude Code hook events in `~/.claude/settings.json` — the ultra-quiet preset stays unchanged; these toasts go through the `hooks/notify-stage.sh` wrapper invoked via the orchestrator's own `Bash` tool.
 
 Design rationale lives in `workspaces/orchestrator-stage-notifications/01-architecture.md`.
 

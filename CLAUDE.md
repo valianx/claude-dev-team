@@ -85,7 +85,7 @@ team-harness/
 
 **Ownership boundaries.**
 - `agents/` — system prompts only. One `.md` = one agent.
-- `skills/` — slash-command entry points. Most are thin: parse args → route to orchestrator. A few are standalone (`/lint`, `/status`, `/memory`, `/tmux`, `/th-update`).
+- `skills/` — slash-command entry points. Most are thin: parse args → route to orchestrator. A few are standalone (`/lint`, `/th:pipelines`, `/th:kg`, `/tmux`, `/th-update`).
 - `hooks/` — keep these **generic and portable** (no personal tokens, no private endpoints). User-specific hooks belong in `~/.claude/hooks/`, not here.
 - `cmd/install/` — Go installer source. Uses `charm.land/huh/v2` for TUI. Compiled with `CGO_ENABLED=0` for static single-file binaries.
 
@@ -107,7 +107,7 @@ team-harness/
 | Visuals | Excalidraw (`.excalidraw` JSON), PNG preview |
 | Distribution | Claude Code plugin (`th`) via custom marketplace (`valianx/team-harness`) — canonical install path. Go installer (legacy alternative for offline/CI/low-cost mode). |
 
-**Current version:** `2.40.14` (see `.claude-plugin/plugin.json` `version` field — canonical source of truth for the plugin marketplace. `CHANGELOG.md` tracks the release history).
+**Current version:** `2.41.0` (see `.claude-plugin/plugin.json` `version` field — canonical source of truth for the plugin marketplace. `CHANGELOG.md` tracks the release history).
 
 **Install modes.** The installer offers two modes (interactive prompt or `INSTALL_MODE` env var):
 
@@ -141,7 +141,7 @@ All commands run from the repo root.
 
 - **One concern per file.** One agent per `.md` in `agents/`. One skill per `.md` in `skills/` (complex skills get their own subfolder).
 - **Frontmatter-driven agents.** Every agent file starts with YAML frontmatter (`name`, `description`, `model`, `color`). `init`, `architect`, `agent-builder` use `opus`; others generally use `sonnet`.
-- **orchestrator is the hub.** Skills never invoke agents directly — they build a task payload and route to `orchestrator`. Exceptions: standalone utilities (`/th:lint`, `/th:status`, `/th:memory`, `/th:tmux`, `/th:update`).
+- **orchestrator is the hub.** Skills never invoke agents directly — they build a task payload and route to `orchestrator`. Exceptions: standalone utilities (`/th:lint`, `/th:pipelines`, `/th:kg`, `/th:tmux`, `/th:update`).
 - **Workspaces as the shared board.** A workspace is the shared working directory for a single pipeline session — the place where agents and the operator collaborate. Each pipeline run creates its own isolated workspace, separate from all others. Agents use it as their primary communication channel (each reads previous agents' output and writes its own). The operator uses it as a review surface to inspect decisions, risks, and outcomes. Agents communicate through files in `workspaces/{feature-name}/`, never through return values. `workspaces/` is always git-ignored.
 - **Dual-mode workspaces.** Pipeline workspaces can be output to a local `./workspaces/` directory (default) or to a configured Obsidian vault (`work-logs/{repo-name}/{date}_{feature}/`). The mode is configured via `logs-mode` in `~/.claude/.team-harness.json`. The orchestrator resolves the base path once at pipeline start and passes it to every agent — agents are unaware of the mode. When Obsidian mode is active, files receive YAML frontmatter with repo, feature, pipeline, date, and agent metadata.
 - **Human-first document format.** Every workspace doc file uses a two-section layout: `## Review Summary` (human-readable decisions, risks, trade-offs — scannable in under 2 minutes) followed by `## Technical Detail` (full content for agent-to-agent communication). This applies in both local and Obsidian modes.
@@ -266,8 +266,8 @@ The three things a developer already knows how to ask for — a work plan, an im
 **Permitted exceptions:**
 
 - **STAGE-GATE-{1,2,3} identifiers in STOP-block headers.** The identifier is a durable label referenced by `00-state.md`, the JSONL trace, the test suite, and the hook payloads. The label stays in the header line; the surrounding prose uses dev-natural verbs.
-- **`/status` output.** When the operator explicitly invokes `/status`, surfacing the `Stage` / `Phase` columns is appropriate — the operator is asking about pipeline mechanics.
-- **`/trace` output.** Same rule as `/status`.
+- **`/th:pipelines` output.** When the operator explicitly invokes `/th:pipelines`, surfacing the `Stage` / `Phase` columns is appropriate — the operator is asking about pipeline mechanics.
+- **`/trace` output.** Same rule as `/th:pipelines`.
 
 ### 7.3 Language — English-only repo content
 
