@@ -124,67 +124,31 @@ When `type: fix` is classified (Phase 0a Step 7), the orchestrator runs the **Bu
 
 ### Tier System (4 tiers)
 
-The Tier System modulates the Bug-fix Pipeline depth so trivial fixes skip ceremony and critical fixes get prior-art research and extended analysis. The orchestrator emits `bug_tier: 1 | 2 | 3 | 4` at Phase 0a Step 7 (Classify), in addition to the existing `type: fix | hotfix`.
+The canonical Tier table, Tier 0 auto-detection rules, auto-classification signals (Signal 1/2/3), Tier 1 regression-test conditional skip, auto-escalation rules, and worked examples are defined in `orchestrator.md § "Bug tier"` (Phase 0a Step 7). That is the single authoritative source — the orchestrator runs classification at Phase 0a Step 7 and `[TIER: 0]` operator override is defined there. See `orchestrator.md § "Bug tier"` for the complete Tier table, all signal definitions, the auto-escalation rules, and worked examples. The summary below covers only the Bug-fix Pipeline flow behavior; all Tier-classification decisions are governed by the canonical source.
 
-#### Tier table
+**Quick reference — Tier names and Pipeline effects (see `orchestrator.md § "Bug tier"` for the authoritative table):**
+- **Tier 0 (Trivial/Cosmetic):** no workspaces, no gates (PR review is the only gate), implementer runs inline. No `00-state.md`, no `01-plan.md`, no workspaces folder.
+- **Tier 1 (Docs/Trivial):** workspaces created; architect skipped; Tier 1 regression-test conditional skip — only when no behavior change; tester only (suite no-regress) at Phase 3.
+- **Tier 2 (Light fix):** architect dispatched in light-root-cause mode; regression test mandatory; tester + qa at Phase 3.
+- **Tier 3 (Standard fix):** architect dispatched in full-root-cause mode; regression test mandatory; tester + qa + security at Phase 3.
+- **Tier 4 (Critical/Security):** same as Tier 3 plus mandatory KG prior-art query (`mcp__memory__search_nodes`) and extended security analysis.
 
-| Tier | Name | Phase 1 (root-cause) | Phase 2.0 (pre-fix regression test) | Phase 3 agents | workspaces | Estimated agent runs |
-|---|---|---|---|---|---|---|
-| **0** | Trivial/Cosmetic | **Skip** | **Skip** | tester only (suite no-regress; no full audit) | **NONE** — no workspaces created (Tier 0 is exempt from the `CLAUDE.md §5` observability invariant; see §5 carve-out) | ~1 |
-| **1** | Docs/Trivial | **Skip** — no `01-root-cause.md`. orchestrator emits one-sentence prose plan at STAGE-GATE-1 (same surface as `type: hotfix`). | **Conditional skip** — only when there is no behavior change (see condition below). | tester (suite no-regress) only | Yes — `00-state.md`, `01-plan.md` | ~3 |
-| **2** | Light fix | Inline `01-root-cause.md` — 1 paragraph for `## Mechanism` + 1 paragraph for `## Scope of Fix`, no extended sections. Architect dispatched with `mode: light-root-cause`. | Mandatory | tester + qa | Yes — full | ~5 |
-| **3** | Standard fix | Full `01-root-cause.md` (current PR #50 default). Architect dispatched with `mode: full-root-cause`. `## Prior Art` section optional. | Mandatory | tester + qa + security | Yes — full | ~7 |
-| **4** | Critical/Security | Full `01-root-cause.md` + **mandatory `## Prior Art` section** (architect invokes `mcp__memory__search_nodes`). Architect dispatched with `mode: full-root-cause`. | Mandatory | tester + qa + security (**extended analysis** — adjacent-code surface + prior-art cross-reference) | Yes — full + prior-art | ~9 |
+**Auto-classification signals (canonical definition in `orchestrator.md § "Bug tier"`):**
+- **Signal 1 — Keywords in the bug report:** high-tier triggers (escalate to Tier 4): `auth`, `injection`, `xss`, `csrf`, `secret`, `token`, `permission`, `bypass`, `vulnerability`, `cve`, `leak`, `exposed`, `unauthorized`. Low-tier hints (Tier 1 candidate): `typo`, `trivial`, `quick fix`, `cosmetic`, `whitespace`.
+- **Signal 2 — File-path patterns:** security-sensitive paths (force Tier 3+, `security-sensitive: true`): `auth/**`, `middleware/**`, `api/**`, `db/**`, `security/**`, `crypto/**`, `session/**`, any path with `auth` or `permission` in name. File-path patterns drive the re-tier GATE at Phase 2 close.
+- **Signal 3 — Operator override:** `[TIER: 0|1|2|3|4]` forces declared tier; `[regression-test: required]` forces Tier 2 minimum; `[security: required]` forces Tier 3 minimum.
+
+**Auto-escalation rules:** high-tier signal sobrescribes lower-tier classification. Path priority > keyword priority > size hints. Default: Tier 3 when in doubt (conservative).
+
+**`type: hotfix` Tier 3 floor:** a hotfix is always Tier 3 minimum — auto-classification MUST NOT assign a hotfix a tier below 3. The override-clamp (`[TIER: 0/1/2]` on a hotfix) is silently raised to Tier 3. See `orchestrator.md § "Bug tier"` for the full floor rule.
+
+**Auto-promotion Tier 1 → Tier 2:** a Tier 1 candidate is auto-promoted to Tier 2 when any condition for the regression-test skip fails (e.g., UI strings, test-fixture changes). The promotion is recorded in `00-state.md` and announced to the operator.
+
+**Worked examples:** see `orchestrator.md § "Bug tier"` § Worked examples for the complete set. Representative cases: Tier 0 (typo in CHANGELOG, no workspaces); Tier 1 (docs string fix, no architect); Tier 2 (config change, light root-cause); Tier 3 (production code bug, full pipeline); Tier 4 (auth bypass — security-escalation example with Signal 1 + Signal 2 combined).
 
 #### Tier 1 regression-test conditional skip
 
-The Tier 1 candidate skips Phase 2.0 ONLY when ALL of these conditions hold:
-- Tier is `1` (auto-classified or operator-declared via `[TIER: 1]`).
-- All touched paths match `*.md`, `LICENSE`, `CHANGELOG*`, `docs/**/*`, code comments, or non-functional string literals (informational error messages, log messages with no runtime branching on the content).
-- No `*.test.*`, `*.spec.*`, or `tests/` paths touched.
-- Operator did NOT declare `[regression-test: required]`.
-
-Otherwise — UI strings (Tier 2 minimum, pragmatic not permissive), dev-tooling, test-fixture changes, etc. — Tier 1 still requires a regression test, OR the candidate is auto-promoted to Tier 2 at classification time. The conditional skip is recorded in `00-state.md` as `regression_test_status: skipped`, in the JSONL trace as `phase.skipped` with `reason: tier-1-no-behavior-change`, and in `01-plan.md` (§ Task List) by mutating the `<TBD-Phase-2.0>` placeholder to `<skipped — Tier 1 no-behavior-change>`.
-
-#### Auto-classification signals
-
-The orchestrator combines three signals at Phase 0a Step 7.
-
-**Signal 1 — Keywords in the bug report** (operator's plain-text request and any linked issue body):
-- **High-tier triggers (escalate to Tier 4, case-insensitive whole-word match):** `auth`, `injection`, `xss`, `csrf`, `secret`, `token`, `permission`, `bypass`, `vulnerability`, `cve`, `leak`, `exposed`, `unauthorized`.
-- **Low-tier hints (Tier 1 candidate):** `typo`, `trivial`, `fix rápido`, `quick fix`, `cosmetic`, `documentation`, `comment fix`, `whitespace`.
-
-**Signal 2 — File-path patterns** (use Phase 0b Step 1 codebase investigation results if the operator mentioned files; otherwise re-evaluate after Phase 1):
-- **Tier 1 paths:** `*.md`, `LICENSE`, `CHANGELOG*`, `docs/**/*`, code-comments-only changes.
-- **Tier 2 paths:** `.github/**`, `scripts/**`, `*.config.*`, `*.toml`, root-level `package.json` (only when changes are non-dep), `tests/**`, `__tests__/**`, `*.test.*`, `*.spec.*`, `mocks/**`, `fixtures/**`.
-- **Tier 3 paths (default for production code):** `src/**`, `lib/**`, `app/**`, `cmd/**` (when no security signals).
-- **Security-sensitive paths** (force `security-sensitive: true` and minimum Tier 3): `auth/**`, `middleware/**`, `api/**`, `db/**`, `security/**`, `crypto/**`, `session/**`, `**/middleware/**`, any path with `auth` or `permission` in the name.
-- **Tier 4 paths:** same as Tier 3 sensitive paths COMBINED with a Signal 1 high-tier keyword match.
-
-**Signal 3 — Operator override** (literal markers in the operator's request):
-- `[TIER: 0|1|2|3|4]` — forces the declared tier, overrides auto-classification. For `[TIER: 0]`, the orchestrator validates the diff qualifies; auto-promotion applies if rules are violated.
-- `[regression-test: required]` — forces Tier 2 minimum on a Tier 1 candidate.
-- `[security: required]` — forces Tier 3 minimum.
-
-#### Tier 0 auto-detection rules
-
-Auto-classify as Tier 0 ONLY when ALL of the following hold:
-- Single file touched in the proposed diff.
-- ≤5 lines changed total (insertions + deletions).
-- Path matches one of: `*.md` (docs), code-file comments only (diff shows only `//` or `#` or `<!-- -->` changes), CHANGELOG entries, whitespace-only changes.
-- No `*.test.*`, `*.spec.*`, or `tests/` paths touched.
-- Path does NOT match `cmd/install/main.go`, `agents/*.md`, or `skills/*.md` — these have system-level impact and are Tier 1 minimum.
-
-**Tier 0 operator cannot force for system-level files.** Even with `[TIER: 0]`, changes touching `agents/*.md`, `skills/*.md`, or `cmd/install/*.go` always promote to Tier 1 minimum.
-
-**Tier 0 auto-promotion:** if any rule is violated (e.g., diff grows from 3 lines to 8 lines during implementation), the orchestrator detects and promotes with `tier_promote: 1` and a rationale. No ceremony floor bypassed retroactively.
-
-#### Auto-escalation rules
-
-- **High-tier signal sobrescribes lower-tier classification.** Path priority > keyword priority > size hints. Example: path `auth/handlers.ts` + report "typo in error message" → Tier 3, not Tier 1. The sensitive path wins.
-- **Tier 0 promotes before Tier 1 rules apply.** Tier 0 is checked first; if it does not qualify, classification falls through to Tier 1 signals normally.
-- **Architect can re-tier in Phase 1.** If during root-cause analysis the architect discovers the scope is wider than the initial classification suggests, the architect emits `tier_promote: <new_tier>` with `tier_promote_rationale: <1-line>` in its status block. The orchestrator surfaces both to the operator for confirmation before continuing. Operator-in-loop, same protocol as `type_reclassify`.
-- **Default: Tier 3 when in doubt.** Conservative. Ambiguous signals or unclassifiable paths default to Tier 3.
+The Tier 1 candidate skips Phase 2.0 ONLY when ALL of these conditions hold (canonical definition in `orchestrator.md § "Bug tier"`): Tier is `1`; all touched paths are docs/comments/non-functional strings; no test paths touched; operator did NOT declare `[regression-test: required]`. Otherwise the candidate is auto-promoted to Tier 2. The conditional skip is recorded in `00-state.md` as `regression_test_status: skipped`.
 
 #### Worked examples
 
@@ -908,6 +872,8 @@ When the user explicitly says "simple", "just implement", "skip design", "no tes
 **Skips:** Phase 1 Design (no `architect`; the orchestrator emits a one-sentence prose plan into `01-plan.md`, same surface as `type: hotfix`); plan ratification (Phase 1.5); plan review (Phase 1.6); STAGE-GATE-1; the `qa` and `security` agents at Phase 3; Acceptance Check (Phase 3.6); Internal Review (Phase 4.5).
 
 **Keeps — floors that `--fast` can NEVER skip:** Specify (Phase 0b); Implement (Phase 2); the `tester` agent at Phase 3 (run-all / suite no-regression only); Build Verification (Phase 3.75); STAGE-GATE-3 (the human push/PR gate); Delivery (Phase 4 — branch, commit, PR).
+
+**Security design-review carve-out (SEC-002):** `--fast` skips Phase 1.6 in general, but the security design-review is NOT skipped when the task is security-sensitive (path match, semantic keyword match, `[security: required]`, or `type: hotfix` on a security-sensitive path). When the carve-out fires, the `security` agent is dispatched in design-review mode within Phase 1.6. This carve-out is additive to the Tier 3+ hotfix floor — `type: hotfix` still gets its Phase 3 security run via the floor and additionally gets the Phase 1.6 design-review when on a sensitive path. Full definition: `orchestrator.md § "Phase 1.6 is inviolable"` and `orchestrator.md § "Fast mode"` in Phase 0a.
 
 **Security override (hard, non-negotiable):** a security-sensitive path (`auth/**`, `middleware/**`, `api/**`, `db/**`, `security/**`, `crypto/**`, `session/**`, or any path containing `auth`/`permission`) or `[security: required]` forces the `security` agent to run at Phase 3 regardless of `--fast`. For `type: fix | hotfix`, the tier-driven security floor (Tier 3+) is also preserved. `--fast` never bypasses security on sensitive code; the orchestrator announces the override when it fires.
 

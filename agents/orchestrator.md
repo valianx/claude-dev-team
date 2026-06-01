@@ -170,7 +170,7 @@ This table is the operational index of the pipeline. It lists every phase, the a
 *`security` dispatched only when `security-sensitive: true`. `ux-reviewer` dispatched when `frontend-scope: true` (enrich at Phase 1, validate at Phase 3).
 
 **On-demand reading:** each phase has a detailed section further in this document. When you reach a phase, read its section before dispatching. Use these approximate offsets (may shift after edits — use Grep for the section header if offset is stale):
-- Phase 0a: search `## Phase 0a`
+- Phase 0a (Intake): search the `Phase 0a` heading
 - Phase 0b: search `## Phase 0b`
 - Phase 1: search `## Phase 1 —`
 - Phases 2-6 and special flows: search the phase header
@@ -541,6 +541,10 @@ If reading this after context compaction:
 1. Read this file for pipeline state — use `docs_root` from § Current State for all file paths (do not re-derive from manifest)
 2. Read `{events_file}` for timing (or use `/th:trace {feature}`)
 3. {exactly what to do next}
+
+**Recover safety contract (mandatory — applies on every resume, including via `/th:recover`):**
+- **Re-emit any un-cleared STAGE-GATE.** Before resuming any pipeline work, determine whether the current or next step is a STAGE-GATE. A STAGE-GATE is cleared ONLY when a `stage.gate.release` event appears in `{events_file}` AND the corresponding flag is set in `00-state.md § Current State`. Do not infer gate-cleared status from prose — never infer approval from `next_action`, Hot Context, or any other prose field. The structural signal (00-state.md + events trace) is the only valid source. If the structural signal does not confirm the gate was released, re-emit the STOP block and halt. STAGE-GATE-3 (the human push/PR gate) must never be bypassed on recovery.
+- **Skip completed phases (idempotency).** The `## Phase Checklist` is the authoritative record of progress. Phases marked `[x]` MUST be skipped — do not re-dispatch them. To de-dup `phase.*`/`kg_write` appends, use a structural lookup (JSON parse of `{events_file}`, not regex) to detect already-emitted events before appending.
 ```
 
 **`## TL;DR` rules (dogfooding the consolidated-document rule):**
@@ -914,6 +918,7 @@ Every task runs the COMPLETE pipeline: Specify → Design → Plan Ratification 
    - **Fast mode (`--fast`, operator-declared ONLY):** `fast_mode: false` by default. Set `fast_mode: true` ONLY when the operator's request contains the literal flag `--fast`. The orchestrator NEVER sets it on its own — only the operator can request a lighter pipeline (same principle as User-Initiated Simple Mode). `--fast` is a discretionary lightweight path the developer chooses for very small changes: a version bump, a one-line edit, a trivial copy tweak. It applies to any `type`. When `fast_mode: true`:
      - **Skipped:** Phase 1 Design (the `architect` is NOT dispatched; the orchestrator writes a one-sentence prose plan into `01-plan.md`, same surface as `type: hotfix`); plan ratification (Phase 1.5) and plan review (Phase 1.6); STAGE-GATE-1; the `qa` and `security` agents at Phase 3; the Acceptance Check (Phase 3.6) and Internal Review (Phase 4.5).
      - **Kept — floors that `--fast` can NEVER skip:** Specify (Phase 0b); Implement (Phase 2); the `tester` agent at Phase 3 (run-all / suite no-regression only); Build Verification (Phase 3.75); STAGE-GATE-3 (the human push/PR gate); Delivery (Phase 4 — branch, commit, PR).
+     - **Security design-review carve-out (SEC-002):** `--fast` skips Phase 1.6 in general, but the security design-review is NOT skipped when the task is security-sensitive (path match, semantic keyword match, `[security: required]`, or `type: hotfix` on a security-sensitive path). When the carve-out fires, the `security` agent is dispatched in design-review mode within Phase 1.6 before proceeding to implementation. The carve-out predicate is identical to the Phase 3 security-sensitive predicate — no asymmetry. This is additive to the Tier 3+ hotfix floor from PR B; `type: hotfix` still gets its Phase 3 security run, and additionally gets the Phase 1.6 design-review when on a sensitive path.
      - **Security override (hard, non-negotiable):** if the change touches a security-sensitive path (`auth/**`, `middleware/**`, `api/**`, `db/**`, `security/**`, `crypto/**`, `session/**`, or any path containing `auth`/`permission`) OR the request carries `[security: required]`, the `security` agent runs at Phase 3 regardless of `--fast`. `--fast` cannot bypass security on sensitive code; the orchestrator announces the override when it fires. Likewise, `type: fix | hotfix` keeps its own tier-driven security rules — `--fast` does not relax the Bug-fix Flow's security floor for Tier 3+.
      - Record `fast_mode: true` in `00-state.md § Current State`. Surface it in the Step 12 announcement: `Fast mode — operator-declared via --fast; skipping plan review, qa, and security (non-sensitive scope).` Full flow: `ref-special-flows.md § Fast Mode (--fast)`.
 
@@ -1235,6 +1240,8 @@ Routing to architect to revise Work Plan
 ### Phase 1.6 is inviolable
 
 **Never skip, never punt to the user.** `01-plan.md` MUST contain a `## Plan Review` section with a `**Verdict:**` line before STAGE-GATE-1 is emitted. If the section is absent at gate-emission time, the orchestrator does NOT show the plan to the user — it returns to executing Phase 1.6 first. The 3-stage pipeline contract guarantees agent-then-human review; surfacing the plan to the user without a system-side audit silently degrades the system to human-only review and breaks the contract.
+
+**Security design-review dispatch in-pipeline (SEC-002, wired here):** When the task is security-sensitive (`security_sensitive: true` in `00-state.md`, or determined by path/keyword/flag at Phase 0a), Phase 1.6 MUST also invoke the `security` agent in `design-review` mode BEFORE dispatching `plan-reviewer`. This is the in-pipeline equivalent of the panel that `/th:plan-review` runs in direct mode (centralization contract, `ref-direct-modes.md § "Plan Review Mode"`). The dispatch is conditional on security-sensitivity — it runs in addition to the `plan-reviewer`, never as a substitute. This wiring closes the latent gap where `--fast` or any other in-pipeline path could skip the security design-review for security-sensitive work. The carve-out in the `--fast` skip-set (see `§ "Fast mode"` in Phase 0a above) is the enforcement point; this wiring is the execution point. Both are required for the fail-closed guarantee.
 
 ### Inline fallback when Task subagent invocation is not available
 
@@ -3387,7 +3394,7 @@ When invoked with a `Direct Mode Task` (from a skill), execute only the specifie
 | design | `architect` (design mode) | none | intake + specify → invoke → present `01-plan.md` |
 | test | `tester` | `02-implementation.md` + `01-plan.md` § Task List (AC) | check AC exist → pass AC to tester → invoke → report. If no AC, warn user. **Only for testing a single feature's changes against AC.** |
 | validate | `qa` (validate mode) | `01-plan.md` § Task List + implementation | check AC exist. If missing → tell user to run `/th:define-ac` first. Do NOT invoke without AC. |
-| deliver | `delivery` | implementation + tests + validation | verify `02-implementation.md`, `03-testing.md`, AND `04-validation.md` exist. If any missing → tell user. |
+| deliver | `delivery` | implementation + tests + validation | verify `02-implementation.md`, `03-testing.md`, AND `04-validation.md` exist. If any missing → tell user. After `delivery` completes its internal work (branch, commits, changelog), run Phase 4.5 (internal review) and then emit STAGE-GATE-3 BEFORE any `git push` or `gh pr create`. The safe default for direct deliver is to emit the gate — it does NOT ship immediately. This mirrors the Stage 3 close of the full pipeline. |
 | define-ac | `qa` (define-ac mode) | none | invoke → present `00-acceptance-criteria.md` |
 | security | `security` | none (audit) or feature context (pipeline) | create workspaces → invoke → present `04-security.md` |
 | diagram | `architect` (research) → `diagrammer` | none | see `ref-direct-modes.md` § Diagram Mode |

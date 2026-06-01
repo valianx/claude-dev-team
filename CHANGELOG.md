@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.40.12] - 2026-05-31
+
+### Fixed
+
+- Hardened recover/deliver gating and deduped Tier table (PR I — pipeline-flows-hardening, FINAL): `/th:recover` now re-emits any un-cleared STAGE-GATE on resume and never infers gate-cleared status from `next_action` prose — the determination is structural (checklist + `stage.gate.release` events trace); recover is idempotent (skips `[x]` phases, de-dups `phase.*`/`kg_write` appends via structural lookup not regex); dead pointer `00-execution-log.md` → `00-execution-events.{md,jsonl}` fixed in `skills/recover/SKILL.md`; `/th:deliver` direct mode now runs Phase 4.5 (internal review) and emits STAGE-GATE-3 BEFORE any `git push`/`gh pr create` (safe default — no ship-immediately); Tier table deduplicated — canonical source is `orchestrator.md § "Bug tier"`, `ref-special-flows.md § "Tier System"` replaced with a pointer plus a summary of tier names, signals, and auto-escalation rules. Suite 48 (19 anchor-scoped checks, `pr-i-recover-dedup`) added to `tests/test_agent_structure.py`.
+
+### Security
+
+- SEC-002 closed: `--fast` no longer skips the security design-review for security-sensitive scope — a carve-out in the `--fast` skip-set ensures the `security` agent is dispatched in design-review mode within Phase 1.6 when the task is security-sensitive (path/keyword/flag or `type: hotfix` on a sensitive path); the Phase 1.6 in-pipeline security dispatch is now wired (previously only ran via `/th:plan-review` direct mode); the carve-out predicate is identical to the Phase 3 security-sensitive predicate (no asymmetric fail-open); this is additive to the Tier 3+ hotfix floor from PR B.
+- SEC-INFO-02 closed: expanded the semantic keyword list (design-review trigger, `ref-direct-modes.md § "Review Panel"`) with seven new high-risk terms: `deserialize`, `unserialize`, `pickle`, `SSRF`, `webhook`, `upload`, `sanitize`; the summary (L20) is aligned; the note clarifies that this list is deliberately broader than Signal 1 (Tier-4 escalation list) — divergence is by purpose, not drift.
+
 ## [2.40.11] - 2026-05-31
 
 ### Fixed

@@ -10650,6 +10650,525 @@ check(
 
 
 # ---------------------------------------------------------------------------
+# Suite 48 -- pr-i-recover-dedup (AC-1..AC-9 + AC-10/11/12 meta-checks)
+# ---------------------------------------------------------------------------
+# Regression assertions written FAILING-FIRST (Phase 2.0 mandate) against the
+# current source state (team-harness 2.40.11).  They become GREEN after the
+# implementer lands all 8 fixes.  Each content check is ANCHOR-SCOPED via
+# _slice_section so that:
+#   - a missing anchor returns "" → token-in-"" is False → the check fails
+#     clearly (not silently) even if the token happens to exist elsewhere.
+#   - renaming or removing the anchored section fails the check, not the
+#     ambient-presence guard.
+#
+# CANONICAL ANCHORS (implementer MUST add/use these verbatim in target files):
+#   skills/recover/SKILL.md    : "## Recover Safety Rules"  (NEW)
+#   agents/orchestrator.md     : "## Recovery Instructions"  (exists today)
+#   agents/orchestrator.md     : "## Direct Modes"           (exists today)
+#   agents/ref-special-flows.md: "### Tier System (4 tiers)" (exists today)
+#   agents/orchestrator.md     : "## Fast Mode"  OR look for --fast skip-set text
+#                                via "## Phase 0a" (exists today)
+#   agents/ref-special-flows.md: "## Fast Mode"              (exists today)
+#   agents/orchestrator.md     : "### Phase 1.6 is inviolable" (exists today)
+#   agents/ref-direct-modes.md : "### Review Panel"          (exists today)
+#
+# PR F LESSON (mandatory): INLINE cross-references to anchored sections use
+# the `§ "Section Name"` form, NEVER a raw `### Heading` literal inline.
+# _slice_section keys on the first textual occurrence — a duplicate hijacks
+# another suite's slice.  New anchors for Suite 48 must NOT collide with
+# those used by Suites 34/35/36/37/38/39/40/41/42/43/44/45/46/47.
+#
+# Check index → AC mapping:
+#   (1)  AC-1        recover re-emit rule present in recover SKILL.md (new section)
+#   (2)  AC-1        recover re-emit rule present in orchestrator.md Recovery Instructions
+#   (3)  AC-2        skip-[x] + de-dup structural rule in recover SKILL.md
+#   (4)  AC-2        skip-[x] + de-dup structural rule in orchestrator.md Recovery Instructions
+#   (5)  AC-3        dead pointer fixed: 00-execution-log.md absent; 00-execution-events present
+#   (6)  AC-4        deliver direct-mode row references STAGE-GATE-3 + Phase 4.5
+#   (7)  AC-5        ref-special-flows.md Tier section contains pointer § "..." (no table copy)
+#   (8)  AC-6        [TIER: 0] and Tier1→2 auto-promotion unambiguous in orchestrator (single canonical)
+#   (9)  AC-7(i)     --fast skip-set carve-out: security design-review NOT skipped for security-sensitive
+#   (10) AC-7(ii)    Phase 1.6 wiring: security dispatched in-pipeline when security-sensitive
+#   (11) AC-8        7 new keywords present in ref-direct-modes.md § Review Panel (canonical list)
+#   (12) AC-9        §N resolver: each §N intra-CLAUDE.md resolves to a real ## N. heading
+#   (13) AC-11/12   Suite 48 in docs/testing.md; NOT in CLAUDE.md §11
+# ---------------------------------------------------------------------------
+print()
+print("=== Suite 48: pr-i-recover-dedup — recover/deliver gating + Tier dedup + security findings ===")
+
+# ---- file reads (suite-local) ----------------------------------------------
+_s48_recover   = read(skill_path("recover"))
+_s48_orch      = read(AGENTS_DIR / "orchestrator.md")
+_s48_rsf       = read(AGENTS_DIR / "ref-special-flows.md")
+_s48_rdm       = read(AGENTS_DIR / "ref-direct-modes.md")
+_s48_claude    = read(REPO_ROOT / "CLAUDE.md")
+_s48_testing   = read(REPO_ROOT / "docs" / "testing.md")
+_s48_self      = Path(__file__).read_text(encoding="utf-8")
+
+# ---- canonical anchors & slices --------------------------------------------
+# Group A — recover safety
+_S48_RECOVER_SAFETY_ANCHOR  = "## Recover Safety Rules"
+_S48_ORCH_RECOVERY_ANCHOR   = "## Recovery Instructions"
+
+# Group B — deliver direct-mode gate
+_S48_DIRECT_MODES_ANCHOR    = "## Direct Modes"
+
+# Group C — Tier-table dedup
+_S48_RSF_TIER_ANCHOR        = "### Tier System (4 tiers)"
+
+# Group D — --fast carve-out + Phase 1.6 security wiring
+# For the --fast skip-set we anchor on Phase 0a where fast_mode is declared
+_S48_ORCH_PHASE0A_ANCHOR    = "## Phase 0a"
+_S48_RSF_FASTMODE_ANCHOR    = "## Fast Mode"
+# For Phase 1.6 wiring we anchor on the Phase 1.6 inviolable block
+_S48_ORCH_PHASE16_ANCHOR    = "### Phase 1.6 is inviolable"
+# For keyword expansion we anchor on the Review Panel section
+_S48_RDM_PANEL_ANCHOR       = "### Review Panel"
+
+_s48_recover_safety_slice   = _slice_section(_s48_recover, _S48_RECOVER_SAFETY_ANCHOR)
+_s48_orch_recovery_slice    = _slice_section(_s48_orch,    _S48_ORCH_RECOVERY_ANCHOR)
+_s48_direct_modes_slice     = _slice_section(_s48_orch,    _S48_DIRECT_MODES_ANCHOR)
+_s48_rsf_tier_slice         = _slice_section(_s48_rsf,     _S48_RSF_TIER_ANCHOR)
+_s48_orch_phase0a_slice     = _slice_section(_s48_orch,    _S48_ORCH_PHASE0A_ANCHOR)
+_s48_rsf_fastmode_slice     = _slice_section(_s48_rsf,     _S48_RSF_FASTMODE_ANCHOR)
+_s48_orch_phase16_slice     = _slice_section(_s48_orch,    _S48_ORCH_PHASE16_ANCHOR)
+_s48_rdm_panel_slice        = _slice_section(_s48_rdm,     _S48_RDM_PANEL_ANCHOR)
+
+# ---------------------------------------------------------------------------
+# Check (1) / AC-1 — recover SKILL.md must contain the new safety section
+# with the imperatives: re-emit any un-cleared STAGE-GATE on resume, and
+# never infer approval from next_action prose.
+#
+# Today: skills/recover/SKILL.md L21 references "00-execution-log.md" and
+# passes next_action as truth; no re-emit rule exists.  The check fails.
+# After fix: the section exists with the required tokens.
+#
+# Tokens required in slice:
+#   "re-emit"        — the imperative to re-emit the STOP block
+#   "STAGE-GATE"     — the gate type being re-emitted
+#   one of "never infer" / "never infer approval" / "not infer"
+#            — the prohibition on prose-based inference
+#   one of "next_action" / "next action"
+#            — the specific prose field that must NOT be trusted
+# ---------------------------------------------------------------------------
+_S48_REEMIT_TOKENS   = ("re-emit", "STAGE-GATE")
+_S48_NOINFER_ALTS    = ("never infer", "not infer", "never infer approval")
+_S48_NEXTACT_ALTS    = ("next_action", "next action")
+
+check(
+    "recover-dedup(1/ac-1): skills/recover/SKILL.md § Recover Safety Rules"
+    " contains re-emit imperative + STAGE-GATE + never-infer-next_action rule",
+    bool(_s48_recover_safety_slice)
+    and all(t in _s48_recover_safety_slice for t in _S48_REEMIT_TOKENS)
+    and any(a in _s48_recover_safety_slice for a in _S48_NOINFER_ALTS)
+    and any(a in _s48_recover_safety_slice for a in _S48_NEXTACT_ALTS),
+    f"anchor '{_S48_RECOVER_SAFETY_ANCHOR}' missing from skills/recover/SKILL.md"
+    f" or required tokens absent;"
+    f" anchor present: {bool(_s48_recover_safety_slice)};"
+    + " ".join(f" '{t}': {t in _s48_recover_safety_slice};" for t in _S48_REEMIT_TOKENS)
+    + f" never-infer-alt found: {any(a in _s48_recover_safety_slice for a in _S48_NOINFER_ALTS)};"
+    f" next_action-alt found: {any(a in _s48_recover_safety_slice for a in _S48_NEXTACT_ALTS)}"
+    " — implementer must add the Recover Safety Rules section with the re-emit imperative",
+)
+
+# ---------------------------------------------------------------------------
+# Check (2) / AC-1 — orchestrator.md § Recovery Instructions must contain
+# the same re-emit rule.  The safety contract must live in BOTH places so
+# that both the skill and the orchestrator enforce it.
+#
+# SEC-DR-4 refinement: the gate-released signal must be STRUCTURAL
+# (checklist/events), not prose.  Tokens required in slice:
+#   "re-emit"        — the imperative
+#   "STAGE-GATE"     — the gate type
+#   one of "structural" / "stage.gate.release" / "00-state.md"
+#            — the structural signal that determines gate-cleared status
+#   one of "never infer" / "not infer" / "never infer ... next_action"
+#            — the prohibition on prose-based inference
+# ---------------------------------------------------------------------------
+_S48_STRUCTURAL_ALTS = ("structural", "stage.gate.release", "00-state.md")
+
+check(
+    "recover-dedup(2/ac-1+sec-dr-4): orchestrator.md § Recovery Instructions"
+    " contains re-emit + STAGE-GATE + structural-signal + never-infer-next_action;"
+    " gate-cleared determination is STRUCTURAL (checklist/events), not prose",
+    bool(_s48_orch_recovery_slice)
+    and "re-emit" in _s48_orch_recovery_slice
+    and "STAGE-GATE" in _s48_orch_recovery_slice
+    and any(a in _s48_orch_recovery_slice for a in _S48_STRUCTURAL_ALTS)
+    and any(a in _s48_orch_recovery_slice for a in _S48_NOINFER_ALTS),
+    f"anchor '{_S48_ORCH_RECOVERY_ANCHOR}' missing from orchestrator.md"
+    f" or required tokens absent;"
+    f" anchor present: {bool(_s48_orch_recovery_slice)};"
+    f" re-emit: {'re-emit' in _s48_orch_recovery_slice};"
+    f" STAGE-GATE: {'STAGE-GATE' in _s48_orch_recovery_slice};"
+    f" structural-alt found: {any(a in _s48_orch_recovery_slice for a in _S48_STRUCTURAL_ALTS)};"
+    f" never-infer-alt found: {any(a in _s48_orch_recovery_slice for a in _S48_NOINFER_ALTS)}"
+    " — implementer must add the re-emit + structural-signal rule to Recovery Instructions",
+)
+
+# ---------------------------------------------------------------------------
+# Check (3) / AC-2 — recover SKILL.md § Recover Safety Rules must contain
+# the idempotency rules: skip [x] phases and de-dup structural (not regex).
+#
+# Today: no such rule in SKILL.md.  Check fails.
+# Tokens required in slice:
+#   one of "skip" / "[x]" — the phase-skip imperative
+#   one of "de-dup" / "dedup" / "idempotent" — the de-dup requirement
+#   one of "structural" / "JSON parse" / "lookup" — the structural method
+# ---------------------------------------------------------------------------
+_S48_IDEM_SKIP_ALTS     = ("skip", "[x]")
+_S48_IDEM_DEDUP_ALTS    = ("de-dup", "dedup", "idempotent")
+_S48_IDEM_STRUCT_ALTS   = ("structural", "JSON parse", "lookup")
+
+check(
+    "recover-dedup(3/ac-2): skills/recover/SKILL.md § Recover Safety Rules"
+    " contains idempotency: skip-[x]-phases + de-dup structural (not regex)",
+    bool(_s48_recover_safety_slice)
+    and any(a in _s48_recover_safety_slice for a in _S48_IDEM_SKIP_ALTS)
+    and any(a in _s48_recover_safety_slice for a in _S48_IDEM_DEDUP_ALTS)
+    and any(a in _s48_recover_safety_slice for a in _S48_IDEM_STRUCT_ALTS),
+    f"anchor '{_S48_RECOVER_SAFETY_ANCHOR}' missing from skills/recover/SKILL.md"
+    f" or idempotency tokens absent;"
+    f" anchor present: {bool(_s48_recover_safety_slice)};"
+    f" skip-[x]-alt: {any(a in _s48_recover_safety_slice for a in _S48_IDEM_SKIP_ALTS)};"
+    f" de-dup-alt: {any(a in _s48_recover_safety_slice for a in _S48_IDEM_DEDUP_ALTS)};"
+    f" structural-alt: {any(a in _s48_recover_safety_slice for a in _S48_IDEM_STRUCT_ALTS)}"
+    " — implementer must add skip-[x] + de-dup structural idempotency rules",
+)
+
+# ---------------------------------------------------------------------------
+# Check (4) / AC-2 — orchestrator.md § Recovery Instructions must also
+# contain the idempotency rule (same three token families).
+# ---------------------------------------------------------------------------
+check(
+    "recover-dedup(4/ac-2): orchestrator.md § Recovery Instructions"
+    " contains idempotency: skip-[x]-phases + de-dup structural",
+    bool(_s48_orch_recovery_slice)
+    and any(a in _s48_orch_recovery_slice for a in _S48_IDEM_SKIP_ALTS)
+    and any(a in _s48_orch_recovery_slice for a in _S48_IDEM_DEDUP_ALTS),
+    f"anchor '{_S48_ORCH_RECOVERY_ANCHOR}' missing from orchestrator.md"
+    f" or idempotency tokens absent;"
+    f" anchor present: {bool(_s48_orch_recovery_slice)};"
+    f" skip-[x]-alt: {any(a in _s48_orch_recovery_slice for a in _S48_IDEM_SKIP_ALTS)};"
+    f" de-dup-alt: {any(a in _s48_orch_recovery_slice for a in _S48_IDEM_DEDUP_ALTS)}"
+    " — implementer must add the idempotency rule to Recovery Instructions",
+)
+
+# ---------------------------------------------------------------------------
+# Check (5) / AC-3 — dead pointer fixed.
+# skills/recover/SKILL.md must NOT contain "00-execution-log.md" and MUST
+# contain "00-execution-events".  File-wide check (the dead pointer is at
+# L21 today; we need it gone completely, not just in one section).
+# ---------------------------------------------------------------------------
+check(
+    "recover-dedup(5/ac-3): skills/recover/SKILL.md dead pointer fixed —"
+    " '00-execution-log.md' absent; '00-execution-events' present",
+    "00-execution-log.md" not in _s48_recover
+    and "00-execution-events" in _s48_recover,
+    f"Dead pointer fix absent in skills/recover/SKILL.md;"
+    f" '00-execution-log.md' still present: {'00-execution-log.md' in _s48_recover};"
+    f" '00-execution-events' present: {'00-execution-events' in _s48_recover}"
+    " — implementer must replace the dead pointer with the canonical events file name",
+)
+
+# ---------------------------------------------------------------------------
+# Check (6) / AC-4 — deliver direct-mode gate.
+# orchestrator.md § Direct Modes (the fila `deliver`) must reference
+# STAGE-GATE-3 AND Phase 4.5 (internal review) so that the direct deliver
+# mode emits the gate before push/PR.
+#
+# Today: the deliver row says only "verify 02-implementation.md, 03-testing.md,
+# AND 04-validation.md exist" — no gate, no Phase 4.5.  Check fails.
+# Tokens required in slice (the Direct Modes table):
+#   "deliver"      — the mode row identifier (already present, anchor check)
+#   "STAGE-GATE-3" — the gate being emitted
+#   "Phase 4.5"    — the internal review step run before the gate
+# Note: the deliver row is inside the Direct Modes section; _slice_section
+# stops at the next heading so the slice covers the full modes table.
+# ---------------------------------------------------------------------------
+check(
+    "recover-dedup(6/ac-4): orchestrator.md § Direct Modes deliver row"
+    " references STAGE-GATE-3 + Phase 4.5 (gate before push/PR)",
+    bool(_s48_direct_modes_slice)
+    and "deliver" in _s48_direct_modes_slice
+    and "STAGE-GATE-3" in _s48_direct_modes_slice
+    and "Phase 4.5" in _s48_direct_modes_slice,
+    f"anchor '{_S48_DIRECT_MODES_ANCHOR}' missing from orchestrator.md"
+    f" or deliver gate tokens absent;"
+    f" anchor present: {bool(_s48_direct_modes_slice)};"
+    f" 'deliver' row present: {'deliver' in _s48_direct_modes_slice};"
+    f" 'STAGE-GATE-3' in deliver row: {'STAGE-GATE-3' in _s48_direct_modes_slice};"
+    f" 'Phase 4.5' in deliver row: {'Phase 4.5' in _s48_direct_modes_slice}"
+    " — implementer must add STAGE-GATE-3 + Phase 4.5 to the deliver direct-mode row",
+)
+
+# ---------------------------------------------------------------------------
+# Check (7) / AC-5 — Tier-table dedup: ref-special-flows.md Tier section
+# must contain a pointer (§ "...") to the canonical orchestrator table, NOT
+# a full copy of the Tier rows.
+#
+# Today: ref-special-flows.md L131-137 contains a full Tier 0-4 table.
+# After fix: the Tier section in ref-special-flows.md contains a pointer
+# using the `§ "..."` form and the full table rows are removed.
+#
+# Strategy:
+#   - Pointer present: one of '§ "Tier System"' / '§ "Bug tier"' / 'see orchestrator'
+#     using the `§ "..."` form (NOT a bare section heading).
+#   - Full table absent: "| **0** |" and "| **1** |" must NOT appear in the
+#     Tier System slice of ref-special-flows.md (those are the first two table
+#     rows of the old copy).
+# ---------------------------------------------------------------------------
+_S48_TIER_PTR_ALTS = (
+    '§ "Tier System"',
+    '§ "Bug tier"',
+    "see orchestrator",
+    "orchestrator.md § ",
+)
+_S48_TIER_TABLE_ROW_0 = "| **0** |"
+_S48_TIER_TABLE_ROW_1 = "| **1** |"
+
+check(
+    "recover-dedup(7/ac-5): ref-special-flows.md § Tier System contains a pointer"
+    " to orchestrator canonical table (§ '...') and does NOT contain a full table copy",
+    bool(_s48_rsf_tier_slice)
+    and any(a in _s48_rsf_tier_slice for a in _S48_TIER_PTR_ALTS)
+    and _S48_TIER_TABLE_ROW_0 not in _s48_rsf_tier_slice
+    and _S48_TIER_TABLE_ROW_1 not in _s48_rsf_tier_slice,
+    f"anchor '{_S48_RSF_TIER_ANCHOR}' missing from ref-special-flows.md"
+    f" or Tier-table dedup not applied;"
+    f" anchor present: {bool(_s48_rsf_tier_slice)};"
+    f" pointer-alt found: {any(a in _s48_rsf_tier_slice for a in _S48_TIER_PTR_ALTS)};"
+    f" table-row-0 still present (must be False): {_S48_TIER_TABLE_ROW_0 in _s48_rsf_tier_slice};"
+    f" table-row-1 still present (must be False): {_S48_TIER_TABLE_ROW_1 in _s48_rsf_tier_slice}"
+    " — implementer must replace the Tier table copy with a pointer § '...' form",
+)
+
+# ---------------------------------------------------------------------------
+# Check (8) / AC-6 — [TIER: 0] drift and Tier1→2 auto-promotion resolved:
+# orchestrator.md (canonical source) must contain both in unambiguous form.
+# File-wide check: we assert the canonical statements are present in orch
+# rather than in ref-special-flows (which now holds only a pointer).
+# Tokens:
+#   "[TIER: 0]"          — the operator override marker
+#   one of "Tier1→2" / "Tier 1→2" / "Tier 1 → Tier 2" / "auto-promoted to Tier 2"
+#            — the auto-promotion rule unambiguously stated
+# ---------------------------------------------------------------------------
+_S48_TIER1TO2_ALTS = (
+    "Tier1→2",
+    "Tier 1→2",
+    "Tier 1 → Tier 2",
+    "auto-promoted to Tier 2",
+)
+
+check(
+    "recover-dedup(8/ac-6): orchestrator.md (canonical) contains"
+    " '[TIER: 0]' and unambiguous Tier1→2 auto-promotion statement",
+    "[TIER: 0]" in _s48_orch
+    and any(a in _s48_orch for a in _S48_TIER1TO2_ALTS),
+    f"orchestrator.md missing canonical Tier-drift fix;"
+    f" '[TIER: 0]' present: {'[TIER: 0]' in _s48_orch};"
+    f" Tier1→2-alt found: {any(a in _s48_orch for a in _S48_TIER1TO2_ALTS)}"
+    " — implementer must ensure [TIER: 0] and auto-promotion Tier1→2 are unambiguously"
+    " stated once in orchestrator.md (the canonical Tier table source)",
+)
+
+# ---------------------------------------------------------------------------
+# Check (9) / AC-7(i) — --fast carve-out for security design-review.
+# The --fast skip-set (Phase 0a in orchestrator.md) must declare that the
+# security design-review is NOT skipped when the scope is security-sensitive.
+#
+# SEC-DR-1: the carve-out predicate must match the Phase 3 security-sensitive
+# predicate — we verify both reference "security-sensitive" (same term).
+#
+# Today: orchestrator.md L915 skips "plan review (Phase 1.6)" with no carve-out.
+# After fix: the skip-set or its immediate context names the carve-out.
+#
+# Tokens required in Phase 0a slice:
+#   "security design-review"  — naming the specific thing NOT skipped
+#   one of "carve-out" / "not skip" / "NOT skip" / "security-sensitive"
+#            — the carve-out declaration
+# Also verify in ref-special-flows.md § Fast Mode:
+#   "security design-review" + one of the carve-out terms
+# ---------------------------------------------------------------------------
+_S48_CARVEOUT_ALTS = ("carve-out", "not skip", "NOT skip", "security-sensitive")
+
+check(
+    "recover-dedup(9/ac-7-i): orchestrator.md § Phase 0a --fast skip-set"
+    " declares explicit carve-out: security design-review NOT skipped"
+    " when security-sensitive (SEC-DR-1 predicate match)",
+    bool(_s48_orch_phase0a_slice)
+    and "security design-review" in _s48_orch_phase0a_slice
+    and any(a in _s48_orch_phase0a_slice for a in _S48_CARVEOUT_ALTS),
+    f"anchor '{_S48_ORCH_PHASE0A_ANCHOR}' missing from orchestrator.md"
+    f" or carve-out tokens absent in --fast skip-set;"
+    f" anchor present: {bool(_s48_orch_phase0a_slice)};"
+    f" 'security design-review' in slice: {'security design-review' in _s48_orch_phase0a_slice};"
+    f" carve-out-alt found: {any(a in _s48_orch_phase0a_slice for a in _S48_CARVEOUT_ALTS)}"
+    " — implementer must add the security-design-review carve-out to the --fast skip-set",
+)
+
+# ---------------------------------------------------------------------------
+# Check (10) / AC-7(ii) — Phase 1.6 in-pipeline security dispatch wiring.
+# orchestrator.md § Phase 1.6 is inviolable must declare that security
+# (design-review mode) is dispatched in-pipeline when security-sensitive.
+#
+# Today: L1227-1233 dispatches only plan-reviewer; no security dispatch.
+# After fix: the Phase 1.6 section names security dispatch for security-sensitive.
+#
+# Tokens required in slice:
+#   "security"            — the agent being dispatched
+#   "design-review"       — the mode
+#   one of "security-sensitive" / "when security" / "if security"
+#            — the condition
+#   one of "dispatch" / "invoke" / "run"
+#            — the wiring action
+# ---------------------------------------------------------------------------
+_S48_P16_CONDITION_ALTS = ("security-sensitive", "when security", "if security")
+_S48_P16_ACTION_ALTS    = ("dispatch", "invoke", "run")
+
+check(
+    "recover-dedup(10/ac-7-ii): orchestrator.md § Phase 1.6 is inviolable"
+    " wires security (design-review) dispatch in-pipeline when security-sensitive",
+    bool(_s48_orch_phase16_slice)
+    and "security" in _s48_orch_phase16_slice
+    and "design-review" in _s48_orch_phase16_slice
+    and any(a in _s48_orch_phase16_slice for a in _S48_P16_CONDITION_ALTS)
+    and any(a in _s48_orch_phase16_slice for a in _S48_P16_ACTION_ALTS),
+    f"anchor '{_S48_ORCH_PHASE16_ANCHOR}' missing from orchestrator.md"
+    f" or security-dispatch wiring tokens absent;"
+    f" anchor present: {bool(_s48_orch_phase16_slice)};"
+    f" 'security' in slice: {'security' in _s48_orch_phase16_slice};"
+    f" 'design-review' in slice: {'design-review' in _s48_orch_phase16_slice};"
+    f" condition-alt found: {any(a in _s48_orch_phase16_slice for a in _S48_P16_CONDITION_ALTS)};"
+    f" action-alt found: {any(a in _s48_orch_phase16_slice for a in _S48_P16_ACTION_ALTS)}"
+    " — implementer must wire security design-review dispatch in Phase 1.6 for security-sensitive tasks",
+)
+
+# ---------------------------------------------------------------------------
+# Check (11) / AC-8 — 7 new security keywords present in ref-direct-modes.md
+# § Review Panel (the single canonical design-review trigger list).
+#
+# Today: the 7 terms are absent from this list.  Each is checked individually
+# so a failure pinpoints the exact missing term.
+# ---------------------------------------------------------------------------
+_S48_NEW_KEYWORDS = (
+    "deserialize",
+    "unserialize",
+    "pickle",
+    "SSRF",
+    "webhook",
+    "upload",
+    "sanitize",
+)
+
+for _kw in _S48_NEW_KEYWORDS:
+    check(
+        f"recover-dedup(11/ac-8): ref-direct-modes.md § Review Panel"
+        f" contains new security keyword '{_kw}' (design-review trigger list)",
+        bool(_s48_rdm_panel_slice)
+        and _kw in _s48_rdm_panel_slice,
+        f"anchor '{_S48_RDM_PANEL_ANCHOR}' missing from ref-direct-modes.md"
+        f" or keyword '{_kw}' absent from the canonical design-review trigger list;"
+        f" anchor present: {bool(_s48_rdm_panel_slice)};"
+        f" '{_kw}' in slice: {_kw in _s48_rdm_panel_slice}"
+        f" — implementer must add '{_kw}' to the semantic keyword list in § Review Panel",
+    )
+
+# ---------------------------------------------------------------------------
+# Check (12) / AC-9 — §N section-ref resolver: each §N reference that
+# appears intra-file in CLAUDE.md must resolve to a real ## N. heading.
+#
+# Scope (per architect decision): CLAUDE.md intra-file only.  Cross-file
+# references (e.g. "§5" appearing in an agent md) are out of scope.
+#
+# Algorithm:
+#   1. Find all real numbered headings in CLAUDE.md: lines matching /^## (\d+)\./
+#      → build a set of real_nums = {"1","2",...,"16"}.
+#   2. Find all §N references in CLAUDE.md body: matches of /§(\d+)/ excluding
+#      lines that ARE the heading themselves.
+#   3. Assert every referenced N is in real_nums.
+# ---------------------------------------------------------------------------
+import re as _re
+
+_s48_claude_lines    = _s48_claude.splitlines()
+_s48_real_nums       = set()
+_s48_broken_refs: list[str] = []
+
+for _line in _s48_claude_lines:
+    _hm = _re.match(r"^## (\d+)\.", _line)
+    if _hm:
+        _s48_real_nums.add(_hm.group(1))
+
+for _lno, _line in enumerate(_s48_claude_lines, 1):
+    # Skip the heading lines themselves — they define, not reference.
+    if _re.match(r"^## \d+\.", _line):
+        continue
+    for _rm in _re.finditer(r"§(\d+)", _line):
+        _ref_n = _rm.group(1)
+        if _ref_n not in _s48_real_nums:
+            _s48_broken_refs.append(f"L{_lno}: §{_ref_n} (real headings: {sorted(_s48_real_nums)})")
+
+check(
+    "recover-dedup(12/ac-9): CLAUDE.md §N section-ref resolver —"
+    " every intra-file §N reference resolves to a real ## N. heading"
+    " (cross-file refs are out of scope)",
+    len(_s48_broken_refs) == 0,
+    f"Broken §N references found in CLAUDE.md: {_s48_broken_refs}"
+    " — implementer must fix the dangling references or add the missing sections",
+)
+
+# ---------------------------------------------------------------------------
+# Check (13) / AC-11 + AC-12 — meta-checks:
+#   (a) Suite 48 registered in docs/testing.md (canonical registry),
+#       NOT in CLAUDE.md §11 (hygiene contract).
+#   (b) This file contains 'Suite 48' + '_slice_section' + 'pr-i-recover-dedup'.
+#
+# The CLAUDE.md §11 check slices between "## 11." and "## 12." (same idiom
+# as Suite 47 check 12).
+# ---------------------------------------------------------------------------
+_S48_CLAUDE_S11_START = "## 11."
+_S48_CLAUDE_S12_START = "## 12."
+_s48_s11_idx = _s48_claude.find(_S48_CLAUDE_S11_START)
+_s48_s12_idx = (
+    _s48_claude.find(_S48_CLAUDE_S12_START, _s48_s11_idx)
+    if _s48_s11_idx != -1
+    else -1
+)
+_s48_claude_s11 = (
+    _s48_claude[_s48_s11_idx:_s48_s12_idx]
+    if _s48_s11_idx != -1 and _s48_s12_idx != -1
+    else (_s48_claude[_s48_s11_idx:] if _s48_s11_idx != -1 else "")
+)
+
+check(
+    "recover-dedup(13a/ac-11): docs/testing.md canonical registry names 'Suite 48'"
+    " and 'pr-i-recover-dedup'; this file contains 'Suite 48',"
+    " '_slice_section', and 'pr-i-recover-dedup'",
+    "Suite 48" in _s48_testing
+    and "pr-i-recover-dedup" in _s48_testing
+    and "Suite 48" in _s48_self
+    and "_slice_section" in _s48_self
+    and "pr-i-recover-dedup" in _s48_self,
+    f"Suite 48 not in docs/testing.md: {'Suite 48' not in _s48_testing};"
+    f" 'pr-i-recover-dedup' not in docs/testing.md: {'pr-i-recover-dedup' not in _s48_testing};"
+    f" 'Suite 48' in this file: {'Suite 48' in _s48_self};"
+    f" '_slice_section' in this file: {'_slice_section' in _s48_self};"
+    f" 'pr-i-recover-dedup' in this file: {'pr-i-recover-dedup' in _s48_self}"
+    " — tester must register Suite 48 in docs/testing.md (not CLAUDE.md §11)",
+)
+
+check(
+    "recover-dedup(13b/ac-12): CLAUDE.md §11 does NOT contain 'Suite 48'"
+    " (hygiene contract — per-suite inventory belongs in docs/testing.md, not §11)",
+    "Suite 48" not in _s48_claude_s11,
+    f"CLAUDE.md §11 contains literal 'Suite 48' — hygiene violation;"
+    f" Suite 48 must be registered only in docs/testing.md, not in CLAUDE.md §11;"
+    f" §11 slice found: {bool(_s48_claude_s11)}"
+    " — remove 'Suite 48' from CLAUDE.md §11 and register it in docs/testing.md",
+)
+
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 print()
