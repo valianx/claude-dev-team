@@ -1511,6 +1511,8 @@ PRs within the same round run **in parallel** in separate worktrees (same worktr
 
 **Sequential fallback:** if every PR has a chained `Depends on:` (PR-2 depends on PR-1, PR-3 depends on PR-2, etc.), the DAG degenerates into a line and the rounds become 1-PR rounds — identical to the legacy per-PR behaviour. The scheduler is correct in that case too. No special-casing.
 
+**Implementation order vs merge order (these are distinct concerns).** The DAG governs **implementation order** — which worktrees run in parallel and which wait for their dependencies. It does NOT govern merge order to `main`. Parallel rounds (PRs in the same DAG round running in separate worktrees simultaneously) do NOT authorize parallel merge to `main`. The merge order is always serial and is governed exclusively by the contract in `agents/delivery.md`: PR-N+1 opens and merges to `main` only after PR-N has landed. Each subsequent branch is cut from the updated `main` after the prior merge. This distinction matters for multi-PR plans: the work can be implemented in parallel, but it ships to `main` one PR at a time, serially.
+
 **Invoke via Task tool** with context:
 - Feature name for workspaces.
 - workspaces path: {resolved_workspaces_path}
